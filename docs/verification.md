@@ -1,14 +1,9 @@
-# Verification — 2026-10-27
+# Verification record
 
-Executed in the build workspace:
-- Python 3.12 dependency installation and hash-lock generation: passed.
-- Ruff checks and formatting: passed.
-- Eleven API tests: passed using disposable SQLite databases.
-- API source coverage: 100% for the small initial module (118 statements); this is not whole-product coverage.
-- Alembic upgrade, model/schema drift check, downgrade and re-upgrade on a disposable SQLite database: passed after correcting a float-column type mismatch.
+Foundation PR #1 and GitHub run https://github.com/Nagoor06/commutecircle/actions/runs/40487374148 passed PostgreSQL migrations, tests, Docker build, coverage upload and GHCR publication.
 
-Not executed: Docker/Compose build, PostgreSQL tests, GitHub Actions, image publication, cloud deployment, device tests or load benchmarks. Docker and a PostgreSQL server are unavailable in this workspace. PostgreSQL integration and Docker build checks are configured in CI and must pass on GitHub before release.
+The authenticated-rides tests cover actual RSA signature verification with mocked JWKS networking, invalid tokens, scopes, owner isolation, input validation, time conversion, search filters, database constraints and log privacy. Consult the milestone PR for its final GitHub CI result.
 
-Known dependency warning: Starlette reports that the current HTTPX-based TestClient path is deprecated in favor of httpx2. Tests pass; evaluate that transition with dependency updates rather than suppressing the warning.
+Not verified: live provider login/key rotation, Expo/device integration, cloud deployment, backup restoration or load benchmarks. No end-to-end mobile or performance claims are made.
 
-This release is an engineering foundation, not a completed carpool application. Authentication and authorization must be implemented before adding user-owned writes or exposing personal ride data.
+Known dependency warning: Starlette deprecates HTTPX TestClient in favor of httpx2. Tests execute; evaluate the migration in a dependency update instead of hiding the warning.
