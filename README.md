@@ -23,7 +23,7 @@ API documentation: http://localhost:8000/docs
 Readiness: http://localhost:8000/health/ready
 Pickup-point lookup: http://localhost:8000/v1/pickup-points?city=Hyderabad
 
-The database starts empty; no invented map locations are shipped. Ride writes require a configured provider-issued token; there is no development authentication bypass. Curated public pickup points will be added after choosing the pilot area.
+The database starts empty. An explicit local-only demo command can add clearly labelled synthetic test points. Ride writes require a configured provider-issued token; there is no development authentication bypass. Curated public pickup points will be added after choosing the pilot area.
 
 For Python development (Python 3.12):
 
@@ -53,3 +53,7 @@ Read [architecture](docs/architecture.md) for the module boundaries and [Windows
 ## Test real sign-in locally
 
 Follow [local Auth0 login](docs/local-login.md) to enable PKCE sign-in in Swagger and test `/v1/rides/mine`. This does not implement the mobile UI.
+
+## First local ride
+
+After sign-in works, follow [first demo ride](docs/first-ride.md) to seed two synthetic pickup points and exercise create, list and search.

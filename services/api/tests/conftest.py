@@ -4,7 +4,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
 from app.main import create_app
@@ -30,6 +30,12 @@ def client(tmp_path, monkeypatch):
                 ),
             ]
         )
+        session.flush()
+        if app.state.engine.dialect.name == "postgresql":
+            # Fixture IDs are explicit; keep generated IDs above them for seed tests.
+            session.execute(
+                text("SELECT setval(pg_get_serial_sequence('pickup_points', 'id'), 2, true)")
+            )
         session.commit()
     with TestClient(app) as test_client:
         yield test_client

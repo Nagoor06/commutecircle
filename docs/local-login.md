@@ -14,7 +14,7 @@ For initial local testing, use your existing public Native application. In its S
 
 Confirm Authorization Code is enabled under Advanced Settings / Grant Types and Token Endpoint Authentication Method is None. Enable your database connection for this application so users can sign up/sign in. Save changes. A separate development SPA client can be used instead by changing only DOCS_OAUTH_CLIENT_ID; keep development callbacks separate from production mobile configuration.
 
-In the CommuteCircle API configuration, confirm Identifier `https://commutecircle-api`, RS256, and permissions `rides:read` and `rides:write`. If RBAC is enabled, assign those permissions to the test user's role; the API checks the scope claim, not a permissions array. Defining a scope is not the same as granting it under RBAC.
+In the CommuteCircle API configuration, confirm Identifier `https://commutecircle-api`, RS256, and permissions `rides:read` and `rides:write`. Under API Settings → Application Access Policy, use per-app authorization for User-Delegated Access; then under Application Access grant this application User-Delegated Access with rides:read and rides:write. This grant is required separately from defining scopes. If RBAC is enabled, assign those permissions to the test user's role; the API checks the scope claim, not a permissions array. Defining a scope is not the same as granting it under RBAC.
 
 ## Local environment
 

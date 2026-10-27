@@ -15,3 +15,5 @@ Tests sign JWTs with ephemeral RSA keys and replace only JWKS network lookup, so
 Reference: https://pyjwt.readthedocs.io/en/latest/usage.html
 
 Optional local Swagger PKCE sign-in is now implemented; see [local login](local-login.md). It uses only a public client ID. Live provider sign-in still needs dashboard configuration and user verification.
+
+Auth0 application access: define API permissions, then grant the application **User-Delegated Access** to the API with those permissions in the API Application Access tab. A missing application grant causes Auth0 to reject the authorization request before issuing a token.
