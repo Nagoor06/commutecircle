@@ -5,7 +5,6 @@ services:
       POSTGRES_USER: commutecircle
       POSTGRES_DB: commutecircle
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env first}
-    ports: ["127.0.0.1:5432:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U commutecircle -d commutecircle"]
@@ -25,6 +24,7 @@ services:
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
       OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      DOCS_OAUTH_CLIENT_ID: ${DOCS_OAUTH_CLIENT_ID:-}
     ports: ["127.0.0.1:8000:8000"]
     depends_on:
       migrate: {condition: service_completed_successfully}

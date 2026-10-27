@@ -13,3 +13,5 @@ Driver identity is the verified `(issuer, subject)` pair, stored internally and 
 Tests sign JWTs with ephemeral RSA keys and replace only JWKS network lookup, so actual signature and claim validation still run. Live provider login/key rotation needs a separate staging test. Before public launch, configure the provider, implement Expo authorization-code + PKCE and secure token storage, verify logout/revocation behavior, and add rate limiting and key-refresh load tests.
 
 Reference: https://pyjwt.readthedocs.io/en/latest/usage.html
+
+Optional local Swagger PKCE sign-in is now implemented; see [local login](local-login.md). It uses only a public client ID. Live provider sign-in still needs dashboard configuration and user verification.

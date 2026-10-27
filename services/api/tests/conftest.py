@@ -37,7 +37,7 @@ def client(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clear_oidc_environment(monkeypatch):
-    for name in ("OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL"):
+    for name in ("OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL", "DOCS_OAUTH_CLIENT_ID"):
         monkeypatch.delenv(name, raising=False)
 
 

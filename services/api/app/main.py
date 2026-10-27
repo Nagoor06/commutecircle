@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.router import api_router
+from app.auth.docs import configure_login_docs
 from app.auth.tokens import TokenVerifier
 from app.core.config import Settings
 from app.db.session import build_engine
@@ -23,4 +24,5 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.state.token_verifier = TokenVerifier(settings) if settings.oidc_issuer else None
     app.middleware("http")(request_context)
     app.include_router(api_router)
+    configure_login_docs(app, settings)
     return app
