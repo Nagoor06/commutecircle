@@ -8,7 +8,7 @@ Use a modular FastAPI monolith, PostgreSQL, and a React Native/Expo TypeScript c
 
 1. Foundation (this increment): explicit configuration, migrations, health probes, privacy-conscious logging, reproducible dependencies, tests, container build, CI, image publication.
 2. Identity and rides: managed OIDC sign-in, verified token validation, ownership checks, curated pickup IDs, timezone-aware departures, ride creation/search, API contract tests. Never trust a caller-supplied user ID.
-3. Booking: driver approval, atomic seat allocation, duplicate-request prevention, idempotency keys, cancellation state transitions, and PostgreSQL concurrency tests. Acceptance must not oversell the last seat.
+3. Booking: driver approval, atomic seat allocation, duplicate-request prevention, idempotent retry behavior, cancellation state transitions, and PostgreSQL concurrency tests. Acceptance must not oversell the last seat.
 4. Mobile: Expo screens, secure token storage, API integration, loading/empty/error states, accessibility checks, component tests and device smoke tests.
 5. Staging and operations: provider-specific infrastructure as code, OIDC deployments, database backups/restore drill, OpenTelemetry tracing, metrics dashboard, alert and rollback exercise.
 6. Route matching: PostGIS, public pickup walking limits, driver detour constraints, ranking evaluation and realistic seeded load tests.
@@ -23,7 +23,7 @@ Existing experience already includes Python, FastAPI, Docker, CI/CD tools and AI
 | Reproducible builds | Hash-locked Python dependencies, non-root container | Source prepared; Docker execution pending |
 | Database evolution | Reviewed Alembic migrations, migration checks | Initial migration; local SQLite validation |
 | Integration testing | PostgreSQL tests and CI artifacts | Workflow configured; remote run pending |
-| Transaction correctness | Last-seat race test, idempotent request tests | Planned for booking |
+| Transaction correctness | Last-seat race test, idempotent request tests | Implemented; PostgreSQL race tests in CI |
 | Secure delivery | Minimal workflow permissions, pinned actions, OIDC cloud trust | CI source prepared; cloud trust planned |
 | Supply-chain controls | Dependency audit, secret scan, image scan, SBOM/provenance | Release gate work still required |
 | Infrastructure as code | Reviewed staging/prod resources, environment isolation | Planned after provider selection |
