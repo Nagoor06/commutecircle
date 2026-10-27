@@ -9,6 +9,7 @@ class Settings:
     oidc_issuer: str = ""
     oidc_audience: str = ""
     oidc_jwks_url: str = ""
+    docs_oauth_client_id: str = ""
 
     @classmethod
     def from_environment(cls, database_url: str | None = None):
@@ -30,4 +31,7 @@ class Settings:
                     or parsed.password
                 ):
                     raise RuntimeError("OIDC endpoints must be HTTPS URLs without credentials")
-        return cls(url, issuer, audience, jwks)
+        docs_client = os.getenv("DOCS_OAUTH_CLIENT_ID", "").strip()
+        if docs_client and not issuer:
+            raise RuntimeError("DOCS_OAUTH_CLIENT_ID requires complete OIDC configuration")
+        return cls(url, issuer, audience, jwks, docs_client)

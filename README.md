@@ -49,3 +49,7 @@ See [engineering plan](docs/engineering-plan.md), [release process](docs/release
 Source: https://github.com/Nagoor06/commutecircle
 
 Read [architecture](docs/architecture.md) for the module boundaries and [Windows setup](docs/windows-setup.md) for GitHub Desktop instructions.
+
+## Test real sign-in locally
+
+Follow [local Auth0 login](docs/local-login.md) to enable PKCE sign-in in Swagger and test `/v1/rides/mine`. This does not implement the mobile UI.
