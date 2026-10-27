@@ -21,6 +21,6 @@ Copy-Item .env.example .env
 docker compose up --build
 ```
 
-Then open http://localhost:8000/docs. Database content starts empty. This is the API foundation, not a completed mobile app.
+Then open http://localhost:8000/docs. Database content starts empty. This is the API, not a completed mobile app. For an existing checkout, Fetch/Pull main, then run `docker compose up --build` to apply migrations. Configure OIDC variables using authentication.md before testing ride requests. There is no mock login.
 
 Daily workflow: Fetch/Pull main → create a short-lived branch → edit/test → review changed files in Desktop → commit → Push origin → create PR → wait for checks → merge → switch to main and pull. Keep `.env` and credentials untracked. Configure required API checks in repository rules before relying on enforcement; a workflow alone does not protect main.

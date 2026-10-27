@@ -4,7 +4,11 @@ Privacy-aware carpooling built in small, tested increments. Start with public me
 
 ## Actual status
 
-Milestone 0: repository and API foundation. Implemented: health/readiness endpoints, a public pickup-point read API, SQLAlchemy model, Alembic migration, tests, Docker Compose, and GitHub Actions CI/image publication configuration. No user authentication, booking, matching engine, mobile app, or cloud deployment is implemented yet. GitHub workflow results must be checked on the foundation pull request; cloud deployment is not configured.
+Milestone 1 adds authenticated ride creation, exact public-pickup ride search and caller-owned ride listing. Token verification is implemented; live sign-in requires an OIDC provider. No mobile app, booking, route-overlap matching or cloud deployment is implemented yet.
+
+Foundation CI passed PostgreSQL migration checks, tests, Docker build and image publication. Check GitHub Actions for the current commit. Branch-protection enforcement remains a repository setting to configure.
+
+Read [authentication](docs/authentication.md), [ride API](docs/rides-api.md) and [architecture](docs/architecture.md).
 
 ## Run locally
 
@@ -19,7 +23,7 @@ API documentation: http://localhost:8000/docs
 Readiness: http://localhost:8000/health/ready
 Pickup-point lookup: http://localhost:8000/v1/pickup-points?city=Hyderabad
 
-The database starts empty; no invented map locations are shipped. The API currently exposes only reads. Curated public pickup points will be added after choosing the pilot area.
+The database starts empty; no invented map locations are shipped. Ride writes require a configured provider-issued token; there is no development authentication bypass. Curated public pickup points will be added after choosing the pilot area.
 
 For Python development (Python 3.12):
 

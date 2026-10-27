@@ -2,7 +2,7 @@
 
 ## Present state
 
-`ci.yml` tests pull requests and main pushes, checks migrations against a disposable PostgreSQL service, enforces 85% API coverage, and builds the runtime container. Successful main pushes additionally publish an image to GHCR using the built-in short-lived GitHub token. The image digest is written to the job summary. This is CI plus artifact delivery, not a completed application deployment pipeline. These jobs have not run remotely yet.
+`ci.yml` tests pull requests and main pushes, checks migrations against a disposable PostgreSQL service, enforces 85% API coverage, and builds the runtime container. Successful main pushes additionally publish an image to GHCR using the built-in short-lived GitHub token. The image digest is written to the job summary. This is CI plus artifact delivery, not a completed application deployment pipeline. Foundation run 40487374148 passed on main, including image publication. Check the latest run separately for subsequent changes.
 
 ## GitHub bootstrap
 
@@ -29,3 +29,7 @@ Start with rolling revisions and health-gated traffic. Add canary traffic only w
 ## Mobile release design
 
 API deployment and mobile release are separate. Add Expo development builds and device tests first, then signed preview builds. Store signing material in the build service's protected credential storage. Preserve API backward compatibility because installed mobile clients do not update instantly. Only use over-the-air updates within the compatible native runtime.
+
+## Migration 0002
+
+Adds rides and indexes without changing pickup columns. Run `alembic upgrade head` before starting this revision; readiness also checks the rides table. Downgrading 0002 deletes ride data and is only for disposable tests. Production application rollback should retain the additive table. Configure all three OIDC variables to enable authenticated routes; otherwise they fail closed.

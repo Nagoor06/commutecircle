@@ -7,6 +7,8 @@ CommuteCircle is a modular monolith with a separate mobile client. Keep responsi
 | `apps/mobile/` | Future Expo client; currently a planning README |
 | `services/api/app/main.py` | Application factory and lifecycle wiring only |
 | `services/api/app/api/routes/` | HTTP endpoints, validation and response mapping |
+| `services/api/app/auth/` | Token validation, principals and scope checks |
+| `services/api/app/services/` | Ride business rules and transaction ownership |
 | `services/api/app/core/` | Environment configuration |
 | `services/api/app/db/` | SQLAlchemy base, engine and request-scoped sessions |
 | `services/api/app/models/` | Database entities and constraints |
@@ -18,7 +20,7 @@ CommuteCircle is a modular monolith with a separate mobile client. Keep responsi
 | `.github/workflows/` | CI and image publication |
 | `docs/` | Decisions, verification and operations guides |
 
-For the current read-only pickup endpoint: route → repository → database; response schema controls exposed fields. Add `app/services/bookings.py` when implementing seat requests. That layer will own transaction boundaries, ownership checks, idempotency and state transitions. Repositories will not independently commit a multi-step booking transaction. Add focused ride and booking modules within each layer as those features arrive.
+For the current read-only pickup endpoint: route → repository → database; response schema controls exposed fields. Ride creation now calls `app/services/rides.py`, which owns the transaction and point/departure rules. Add `app/services/bookings.py` when implementing seat requests. That layer will own transaction boundaries, ownership checks, idempotency and state transitions. Repositories will not independently commit a multi-step booking transaction. Add focused ride and booking modules within each layer as those features arrive.
 
 Request-scoped sessions are injected with FastAPI dependencies. Migrations import model metadata but never import the running application. Configuration loading does not log database credentials. Tests use the app factory so each test can select an isolated database.
 
