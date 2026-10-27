@@ -57,3 +57,6 @@ Follow [local Auth0 login](docs/local-login.md) to enable PKCE sign-in in Swagge
 ## First local ride
 
 After sign-in works, follow [first demo ride](docs/first-ride.md) to seed two synthetic pickup points and exercise create, list and search.
+
+Next, follow [bookings and location selection](docs/bookings-and-locations.md) for the database
+upgrade, driver approval flow, concurrent seat protection, and nearby pickup-point API.

@@ -8,7 +8,7 @@ from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
 from app.main import create_app
-from app.models import PickupPoint, Ride
+from app.models import Booking, PickupPoint, Ride
 
 
 @pytest.fixture
@@ -18,6 +18,7 @@ def client(tmp_path, monkeypatch):
     command.upgrade(Config("alembic.ini"), "head")
     app = create_app(url)
     with Session(app.state.engine) as session:
+        session.execute(delete(Booking))
         session.execute(delete(Ride))
         session.execute(delete(PickupPoint))
         session.add_all(
@@ -94,3 +95,21 @@ def authenticated(client, signing_key):
         return {"Authorization": f"Bearer {token}"}
 
     return headers
+
+
+@pytest.fixture
+def offered_ride(client, authenticated):
+    from datetime import UTC, datetime, timedelta
+
+    response = client.post(
+        "/v1/rides",
+        headers=authenticated(),
+        json={
+            "origin_id": 1,
+            "destination_id": 2,
+            "departure_at": (datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+            "seats_available": 1,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()["id"]

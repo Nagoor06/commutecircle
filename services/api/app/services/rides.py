@@ -35,6 +35,7 @@ def create_ride(session: Session, principal: Principal, data: RideCreate) -> Rid
             destination_id=data.destination_id,
             departure_at=departure,
             seats_available=data.seats_available,
+            seats_capacity=data.seats_available,
         )
         repository.add_ride(session, ride)
     session.refresh(ride)
