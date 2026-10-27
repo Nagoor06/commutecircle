@@ -2,4 +2,6 @@
 from app.models.pickup_point import PickupPoint
 from app.models.ride import Ride
 
-__all__ = ["PickupPoint", "Ride"]
+__all__ = ["PickupPoint", "Ride", "Booking"]
+
+from app.models.booking import Booking

@@ -10,8 +10,12 @@ from app.db.base import Base
 class Ride(Base):
     __tablename__ = "rides"
     __table_args__ = (
-        CheckConstraint("seats_available BETWEEN 1 AND 8", name="valid_ride_seats"),
+        CheckConstraint("seats_available BETWEEN 0 AND 8", name="valid_ride_seats"),
         CheckConstraint("origin_id <> destination_id", name="different_ride_points"),
+        CheckConstraint(
+            "seats_capacity BETWEEN 1 AND 8 AND seats_available <= seats_capacity",
+            name="valid_ride_capacity",
+        ),
         Index("ix_rides_route_departure", "origin_id", "destination_id", "departure_at"),
         Index("ix_rides_owner", "driver_issuer", "driver_subject"),
     )
@@ -22,3 +26,4 @@ class Ride(Base):
     destination_id: Mapped[int] = mapped_column(ForeignKey("pickup_points.id", ondelete="RESTRICT"))
     departure_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     seats_available: Mapped[int]
+    seats_capacity: Mapped[int]

@@ -100,7 +100,7 @@ def test_non_utc_departure_normalized(client, authenticated, ride_data):
 
 
 @pytest.mark.parametrize(
-    "values", [{"origin_id": 999}, {"seats_available": 0}, {"destination_id": 1}]
+    "values", [{"origin_id": 999}, {"seats_available": -1}, {"destination_id": 1}]
 )
 def test_database_constraints(client, ride_data, values):
     from sqlalchemy.exc import IntegrityError
@@ -109,7 +109,12 @@ def test_database_constraints(client, ride_data, values):
     ride_data["departure_at"] = datetime.fromisoformat(ride_data["departure_at"])
     with Session(client.app.state.engine) as session:
         session.add(
-            Ride(driver_issuer="https://identity.example", driver_subject="driver", **ride_data)
+            Ride(
+                driver_issuer="https://identity.example",
+                driver_subject="driver",
+                seats_capacity=3,
+                **ride_data,
+            )
         )
         with pytest.raises(IntegrityError):
             session.commit()
