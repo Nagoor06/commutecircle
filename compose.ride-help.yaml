@@ -1,0 +1,24 @@
+services:
+  api:
+    environment:
+      RIDE_HELP_URL: http://ride-help:8090/ask
+  ollama:
+    image: ollama/ollama:0.12.6
+    volumes: [ride_help_models:/root/.ollama]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      retries: 20
+  prepare-help-models:
+    image: ollama/ollama:0.12.6
+    depends_on:
+      ollama: {condition: service_healthy}
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-ec", "ollama pull all-minilm && ollama pull qwen2.5:0.5b"]
+  ride-help:
+    build: ./services/ride-help
+    depends_on:
+      prepare-help-models: {condition: service_completed_successfully}
+volumes:
+  ride_help_models:

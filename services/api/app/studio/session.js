@@ -1,3 +1,4 @@
+import {enableRideHelp} from './ride-help.js';
 import {vehicleCard} from './vehicle.js';
 const el=id=>document.getElementById(id);
 const key='cc-pkce';
@@ -23,6 +24,7 @@ export async function setupLive(){
  const result=await fetch(new URL('oauth/token',config.issuer),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'authorization_code',client_id:config.client_id,code:query.get('code'),code_verifier:saved.verifier,redirect_uri:redirect})});
  if(!result.ok)throw Error();const {access_token:token}=await result.json();if(!token)throw Error();
  const api=async path=>{const r=await fetch(path,{headers:{Authorization:'Bearer '+token}});if(!r.ok)throw Error();return r.json()};
+ if(config.ride_help_enabled)enableRideHelp(token);
  el('translate-panel').hidden=false;
  el('translate-note').onclick=async()=>{
    const landmark=el('landmark').value.trim(),status=el('translation');

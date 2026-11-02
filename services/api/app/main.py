@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -36,6 +37,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "issuer": settings.oidc_issuer,
             "audience": settings.oidc_audience,
             "client_id": settings.docs_oauth_client_id,
+            "ride_help_enabled": bool(os.getenv("RIDE_HELP_URL")),
         }
 
     configure_login_docs(app, settings)
