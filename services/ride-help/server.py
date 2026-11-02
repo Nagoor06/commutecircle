@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from functools import lru_cache
 from wsgiref.simple_server import make_server
 
@@ -27,9 +28,12 @@ def app(env, start):
             try:
                 result = graph().invoke({"question": question})["answer"]
                 status = "200 OK"
-            except Exception:
+            except (OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                 # Do not log prompts or upstream model response bodies.
-                status, result = "503 Service Unavailable", {"detail": "Ride help unavailable"}
+                status, result = (
+                    "503 Service Unavailable",
+                    {"detail": "Ride help unavailable"},
+                )
     start(status, [("Content-Type", "application/json"), ("Cache-Control", "no-store")])
     return [json.dumps(result).encode()]
 

@@ -10,13 +10,22 @@ def passages():
     result = []
     for section in source.split("\n## ")[1:]:
         title, text = section.strip().split("\n", 1)
-        result.append({"title": title, "text": text.strip(),
-                       "anchor": title.lower().replace(" ", "-")})
+        result.append(
+            {
+                "title": title,
+                "text": text.strip(),
+                "anchor": title.lower().replace(" ", "-"),
+            }
+        )
     return result
 
 
 def vector(values, size):
-    if len(values) != size or not all(math.isfinite(v) for v in values) or not any(values):
+    if (
+        len(values) != size
+        or not all(math.isfinite(v) for v in values)
+        or not any(values)
+    ):
         raise ValueError("Invalid embedding")
     return sqlite_vec.serialize_float32(values)
 
@@ -33,12 +42,17 @@ class GuideIndex:
         self.db.enable_load_extension(True)
         sqlite_vec.load(self.db)
         self.db.enable_load_extension(False)
-        self.db.execute(f"CREATE VIRTUAL TABLE guide USING vec0(v float[{self.size}] distance_metric=cosine)")
-        self.db.executemany("INSERT INTO guide(rowid,v) VALUES(?,?)",
-                            [(i+1, vector(v, self.size)) for i, v in enumerate(embeddings)])
+        self.db.execute(
+            f"CREATE VIRTUAL TABLE guide USING vec0(v float[{self.size}] distance_metric=cosine)"
+        )
+        self.db.executemany(
+            "INSERT INTO guide(rowid,v) VALUES(?,?)",
+            [(i + 1, vector(v, self.size)) for i, v in enumerate(embeddings)],
+        )
 
     def search(self, embedding):
         rows = self.db.execute(
             "SELECT rowid,distance FROM guide WHERE v MATCH ? AND k=3 ORDER BY distance",
-            (vector(embedding, self.size),))
-        return [self.docs[i-1] for i, distance in rows if distance <= 0.62]
+            (vector(embedding, self.size),),
+        )
+        return [self.docs[i - 1] for i, distance in rows if distance <= 0.62]

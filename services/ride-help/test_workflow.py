@@ -6,6 +6,7 @@ from workflow import build_graph
 
 class Model:
     """Deterministic embeddings for testing SQLite vector search and real graph edges."""
+
     choice = 1
     selections = 0
 
@@ -13,8 +14,11 @@ class Model:
         topics = [p["title"].lower() for p in passages()]
         vectors = []
         for text in texts:
-            idx = next((i for i, topic in enumerate(topics) if text.lower().startswith(topic)), len(topics))
-            vectors.append([float(i == idx) for i in range(len(topics)+1)])
+            idx = next(
+                (i for i, topic in enumerate(topics) if text.lower().startswith(topic)),
+                len(topics),
+            )
+            vectors.append([float(i == idx) for i in range(len(topics) + 1)])
         return vectors
 
     def select(self, question, evidence):

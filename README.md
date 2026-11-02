@@ -60,3 +60,28 @@ After sign-in works, follow [first demo ride](docs/first-ride.md) to seed two sy
 
 Next, follow [bookings and location selection](docs/bookings-and-locations.md) for the database
 upgrade, driver approval flow, concurrent seat protection, and nearby pickup-point API.
+
+### Ask the rider guide
+
+With the existing local Auth0 and database setup, run this in the repo root:
+
+```powershell
+docker compose -f compose.yaml -f compose.ride-help.yaml up --build -d
+```
+
+On first start, Docker downloads two Ollama models. Check progress with
+`docker compose -f compose.yaml -f compose.ride-help.yaml logs prepare-help-models`.
+Sign in at http://localhost:8000/studio/ and ask “Is the ₹20 commitment real money?”
+under **Ask about CommuteCircle**. Swagger also exposes `POST /v1/help/ask`.
+This runs locally with Docker. The static Pages demo has no inference backend.
+
+The worker embeds the seven sections of the [rider guide](services/ride-help/guide.md)
+with all-MiniLM, stores them in a SQLite vec0 table, and retrieves up to three
+passages by cosine distance. LangGraph routes low-similarity queries to an
+abstention. Otherwise a local Qwen model selects supporting evidence, with the
+option to abstain. The API displays the selected passage verbatim with its
+section link. This extractive RAG design limits invented policy text. It can
+still select an irrelevant passage, so the source is always available.
+The small index rebuilds on worker restart. Restart the worker after guide
+changes. Neither GPS, tokens nor user booking records are indexed. Only the
+question text is sent to the internal worker. This first version is English.
