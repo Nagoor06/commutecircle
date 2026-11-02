@@ -29,3 +29,24 @@ identities appear in the ride details response.
 The location picker explores places independently of the API catalogue.
 Booking real rides still uses curated pickup-point IDs. Selecting a private
 location on the map does not create a public pickup point.
+
+## Pickup coordination and cancellation
+
+Pickup and drop-off each have their own searchable map. Drag the pin or use
+arrow keys while it has focus. Local matches can appear before a network
+response. Unavailable online search falls back to dragging, coordinates and
+known Tenali stops. The meetup card copies a selected public landmark and a
+pickup link only when requested.
+
+The driver can cancel an entire upcoming ride from the signed-in studio or
+POST /v1/rides/{ride_id}/cancel. This locks the same ride row as booking
+approval, closes pending and accepted bookings, and excludes the ride from
+search in one transaction. A single passenger cancellation affects their own
+booking. There is no background notification delivery.
+
+The public ₹20 commitment is a sandbox illustration. Real payments need a
+payment provider, verified payment events, and refund reconciliation before
+charging users. The optional signed-in meeting-note translator sends only the
+entered landmark note to OpenAI. Set OPENAI_API_KEY on the API server. Each
+process limits translation calls to ten per minute. The original card remains
+available when translation fails. Public GitHub Pages does not call OpenAI.

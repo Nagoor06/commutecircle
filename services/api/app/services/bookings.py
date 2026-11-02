@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.auth.principal import Principal
@@ -35,6 +36,8 @@ def request_seat(session: Session, principal: Principal, ride_id: str):
         ride = repo.lock_ride(session, ride_id)
         if ride is None:
             raise BookingError(404, "Ride not found")
+        if ride.cancelled:
+            raise BookingError(409, "Ride cancelled by driver")
         if is_driver(ride, principal):
             raise BookingError(409, "You cannot request your own ride")
         booking = repo.find_request(session, ride_id, principal)
@@ -93,3 +96,20 @@ def driver_requests(session: Session, principal: Principal, ride_id: str, limit:
     if ride is None or not is_driver(ride, principal):
         raise BookingError(404, "Ride not found")
     return repo.ride_bookings(session, ride_id, limit, offset)
+
+
+def cancel_ride(session: Session, principal: Principal, ride_id: str):
+    with session.begin():
+        ride = repo.lock_ride(session, ride_id)
+        if ride is None or not is_driver(ride, principal):
+            raise BookingError(404, "Ride not found")
+        if not ride.cancelled:
+            require_upcoming(ride)
+            session.execute(
+                update(Booking)
+                .where(Booking.ride_id == ride_id, Booking.status.in_(("pending", "accepted")))
+                .values(status="cancelled")
+            )
+            ride.cancelled = True
+            ride.seats_available = 0
+    return {"ride_id": ride_id, "status": "cancelled"}

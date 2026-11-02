@@ -23,6 +23,7 @@ def test_vehicle_and_verified_rating(client, authenticated):
     ride = client.post("/v1/rides", json=offer, headers=driver).json()["id"]
     path = f"/v1/rides/{ride}/details"
     assert client.get(path, headers=rider).json() == {
+        "cancelled": False,
         "vehicle": vehicle,
         "driver_rating": {"count": 0, "average": None},
     }

@@ -103,3 +103,18 @@ def test_accept_racing_cancellation(pg_engine, offered_ride):
     with Session(pg_engine) as session:
         assert session.get(Ride, offered_ride).seats_available == 1
         assert session.get(Booking, booking).status == "cancelled"
+
+
+def test_driver_cancellation_racing_accept_closes_all_requests(pg_engine, offered_ride):
+    first, second = [request_id(pg_engine, offered_ride, user) for user in ("a", "b")]
+
+    def cancel_ride(session):
+        return service.cancel_ride(session, principal("driver-a"), offered_ride)["status"]
+
+    result = concurrently(pg_engine, [accept(first), cancel_ride])
+    assert result[0] in ("accepted", 409)
+    assert result[1] == "cancelled"
+    with Session(pg_engine) as session:
+        ride = session.get(Ride, offered_ride)
+        assert ride.cancelled and ride.seats_available == 0
+        assert all(session.get(Booking, key).status == "cancelled" for key in (first, second))
