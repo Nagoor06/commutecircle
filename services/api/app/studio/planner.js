@@ -1,8 +1,9 @@
-import {setupLocations} from './locations.js?rev=3';
+import {setupJourneys} from './journeys.js?rev=4';
+import {setupLocations} from './locations.js?rev=4';
 import {change,available} from './model.mjs';
 import {vehicleCard} from './vehicle.js';
-import {setupLive} from './session.js?rev=3';
-setupLocations();
+import {setupLive} from './session.js?rev=4';
+setupLocations();setupJourneys();
 vehicleCard({make:'Honda',model:'City',color:'Pearl white',purchased_on:'2022-06-12',condition:'Good'},{average:null,count:0},'Sample vehicle');
 const el=id=>document.getElementById(id),names=['Anu','Ravi'];let states=['idle','idle'], closed=false;
 function render(){

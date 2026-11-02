@@ -1,4 +1,4 @@
-import {attachMap} from './street-map.js?rev=3';
+import {attachMap} from './street-map.js?rev=4';
 const stops=[{name:'Tenali Junction area',lat:16.243,lon:80.640},{name:'Tenali bus stand area',lat:16.248,lon:80.650}];
 const selected=stops.map(p=>({...p}));
 const cache=new Map();
@@ -8,7 +8,7 @@ function coordinate(text){
   return pair?{lat:Number(pair[1]),lon:Number(pair[2])}:null;
 }
 const valid=p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon)&&Math.abs(p.lat)<=85&&Math.abs(p.lon)<=180;
-function setupStop(i){
+function setupStop(i,updateMap){
   const root=document.querySelector('#stop-template').content.firstElementChild.cloneNode(true);
   document.querySelector('#stops').append(root);
   const get=s=>root.querySelector(s),name=i?'Drop-off':'Pickup',letter=i?'B':'A';
@@ -18,9 +18,9 @@ function setupStop(i){
   function reset(){version++;controller?.abort();box.replaceChildren();msg.textContent='';return version}
   function choose(point){
     reset();const other=selected[1-i];if(Math.abs(point.lat-other.lat)<1e-6&&Math.abs(point.lon-other.lon)<1e-6){msg.textContent='Pickup and drop-off must differ.';return}
-    selected[i]={...point,name:point.name||name+' pin'};get('.chosen').textContent=selected[i].name+' · '+point.lat.toFixed(5)+', '+point.lon.toFixed(5);draw();
+    selected[i]={...point,name:point.name||name+' pin'};get('.chosen').textContent=selected[i].name+' · '+point.lat.toFixed(5)+', '+point.lon.toFixed(5);updateMap();
   }
-  const draw=attachMap(root,()=>selected[i],choose,letter);choose(selected[i]);
+  choose(selected[i]);
   function results(list){box.replaceChildren();for(const p of list){const b=document.createElement('button');b.textContent=p.name||p.lat+', '+p.lon;b.onclick=()=>choose(p);box.append(b)}}
   input.oninput=reset;
   get('form').onsubmit=async e=>{
@@ -47,9 +47,12 @@ function setupStop(i){
       const point={lat:coords.latitude,lon:coords.longitude,name:'Use current location'};
       if(!valid(point)){msg.textContent='Outside map coverage.';return}results([point]);msg.textContent='Confirm to display your position on the map.';
     },()=>{if(id===version)msg.textContent='GPS unavailable. Drag the pin or search instead.'},{timeout:9000})};
+  return choose;
 }
 export function setupLocations(){
-  selected.forEach((_,i)=>setupStop(i));
+  const handlers=[];
+  const fit=attachMap(document.querySelector("#route-map"),selected,(i,p)=>handlers[i](p));
+  selected.forEach((_,i)=>handlers.push(setupStop(i,fit)));
   document.querySelector('#copy-card').onclick=async()=>{
     const p=selected[0],landmark=document.querySelector('#landmark').value.trim();
     const card=['Meet at '+p.name,landmark,'https://www.openstreetmap.org/?mlat='+p.lat.toFixed(5)+'&mlon='+p.lon.toFixed(5)].filter(Boolean).join('\n');
