@@ -1,0 +1,31 @@
+import {vehicleCard} from './vehicle.js';
+const el=id=>document.getElementById(id);
+const key='cc-pkce';
+const base64url=bytes=>btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
+const random=()=>base64url(crypto.getRandomValues(new Uint8Array(32)));
+export async function setupLive(){
+ // The standalone Pages build has no API. The API hosts this same client at /studio/.
+ if(location.pathname!='/studio/')return;
+ const redirect=location.origin+'/studio/';
+ try{
+ const config=await fetch('/v1/studio-config').then(r=>r.json());
+ if(!config.issuer||!config.client_id)return;
+ el('live').hidden=false;
+ el('login').onclick=async()=>{try{
+ const verifier=random(),state=random();const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier));
+ sessionStorage.setItem(key,JSON.stringify({verifier,state}));
+ const url=new URL('authorize',config.issuer);url.search=new URLSearchParams({client_id:config.client_id,response_type:'code',redirect_uri:redirect,audience:config.audience,scope:'openid rides:read rides:write',state,code_challenge:base64url(hash),code_challenge_method:'S256'});location.assign(url)
+ }catch{el('authStatus').textContent='Sign-in could not start. Use HTTPS or localhost.'}};
+ const query=new URLSearchParams(location.search);
+ if(!query.has('code')&&!query.has('error'))return;
+ history.replaceState(null,'',redirect);const saved=JSON.parse(sessionStorage.getItem(key)||'null');sessionStorage.removeItem(key);
+ if(query.has('error')||!saved||saved.state!==query.get('state'))throw Error();
+ const result=await fetch(new URL('oauth/token',config.issuer),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'authorization_code',client_id:config.client_id,code:query.get('code'),code_verifier:saved.verifier,redirect_uri:redirect})});
+ if(!result.ok)throw Error();const {access_token:token}=await result.json();if(!token)throw Error();
+ const api=async path=>{const r=await fetch(path,{headers:{Authorization:'Bearer '+token}});if(!r.ok)throw Error();return r.json()};
+ const rides=await api('/v1/rides/mine');
+ el('authStatus').textContent=rides.length?'Choose a ride to view its vehicle and driver reviews.':'No rides offered on this account yet.';
+ for(const ride of rides){const button=document.createElement('button');button.textContent='Ride · '+new Date(ride.departure_at).toLocaleString();button.onclick=async()=>{try{const details=await api('/v1/rides/'+encodeURIComponent(ride.id)+'/details');vehicleCard(details.vehicle,details.driver_rating,'Your ride');el('carTitle').scrollIntoView()}catch{el('authStatus').textContent='Could not load this ride. Sign in and try again.'}};el('owned').append(button)}
+ el('login').textContent='End this app session';el('login').onclick=()=>location.replace(redirect);
+ }catch{el('authStatus').textContent='Could not load your signed-in rides. Check the Auth0 callback and web origin, then sign in again.'}
+}
