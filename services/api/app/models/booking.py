@@ -15,6 +15,7 @@ class Booking(Base):
             "status IN ('pending', 'accepted', 'rejected', 'cancelled')",
             name="valid_booking_status",
         ),
+        CheckConstraint("stars BETWEEN 1 AND 5", name="valid_review_stars"),
         Index("ix_bookings_rider", "rider_issuer", "rider_subject"),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
@@ -22,6 +23,7 @@ class Booking(Base):
     rider_issuer: Mapped[str] = mapped_column(String(512))
     rider_subject: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(16), default="pending")
+    stars: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

@@ -2,9 +2,12 @@ from datetime import UTC, datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.ride_details import Vehicle
+
 
 class RideCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    vehicle: Vehicle | None = None
     origin_id: int = Field(gt=0, strict=True)
     destination_id: int = Field(gt=0, strict=True)
     departure_at: AwareDatetime

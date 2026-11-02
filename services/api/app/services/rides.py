@@ -36,6 +36,7 @@ def create_ride(session: Session, principal: Principal, data: RideCreate) -> Rid
             departure_at=departure,
             seats_available=data.seats_available,
             seats_capacity=data.seats_available,
+            vehicle=data.vehicle.model_dump(mode="json") if data.vehicle else None,
         )
         repository.add_ride(session, ride)
     session.refresh(ride)
