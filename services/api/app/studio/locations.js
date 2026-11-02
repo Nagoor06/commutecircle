@@ -1,3 +1,4 @@
+import {renderStreets} from './street-map.js';
 const osm='https://www.openstreetmap.org';
 const places=[
   {name:'Tenali Junction area',lat:16.243,lon:80.640},
@@ -5,11 +6,9 @@ const places=[
 ];
 export const selected=[...places];
 const el=id=>document.getElementById(id);
-let sequence=0, lastSearch=0;
+let sequence=0, lastSearch=0, zoom=16, visibleSide=0;
 function pin(i){
- const p=selected[i], marker=p.lat+','+p.lon;
- const params=new URLSearchParams({bbox:[p.lon-.009,p.lat-.006,p.lon+.009,p.lat+.006].join(','),layer:'mapnik',marker});
- el('street').src=osm+'/export/embed.html?'+params;
+ const p=selected[i];visibleSide=i;renderStreets(p,i,zoom);
  el('external').href=osm+'/?mlat='+p.lat+'&mlon='+p.lon+'#map=16/'+p.lat+'/'+p.lon;
  el('maptitle').textContent=(i?'Drop-off':'Pickup')+' area';
  el('aName').textContent=selected[0].name;el('bName').textContent=selected[1].name;
@@ -44,5 +43,8 @@ export function setupLocations(){
  const list=(await response.json()).map(p=>({name:p.display_name,lat:+p.lat,lon:+p.lon})).filter(p=>valid(p.lat,p.lon));
  if(attempt!==sequence)return;show(list,target);el('notice').textContent=list.length?'Choose a matching result.':'No matches. Try a landmark or coordinates.';
  }catch{if(attempt!==sequence)return;const matches=places.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()));show(matches,target);el('notice').textContent='Online search unavailable. Use coordinates, GPS or a matching suggested area.'}};
+ el('closer').onclick=()=>{zoom=Math.min(19,zoom+1);pin(visibleSide)};
+ el('wider').onclick=()=>{zoom=Math.max(3,zoom-1);pin(visibleSide)};
+ new ResizeObserver(()=>pin(visibleSide)).observe(el('street'));
  pin(0);
 }
