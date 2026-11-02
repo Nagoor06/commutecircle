@@ -31,5 +31,6 @@ class DriverRating(BaseModel):
 
 
 class RideDetails(BaseModel):
+    cancelled: bool
     vehicle: Vehicle | None
     driver_rating: DriverRating

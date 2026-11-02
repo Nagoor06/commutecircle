@@ -24,6 +24,8 @@ services:
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
       OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       DOCS_OAUTH_CLIENT_ID: ${DOCS_OAUTH_CLIENT_ID:-}
     ports: ["127.0.0.1:8000:8000"]
     depends_on:

@@ -24,6 +24,7 @@ def search_rides(
     query = (
         select(Ride)
         .where(
+            Ride.cancelled.is_(False),
             Ride.origin_id == origin_id,
             Ride.destination_id == destination_id,
             Ride.departure_at >= after,

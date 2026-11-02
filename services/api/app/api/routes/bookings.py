@@ -59,3 +59,8 @@ def reject(booking_id: UUID, principal: RideWriter, session: DatabaseSession):
 @router.post("/bookings/{booking_id}/cancel", response_model=BookingOut)
 def cancel(booking_id: UUID, principal: RideWriter, session: DatabaseSession):
     return run_action(service.transition, session, principal, str(booking_id), "cancelled")
+
+
+@router.post("/rides/{ride_id}/cancel")
+def cancel_entire_ride(ride_id: UUID, principal: RideWriter, session: DatabaseSession):
+    return run_action(service.cancel_ride, session, principal, str(ride_id))

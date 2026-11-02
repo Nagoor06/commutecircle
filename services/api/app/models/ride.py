@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, String
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, String, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -26,5 +26,6 @@ class Ride(Base):
     destination_id: Mapped[int] = mapped_column(ForeignKey("pickup_points.id", ondelete="RESTRICT"))
     departure_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     seats_available: Mapped[int]
+    cancelled: Mapped[bool] = mapped_column(server_default=false())
     vehicle: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     seats_capacity: Mapped[int]

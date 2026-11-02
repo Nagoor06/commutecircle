@@ -24,6 +24,7 @@ def details(ride_id: UUID, principal: RideReader, session: DatabaseSession):
         .where(Ride.driver_issuer == ride.driver_issuer, Ride.driver_subject == ride.driver_subject)
     ).one()
     return {
+        "cancelled": ride.cancelled,
         "vehicle": ride.vehicle,
         "driver_rating": {"average": round(float(average), 1) if count else None, "count": count},
     }

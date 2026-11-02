@@ -159,3 +159,24 @@ def test_failure_after_allocation_rolls_back(client, authenticated, offered_ride
         ]
         == "pending"
     )
+
+
+def test_cancel_entire_ride(client, authenticated, offered_ride):
+    booking = request(client, authenticated, offered_ride)
+    path = f"/v1/rides/{offered_ride}/cancel"
+    assert client.post(path, headers=authenticated(subject="rider-a")).status_code == 404
+    for _ in range(2):
+        assert client.post(path, headers=authenticated()).json()["status"] == "cancelled"
+    assert (
+        client.post(f"/v1/bookings/{booking['id']}/accept", headers=authenticated()).status_code
+        == 409
+    )
+    assert (
+        client.post(
+            f"/v1/rides/{offered_ride}/requests", headers=authenticated(subject="new")
+        ).status_code
+        == 409
+    )
+    assert (
+        client.get("/v1/rides?origin_id=1&destination_id=2", headers=authenticated()).json() == []
+    )
