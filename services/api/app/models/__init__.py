@@ -5,3 +5,6 @@ from app.models.ride import Ride
 __all__ = ["PickupPoint", "Ride", "Booking"]
 
 from app.models.booking import Booking
+from app.models.journey import Journey, Ticket
+
+__all__ += ["Journey", "Ticket"]

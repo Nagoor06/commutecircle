@@ -75,7 +75,7 @@ Sign in at http://localhost:8000/studio/ and ask “Is the ₹20 commitment real
 under **Ask about CommuteCircle**. Swagger also exposes `POST /v1/help/ask`.
 This runs locally with Docker. The static Pages demo has no inference backend.
 
-The worker embeds the seven sections of the [rider guide](services/ride-help/guide.md)
+The worker embeds the sections of the [rider guide](services/ride-help/guide.md)
 with all-MiniLM, stores them in a SQLite vec0 table, and retrieves up to three
 passages by cosine distance. LangGraph routes low-similarity queries to an
 abstention. Otherwise a local Qwen model selects supporting evidence, with the

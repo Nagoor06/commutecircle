@@ -32,7 +32,7 @@ location on the map does not create a public pickup point.
 
 ## Pickup coordination and cancellation
 
-Pickup and drop-off each have their own searchable map. Drag the pin or use
+Pickup and drop-off share one map with separate search fields. Drag either pin or use
 arrow keys while it has focus. Local matches can appear before a network
 response. Unavailable online search falls back to dragging, coordinates and
 known Tenali stops. The meetup card copies a selected public landmark and a
@@ -50,3 +50,30 @@ charging users. The optional signed-in meeting-note translator sends only the
 entered landmark note to OpenAI. Set OPENAI_API_KEY on the API server. Each
 process limits translation calls to ten per minute. The original card remains
 available when translation fails. Public GitHub Pages does not call OpenAI.
+
+## Priced shared journeys
+
+In the signed-in studio, list a departure, price per seat for the full journey,
+capacity, and ordered public stops with cumulative road kilometres and scheduled
+minutes from departure. These are driver-entered distances and times. The
+public static edition has a fare preview. The authenticated API stores shared
+listings and sandbox payment receipts. Original unpriced, driver-approved
+ride offers keep their existing flow.
+
+Inventory is per leg. For A–B–C, A–B and B–C bookings can occupy one seat on
+the same trip. A hold lasts up to three minutes, never beyond boarding. A
+per-journey PostgreSQL row lock serializes overlapping holds, payment, expiry
+checks, early exits and cancellations. Retrying the same checkout ID or pay
+request cannot double-charge. Sandbox payment and booking confirmation commit
+in the same transaction. No external payment calls are enabled.
+
+Amounts use integer paise. A segment costs the difference between the rounded
+cumulative fares at its stops. A driver-confirmed early exit at an intermediate
+stop refunds the unused distance and releases onward legs. The pilot passenger
+cancellation fee is 0% at least 24 hours before boarding, 10% from 2 to under
+24 hours, and 25% in the last 2 hours before boarding. Unpaid holds have zero
+fee. Driver cancellation before boarding refunds the full active ticket. A
+whole-journey cancellation is available before the journey starts. Receipts
+are available in the rider's history. Alternatives and notifications are not
+automatically arranged. Real charging needs provider-side idempotency, verified
+webhooks and reconciliation of late payments and refunds before launch.
