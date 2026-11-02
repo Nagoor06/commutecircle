@@ -1,0 +1,37 @@
+name: Ride help
+on:
+  pull_request:
+    paths: ['services/ride-help/**', 'compose.ride-help.yaml', '.github/workflows/ride-help.yml']
+  push:
+    branches: [main]
+    paths: ['services/ride-help/**', 'compose.ride-help.yaml', '.github/workflows/ride-help.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/ride-help
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Resolve dependency lock
+        run: |
+          pip install pip-tools
+          pip-compile --generate-hashes --strip-extras -o requirements.txt requirements.in >/dev/null 2>&1
+          python -c "import base64,gzip,pathlib; print('RESOLVED='+base64.b64encode(gzip.compress(pathlib.Path('requirements.txt').read_bytes())).decode())"
+      - run: pip install --require-hashes -r requirements.txt
+      - run: python -m unittest -v
+      - name: Build and exercise a real local model
+        run: |
+          docker build -t ride-help-ci .
+          docker network create ride-help-ci
+          docker run -d --name ollama --network ride-help-ci ollama/ollama:0.12.6
+          for i in {1..30}; do docker exec ollama ollama list && break; sleep 2; done
+          docker exec ollama ollama pull all-minilm
+          docker exec ollama ollama pull qwen2.5:0.5b
+          docker run --rm --network ride-help-ci ride-help-ci python -c "from workflow import build_graph; from inference import Ollama; g=build_graph(Ollama()); r=g.invoke({'question':'Is the ₹20 booking commitment real money?'})['answer']; print(r); assert any(s['url'].endswith('#booking-commitment') for s in r['sources'])"
