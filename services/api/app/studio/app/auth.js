@@ -14,6 +14,20 @@ export function trustedOrigin(value) {
     'Invalid booking service origin.');
   return u.origin;
 }
+
+async function signInConfig(apiOrigin) {
+  let response;
+  try {
+    response = await fetch(apiOrigin + '/v1/studio-config', {signal: AbortSignal.timeout(90000)});
+    if (!response.ok) throw Error();
+  } catch {
+    throw Error('Could not reach the booking service. Try signing in again.');
+  }
+  const config = await response.json();
+  if (!config.issuer || !config.client_id) throw Error('Sign-in is not yet configured for this service.');
+  return config;
+}
+
 export async function session(settings) {
   const local = location.pathname === '/studio/' || location.pathname === '/studio/index.html';
   let apiOrigin;
@@ -27,30 +41,18 @@ export async function session(settings) {
   if (!apiOrigin) return {
     problem: 'Live bookings are not connected at this address yet.'
   };
+  const query = new URLSearchParams(location.search);
+  if (!query.has('code') && !query.has('error')) return {apiOrigin};
+  history.replaceState(null, '', callback());
   try {
-    const r = await fetch(apiOrigin + '/v1/studio-config', {
-      signal: AbortSignal.timeout(7000)
-    });
-    if (!r.ok) throw Error();
-    const config = await r.json();
-    if (!config.issuer || !config.client_id) return {
-      apiOrigin,
-      problem: 'Sign-in is not yet available for this service.'
-    };
-    const query = new URLSearchParams(location.search);
-    if (!query.has('code') && !query.has('error')) return {
-      config,
-      apiOrigin
-    };
-    history.replaceState(null, '', callback());
     const saved = JSON.parse(sessionStorage.getItem(savedKey) || 'null');
     sessionStorage.removeItem(savedKey);
     if (query.has('error') || !saved || saved.state !== query.get('state') || saved.apiOrigin !== apiOrigin)
       return {
-        config,
         apiOrigin,
         problem: 'Sign-in could not be confirmed. Please try again.'
       };
+    const config = await signInConfig(apiOrigin);
     const response = await fetch(new URL('oauth/token', config.issuer), {
       method: 'POST',
       headers: {
@@ -86,10 +88,8 @@ export async function session(settings) {
   }
 }
 export async function signIn(session) {
-  const {
-    config,
-    apiOrigin
-  } = session;
+  const {apiOrigin} = session;
+  const config = session.config || await signInConfig(apiOrigin);
   const verifier = random(),
     state = random(),
     digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));

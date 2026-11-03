@@ -22,7 +22,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     args: ['--no-sandbox']
   });
   const errors = [];
-  async function visit(role, mobile = false) {
+  async function visit(role, mobile = false, beforeLogin) {
     const context = await browser.newContext({
       viewport: mobile ? {
         width: 390,
@@ -94,6 +94,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     page.setDefaultTimeout(10000);
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base + '/studio/#/' + (role === 'driver' ? 'offer' : 'book'));
+    if (beforeLogin) await beforeLogin(page);
     await page.getByRole('button', {
       name: 'Sign in',
       exact: true
@@ -149,13 +150,20 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       name: 'View itinerary'
     }).first().waitFor();
 
-    const rider = await visit('rider', true);
+    const rider = await visit('rider', true, async page => {
+      const drop = page.getByRole('combobox', {name: 'Drop-off', exact: true});
+      await drop.fill('Mangal');
+      await page.getByRole('option', {name: /Mangalagiri/}).first().click();
+      await page.reload();
+      assert.equal(await drop.inputValue(), 'Mangalagiri');
+    });
     const pickup = rider.getByRole('combobox', {
         name: /pickup/i
       }),
       drop = rider.getByRole('combobox', {
         name: /drop-off/i
       });
+    assert.equal(await drop.inputValue(), 'Mangalagiri', 'the chosen drop-off survives sign-in');
     await pickup.fill('Tenal');
     await rider.getByRole('option', {
       name: /Tenali Junction/
@@ -283,6 +291,17 @@ test('guest navigation never invents rides; stop hints work when external lookup
       name: 'Pay',
       exact: false
     }).count(), 0);
+    let configRequests = 0;
+    await page.route('**/v1/studio-config', route => {
+      configRequests++;
+      return route.fulfill({status: 503, body: ''});
+    });
+    await page.goto(base + '/studio/#/book');
+    await page.getByRole('combobox', {name: 'Pickup', exact: true}).waitFor();
+    assert.equal(configRequests, 0, 'route planning is independent of the booking service');
+    await page.getByRole('button', {name: 'Sign in', exact: true}).first().click();
+    await page.getByText('Could not reach the booking service. Try signing in again.').waitFor();
+    assert.equal(configRequests, 1);
   } finally {
     await browser.close()
   }
