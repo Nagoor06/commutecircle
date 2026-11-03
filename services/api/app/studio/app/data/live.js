@@ -6,9 +6,13 @@ export class ApiError extends Error {
 }
 export function liveClient(token, origin) {
   async function call(path, method = 'GET', data, options = {}) {
-    let response;
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    const timer = setTimeout(cancel, options.timeout || 18000);
+    if (options.signal?.aborted) cancel();
+    else options.signal?.addEventListener('abort', cancel, {once: true});
     try {
-      response = await fetch(origin + path, {
+      const response = await fetch(origin + path, {
         method,
         credentials: 'same-origin',
         headers: {
@@ -18,21 +22,24 @@ export function liveClient(token, origin) {
           } : {})
         },
         body: data ? JSON.stringify(data) : undefined,
-        signal: options.signal || AbortSignal.timeout(options.timeout || 18000)
-      })
-    } catch (e) {
-      if (e.name === 'AbortError') throw e;
-      throw new ApiError(0, 'The service could not be reached. Try again.')
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})), detail = body.detail;
+        const message = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(v => v.msg)
+          .slice(0, 2).join(' · ') : 'Request could not be completed.';
+        throw new ApiError(response.status, response.status === 401 ?
+          'Session ended. Sign in again to continue.' : message);
+      }
+      return await response.json();
+    } catch (error) {
+      if (options.signal?.aborted || error instanceof ApiError) throw error;
+      if (controller.signal.aborted) throw new ApiError(0, 'The booking service took too long. Try again.');
+      throw new ApiError(0, 'The service could not be reached. Try again.');
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener('abort', cancel);
     }
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({})),
-        detail = body.detail;
-      const message = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(v => v.msg)
-        .slice(0, 2).join(' · ') : 'Request could not be completed.';
-      throw new ApiError(response.status, response.status === 401 ?
-        'Session ended. Sign in again to continue.' : message)
-    }
-    return response.json();
   }
   const path = id => '/v1/journeys/' + encodeURIComponent(id);
   const ticket = (id, tid) => path(id) + '/tickets/' + encodeURIComponent(tid);

@@ -28,8 +28,10 @@ mounts one screen and cancels work belonging to the previous screen.
   when its optional service is enabled.
 
 The browser stores no access tokens in local or session storage. PKCE verifier
-and return route are temporary; an offer awaiting sign-in can be resumed in the
-same tab. Search coordinates stay out of document URLs. Tile services receive
+and return route are temporary. A tab keeps its stops, day and filter for up
+to 30 minutes across a reload or sign-in. Signing out clears this plan. An
+offer awaiting sign-in can also be resumed. The map opens independently of
+the booking API, including while staging is waking up. Search coordinates stay out of document URLs. Tile services receive
 the map area; selecting road preview sends endpoints to OSRM. Known public
 corridors can request a road preview automatically. Straight-line distance is
 labelled explicitly when road routing is unavailable. Driving estimates do not

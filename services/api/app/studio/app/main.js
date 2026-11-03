@@ -8,9 +8,7 @@ import {
 import {
   liveClient
 } from './data/live.js';
-import {
-  places
-} from './data/places.js';
+import {restorePlan, rememberPlan, forgetPlan} from './data/plan.js';
 import {
   startRouter
 } from './router.js';
@@ -30,38 +28,48 @@ try {
   });
   if (response.ok) settings = await response.json();
 } catch {}
+const query = new URLSearchParams(location.search);
+if (query.has('code') || query.has('error')) {
+  document.querySelector('.startup').textContent = 'Finishing sign-in…';
+}
 const auth = await session(settings);
 const api = auth.token ? liveClient(auth.token, auth.apiOrigin) : null;
 const account = document.querySelector('#account');
-account.innerHTML = auth.config ? '<button class="account-btn" data-auth>' + icon('user', 16) + (api ?
+account.innerHTML = auth.apiOrigin ? '<button class="account-btn" data-auth>' + icon('user', 16) + (api ?
   'Sign out' : 'Sign in') + '</button>' : '<span class="mode">' + icon('user', 13) + ' Guest</span>';
+const gate = account.querySelector('[data-auth]');
+const accountStatus = document.querySelector('#account-status');
 async function login() {
+  if (!gate || gate.disabled) return;
+  gate.disabled = true;
+  accountStatus.hidden = false;
+  accountStatus.textContent = 'Connecting to sign-in… Your route will be here when you return.';
   try {
     await signIn(auth)
-  } catch {
-    account.querySelector('button').textContent = 'Retry sign-in'
+  } catch (error) {
+    gate.disabled = false;
+    accountStatus.textContent = error.message || 'Sign-in is unavailable. Please try again.';
   }
 }
-const gate = account.querySelector('[data-auth]');
+let signingOut = false;
 if (gate) gate.onclick = () => {
   if (api) {
+    signingOut = true;
+    forgetPlan();
     location.replace(new URL('./', location.href));
     return
   }
   login()
 };
 const state = {
-  route: [{
-    ...places[0]
-  }, {
-    ...places[1]
-  }],
-  date: '',
-  query: null,
+  ...restorePlan(),
   offer: null,
   landmark: '',
   checkoutKeys: new Map()
 };
+window.addEventListener('pagehide', () => {
+  if (!signingOut) rememberPlan(state);
+});
 try {
   const raw = sessionStorage.getItem('cc:offer-signin');
   if (auth.token && raw) {
@@ -74,7 +82,7 @@ startRouter({
   api,
   state,
   auth: {
-    enabled: !!auth.config,
+    enabled: !!auth.apiOrigin,
     help: !!auth.config?.ride_help_enabled,
     problem: auth.problem,
     login

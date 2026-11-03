@@ -82,6 +82,15 @@ button[aria-busy=true] {
   display: none !important
 }
 
+.account-status {
+  margin: .75rem auto;
+  max-width: 72rem;
+  padding: .6rem 1rem;
+  color: var(--ink);
+  background: var(--soft);
+  border-left: 3px solid var(--green);
+}
+
 h1,
 h2,
 h3,
