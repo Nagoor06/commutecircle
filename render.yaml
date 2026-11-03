@@ -1,7 +1,8 @@
-# Staging blueprint. Inspect provider availability and pricing before applying.
+# Free staging infrastructure for the Indian pickup network.
 databases:
   - name: commutecircle-staging-db
     plan: free
+    region: singapore
     postgresMajorVersion: "17"
     databaseName: commutecircle
     user: commutecircle
@@ -11,8 +12,9 @@ services:
     name: commutecircle-staging-api
     runtime: docker
     plan: free
+    region: singapore
     branch: main
-    autoDeploy: false
+    autoDeployTrigger: checksPass
     dockerfilePath: ./services/api/Dockerfile
     dockerContext: ./services/api
     dockerCommand: python -m app.cli.start_hosted
@@ -25,10 +27,10 @@ services:
       - key: WEB_ORIGINS
         value: https://nagoor06.github.io
       - key: OIDC_ISSUER
-        sync: false
+        value: https://dev-k7el8butwnjlle3n.us.auth0.com/
       - key: OIDC_AUDIENCE
-        sync: false
+        value: https://commutecircle-api
       - key: OIDC_JWKS_URL
-        sync: false
+        value: https://dev-k7el8butwnjlle3n.us.auth0.com/.well-known/jwks.json
       - key: DOCS_OAUTH_CLIENT_ID
-        sync: false
+        value: 6malfyYSWlRbe2whqk8iSS5zRl2H8yN6

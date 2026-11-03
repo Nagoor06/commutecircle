@@ -53,12 +53,15 @@ URL query parameter for the API origin. Only public configuration belongs in
 this file. Place search can point to a self-hosted Photon-compatible endpoint;
 set it to null to use only the bundled station index.
 
-The optional [Render staging blueprint](../render.yaml) defines an API container
-and private PostgreSQL connection. Applying it requires a Render account and
-a review of the offered database plan. Set the four OIDC values from the existing
-configuration. The container serializes migrations across starting instances
-and checks `/health/ready` before traffic. Confirm the real service URL and
-two-user sign-in on the deployed instance before enabling it in Pages settings.
+The [Render staging blueprint](../render.yaml) deploys the API and PostgreSQL
+in Singapore. Both use the Free plan. Render supplies the private database
+connection string. The public identity settings match the existing Auth0 SPA.
+Render deploys subsequent changes after CI passes on `main`. The API takes a
+PostgreSQL advisory lock while applying migrations and exposes `/health/ready`.
+Open the [Render setup](https://render.com/deploy?repo=https://github.com/Nagoor06/commutecircle)
+to apply the blueprint. Confirm readiness before connecting Pages. For sign-in
+directly at the API, add the hosted `/studio/` callback and its HTTPS origin
+to the Auth0 application. Free staging databases expire after 30 days.
 
 ## Release and testing
 

@@ -1,3 +1,4 @@
+import {requestId} from '../data/id.js';
 import {dateTimeInput,notice,pending} from '../ui.js';
 import {knownPlace,normal,finitePlace} from '../data/places.js';
 import {attachField} from '../components/place-field.js';
@@ -5,7 +6,7 @@ import {offerForm,offerReview,stopRow} from '../components/offer-form.js';
 
 function newDraft(route){
   return {
-    key:crypto.randomUUID(),
+    key:requestId(),
     stops:route.map((p,i)=>({...p,km:i?'':0,minutes:i?'':0})),
     time:dateTimeInput(new Date(Date.now()+86400000)),
     price:'',seats:1,withCar:false,car:{condition:'good'}

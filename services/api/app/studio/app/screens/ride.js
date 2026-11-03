@@ -1,3 +1,4 @@
+import {requestId} from '../data/id.js';
 import {
   access
 } from '../components/access.js';
@@ -87,7 +88,7 @@ export async function mount(ctx) {
         return
       }
       const key = j.id + ':' + a + ':' + b;
-      if (!state.checkoutKeys.has(key)) state.checkoutKeys.set(key, crypto.randomUUID());
+      if (!state.checkoutKeys.has(key)) state.checkoutKeys.set(key, requestId());
       const ticket = await api.hold(j.id, a, b, state.checkoutKeys.get(key));
       if (['expired', 'rider_cancelled', 'driver_cancelled'].includes(ticket.state)) {
         state.checkoutKeys.delete(key);

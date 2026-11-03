@@ -195,7 +195,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       name: 'Booked',
       exact: true
     }).waitFor();
-    await rider.getByRole('link', {
+    await rider.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {
       name: 'My trips',
       exact: true
     }).click();
