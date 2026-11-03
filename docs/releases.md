@@ -33,3 +33,7 @@ API deployment and mobile release are separate. Add Expo development builds and 
 ## Migration 0002
 
 Adds rides and indexes without changing pickup columns. Run `alembic upgrade head` before starting this revision; readiness also checks the rides table. Downgrading 0002 deletes ride data and is only for disposable tests. Production application rollback should retain the additive table. Configure all three OIDC variables to enable authenticated routes; otherwise they fail closed.
+
+The web staging blueprint and Pages packaging instructions are now in
+[the web app guide](ride-planner.md). A checked-in blueprint is not proof that
+a provider has provisioned the service or that production payments are enabled.

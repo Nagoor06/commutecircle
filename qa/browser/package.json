@@ -1,0 +1,7 @@
+{
+  "name": "commutecircle-browser-checks",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test workspace.test.mjs"},
+  "devDependencies": {"playwright-core": "1.56.1"}
+}

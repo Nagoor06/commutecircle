@@ -1,0 +1,34 @@
+# Staging blueprint. Inspect provider availability and pricing before applying.
+databases:
+  - name: commutecircle-staging-db
+    plan: free
+    postgresMajorVersion: "17"
+    databaseName: commutecircle
+    user: commutecircle
+    ipAllowList: []
+services:
+  - type: web
+    name: commutecircle-staging-api
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeploy: false
+    dockerfilePath: ./services/api/Dockerfile
+    dockerContext: ./services/api
+    dockerCommand: python -m app.cli.start_hosted
+    healthCheckPath: /health/ready
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: commutecircle-staging-db
+          property: connectionString
+      - key: WEB_ORIGINS
+        value: https://nagoor06.github.io
+      - key: OIDC_ISSUER
+        sync: false
+      - key: OIDC_AUDIENCE
+        sync: false
+      - key: OIDC_JWKS_URL
+        sync: false
+      - key: DOCS_OAUTH_CLIENT_ID
+        sync: false

@@ -11,6 +11,8 @@ class Settings:
     oidc_jwks_url: str = ""
     docs_oauth_client_id: str = ""
 
+    web_origins: tuple[str, ...] = ()
+
     @classmethod
     def from_environment(cls, database_url: str | None = None):
         url = database_url or os.environ.get("DATABASE_URL")
@@ -34,4 +36,28 @@ class Settings:
         docs_client = os.getenv("DOCS_OAUTH_CLIENT_ID", "").strip()
         if docs_client and not issuer:
             raise RuntimeError("DOCS_OAUTH_CLIENT_ID requires complete OIDC configuration")
-        return cls(url, issuer, audience, jwks, docs_client)
+        web_origins = []
+        for raw in os.getenv("WEB_ORIGINS", "").split(","):
+            if not raw.strip():
+                continue
+            origin = raw.strip().rstrip("/")
+            parsed = urlsplit(origin)
+            if (
+                not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or "*" in origin
+                or (
+                    parsed.scheme != "https"
+                    and not (
+                        parsed.scheme == "http"
+                        and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+                    )
+                )
+            ):
+                raise RuntimeError("WEB_ORIGINS must contain exact web origins")
+            web_origins.append(origin)
+        return cls(url, issuer, audience, jwks, docs_client, tuple(web_origins))

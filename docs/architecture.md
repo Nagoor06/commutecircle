@@ -25,3 +25,12 @@ Pickup listing uses route → repository → database; response schemas control 
 Request-scoped sessions are injected with FastAPI dependencies. Migrations import model metadata but never import the running application. Configuration loading does not log database credentials. Tests use the app factory so each test can select an isolated database.
 
 No business logic belongs in `main.py`. Avoid generic base repositories, single-file route collections, and dummy services that only forward calls. Introduce queues, Redis, PostGIS and service extraction when their requirements exist and can be tested.
+
+The browser entry point mounts one feature at a time. In
+`services/api/app/studio/app`, `screens/` owns routes and their lifecycle,
+`components/` owns shared map, autocomplete and ticket interactions, and
+`data/` owns transport and domain formatting. The server owns transactions and
+search eligibility. `journey_catalog.py` builds read models for discovery and
+detail, batching ticket reads per candidate page. Hash routing works on static
+hosting without a rewrite rule; an AbortSignal scopes each screen's requests,
+event listeners, timers and map resources.

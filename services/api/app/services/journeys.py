@@ -74,6 +74,7 @@ def receipt(t, now):
         alight=t.alight,
         state=status(t, now),
         expires=utc(t.expires),
+        stars=t.stars,
         fare_paise=t.fare,
         charged_paise=t.charged,
         refund_paise=t.refund,
@@ -141,7 +142,7 @@ def hold(session, jid, p, data):
         return receipt(t, now)
 
 
-def act(session, jid, tid, p, action, stop=None):
+def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
     with session.begin():
         j = locked(session, jid)
         now = datetime.now(UTC)
@@ -165,7 +166,12 @@ def act(session, jid, tid, p, action, stop=None):
             if remaining <= timedelta():
                 raise HTTPException(409, "Boarding time has passed")
             driver = is_driver(j, p)
-            t.refund = t.charged - (0 if driver else fee(t.charged, remaining))
+            charge = 0 if driver else fee(t.charged, remaining)
+            if max_fee_paise is not None and charge > max_fee_paise:
+                raise HTTPException(
+                    409, "Cancellation fee changed. Review the new fee before cancelling."
+                )
+            t.refund = t.charged - charge
             t.state = "driver_cancelled" if driver else "rider_cancelled"
         elif action == "exit":
             if not is_driver(j, p):

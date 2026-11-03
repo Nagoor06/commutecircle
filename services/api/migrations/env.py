@@ -5,8 +5,9 @@ from sqlalchemy import create_engine
 
 from app import models  # noqa: F401
 from app.db.base import Base
+from app.db.url import driver_url
 
-url = os.environ["DATABASE_URL"]
+url = driver_url(os.environ["DATABASE_URL"])
 if context.is_offline_mode():
     context.configure(url=url, target_metadata=Base.metadata, literal_binds=True)
     with context.begin_transaction():

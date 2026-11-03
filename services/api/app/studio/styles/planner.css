@@ -1,0 +1,509 @@
+.find-layout {
+  display: grid;
+  grid-template-columns: minmax(292px, .84fr) minmax(0, 1.85fr);
+  gap: 18px;
+  align-items: stretch
+}
+
+.planner-card {
+  padding: clamp(19px, 2vw, 29px);
+  z-index: 3;
+  position: relative
+}
+
+.section-index {
+  font-size: 10px;
+  letter-spacing: .12em
+}
+
+.form-title {
+  margin: 10px 0 19px
+}
+
+.form-title h2 {
+  font-size: clamp(1.35rem, 2.1vw, 1.85rem)
+}
+
+.stop-stack {
+  display: grid;
+  gap: 12px;
+  position: relative
+}
+
+.place-field {
+  position: relative;
+  border: 1px solid #ccd7ca;
+  border-radius: 12px;
+  padding: 11px 13px 9px;
+  background: linear-gradient(130deg, #f3f7ef, #fffefa)
+}
+
+.place-field:focus-within {
+  border-color: #639575;
+  box-shadow: 0 0 0 2px #76a18320
+}
+
+.place-field>label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #4e6456;
+  font: 700 10px/1.4 ui-monospace, monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase
+}
+
+.point-key {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font: 700 10px/1 ui-monospace, monospace;
+  color: white;
+  background: #20664e
+}
+
+.point-key.orange {
+  border-radius: 5px;
+  background: #a44e31
+}
+
+.place-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px
+}
+
+.place-entry input {
+  min-height: 31px;
+  padding: 3px 0;
+  font-size: 16.5px;
+  letter-spacing: -.025em;
+  font-weight: 650;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  outline-offset: 0
+}
+
+.place-sub {
+  display: block;
+  color: #637367;
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap
+}
+
+.swap-btn {
+  position: absolute;
+  z-index: 2;
+  right: 37px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: #fffefa;
+  border: 1px solid #cdd9cb;
+  display: grid;
+  place-items: center;
+  color: #37634a;
+  box-shadow: 0 1px 3px #1b412113
+}
+
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 0;
+  margin: 6px 0 8px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #4c6054
+}
+
+.date-row>span {
+  white-space: nowrap
+}
+
+.date-row select {
+  width: auto;
+  min-width: 0;
+  min-height: 34px;
+  border: none;
+  background: transparent;
+  padding: 3px;
+  flex: 1;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 650
+}
+
+.planner-card .primary {
+  min-height: 46px
+}
+
+.planner-card .primary .icon:last-child {
+  margin-left: auto
+}
+
+.planner-card .primary {
+  justify-content: flex-start
+}
+
+.browse-all {
+  font-size: 12px;
+  color: #496650;
+  width: 100%;
+  padding: 12px 0 0
+}
+
+.planner-card .notice {
+  margin-bottom: 8px
+}
+
+.suggestions {
+  position: absolute;
+  z-index: 20;
+  background: #fffefa;
+  border: 1px solid #c6d6c5;
+  border-radius: 12px;
+  box-shadow: 0 12px 36px #1b35282c;
+  left: -1px;
+  right: -1px;
+  top: calc(100% + 3px);
+  max-height: min(320px, 48vh);
+  overflow: auto
+}
+
+.suggestions [role=option] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  padding: 9px 12px;
+  border: 0;
+  background: transparent
+}
+
+.suggestions [role=option]:hover,
+.suggestions [aria-selected=true] {
+  background: #edf3e8
+}
+
+.suggestions [role=option]>span {
+  min-width: 0
+}
+
+.suggestions [role=option] b,
+.suggestions [role=option] small {
+  display: block
+}
+
+.suggestions small {
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+.lookup-note {
+  font-size: 13px;
+  padding: 12px
+}
+
+.lookup-actions {
+  display: flex;
+  gap: 2px;
+  justify-content: space-between;
+  border-top: 1px solid var(--edge);
+  padding: 5px
+}
+
+.lookup-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 6px
+}
+
+.atlas {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #e9eddf;
+  border: 1px solid #d1dacd;
+  border-radius: 19px;
+  overflow: hidden;
+  box-shadow: var(--shadow)
+}
+
+.atlas .canvas {
+  flex: 1;
+  min-height: 305px;
+  width: 100%;
+  background-color: #e6ecdf;
+  background-image: linear-gradient(32deg, #f5f5e777 1px, transparent 1px), linear-gradient(118deg, #cbd7c377 1px, transparent 1px);
+  background-size: 34px 64px
+}
+
+.atlas .leaflet-tile-pane {
+  filter: saturate(.69) contrast(.93) brightness(1.025)
+}
+
+.atlas-badge,
+.atlas-controls,
+.atlas-attribution,
+.map-message {
+  position: absolute;
+  z-index: 450
+}
+
+.atlas-badge {
+  top: 15px;
+  left: 15px;
+  border: 1px solid #d3dbca;
+  background: #fffefaed;
+  box-shadow: 0 2px 9px #1c3e2620;
+  color: #385c46;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  font-weight: 650;
+  font-size: 12px;
+  pointer-events: none
+}
+
+.atlas-controls {
+  right: 13px;
+  top: 13px;
+  display: grid;
+  background: #fffefa;
+  border: 1px solid #cad7c8;
+  border-radius: 10px;
+  box-shadow: 0 2px 9px #163b2222;
+  overflow: hidden
+}
+
+.map-tool {
+  height: 34px;
+  width: 35px;
+  border: 0;
+  background: transparent;
+  color: #294d39
+}
+
+.map-tool+.map-tool {
+  border-top: 1px solid #e0e6db
+}
+
+.map-tool:hover {
+  background: #e9f1e4
+}
+
+.atlas-attribution {
+  bottom: 58px;
+  right: 0;
+  border-radius: 4px 0 0 0;
+  background: #fffefaec;
+  font: 10px/1.5 Arial, sans-serif;
+  padding: 1px 5px;
+  color: #365246
+}
+
+.atlas-footer {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 16px;
+  border-top: 1px solid #cfd9c9;
+  background: var(--paper);
+  z-index: 460
+}
+
+.atlas-caption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0
+}
+
+.atlas-caption b,
+.atlas-caption small {
+  display: block;
+  line-height: 1.3
+}
+
+.atlas-caption b {
+  font-size: 14px
+}
+
+.atlas-caption small {
+  font-size: 11px;
+  color: var(--muted)
+}
+
+.route-symbol {
+  width: 35px;
+  height: 35px;
+  border-radius: 9px
+}
+
+.atlas-footer .text-btn {
+  font-size: 12px;
+  white-space: nowrap
+}
+
+.map-message:not(:empty) {
+  bottom: 79px;
+  left: 9px;
+  max-width: calc(100% - 18px);
+  background: #fffef6f2;
+  border: 1px solid var(--edge);
+  color: #38533e;
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-size: 11px
+}
+
+.route-marker {
+  background: transparent !important;
+  border: 0 !important;
+  cursor: grab !important
+}
+
+.map-marker-body {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 6px;
+  transform: rotate(-45deg);
+  background: #164f3e;
+  box-shadow: 0 2px 7px #15322855
+}
+
+.map-marker-body>span {
+  transform: rotate(45deg);
+  color: white;
+  font: 700 16px/1 Arial, sans-serif
+}
+
+.route-marker i {
+  position: absolute;
+  bottom: 0;
+  left: 15px;
+  width: 12px;
+  height: 5px;
+  border-radius: 50%;
+  background: #143d354f
+}
+
+.finish .map-marker-body {
+  background: #a65031
+}
+
+.atlas .leaflet-tooltip.stop-label {
+  background: #fffef9f5;
+  border: 1px solid #cbd6c8;
+  color: #263e31;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px #132d251e;
+  padding: 4px 7px;
+  font: 650 11px/1.25 inherit;
+  max-width: 150px;
+  white-space: normal
+}
+
+.atlas .leaflet-tooltip:before {
+  display: none
+}
+
+.corridors {
+  margin: 21px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  border-top: 1px solid var(--edge);
+  padding-top: 21px
+}
+
+.corridors h2 {
+  font-size: 20px;
+  letter-spacing: -.035em;
+  margin-top: 3px
+}
+
+.corridor-links {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  max-width: 790px
+}
+
+.corridor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  flex: 1;
+  text-align: left;
+  background: #fffefa;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  min-width: 0
+}
+
+.corridor:hover {
+  border-color: #87a58a;
+  background: #fcfef7
+}
+
+.corridor-icon {
+  height: 35px;
+  width: 35px;
+  border-radius: 9px
+}
+
+.corridor-icon.warm {
+  background: #f4e9dc;
+  color: #916243
+}
+
+.corridor b,
+.corridor small {
+  display: block
+}
+
+.corridor b {
+  font-size: 14px
+}
+
+.corridor small {
+  color: var(--muted);
+  font-size: 11px
+}
+
+.corridor>.icon {
+  margin-left: auto
+}

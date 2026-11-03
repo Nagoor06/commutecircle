@@ -1,0 +1,447 @@
+@media(min-width:1500px) {
+
+  .top-inner,
+  main,
+  .footer {
+    width: min(1320px, 90%)
+  }
+}
+
+@media(max-width:950px) {
+
+  .top-inner,
+  main,
+  .footer {
+    width: calc(100% - 48px)
+  }
+
+  .top-inner {
+    gap: 12px
+  }
+
+  .primary-nav {
+    gap: 0
+  }
+
+  .primary-nav a {
+    padding: 8px 10px;
+    font-size: 13px
+  }
+
+  .find-layout {
+    grid-template-columns: minmax(285px, .9fr) minmax(0, 1.45fr);
+    gap: 14px
+  }
+
+  .planner-card {
+    padding: 18px
+  }
+
+  .corridors {
+    gap: 16px
+  }
+
+  .corridor-links {
+    gap: 8px
+  }
+
+  .result-list {
+    grid-template-columns: 1fr
+  }
+
+  .offer-layout {
+    grid-template-columns: 1.35fr 1fr
+  }
+
+  .stop-fields {
+    grid-template-columns: 1fr 1fr
+  }
+
+  .stop-fields>label:first-child {
+    grid-column: 1/-1
+  }
+}
+
+@media(max-width:720px) {
+  body {
+    padding-bottom: calc(63px + env(safe-area-inset-bottom))
+  }
+
+  .topbar {
+    z-index: 660
+  }
+
+  .top-inner,
+  main,
+  .footer {
+    width: calc(100% - 32px)
+  }
+
+  .top-inner {
+    min-height: 59px;
+    justify-content: space-between
+  }
+
+  .brand {
+    font-size: 21px
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px
+  }
+
+  .primary-nav {
+    position: fixed;
+    z-index: 1000;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 5px 5px calc(5px + env(safe-area-inset-bottom));
+    background: #fffefbfa;
+    border-top: 1px solid #cfd9cc;
+    box-shadow: 0 -3px 16px #10221b0a
+  }
+
+  .primary-nav a {
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 3px;
+    font-size: 11px;
+    border-radius: 9px;
+    min-height: 46px
+  }
+
+  main {
+    padding-top: 22px
+  }
+
+  .page-head {
+    margin-bottom: 15px
+  }
+
+  .page-head>p {
+    font-size: 14px
+  }
+
+  .eyebrow {
+    font-size: 9.5px
+  }
+
+  h1 {
+    font-size: 38px;
+    line-height: 1.1
+  }
+
+  .mode {
+    font-size: 10.5px
+  }
+
+  .find-layout,
+  .details-grid,
+  .offer-layout,
+  .checkout-layout,
+  .help-layout {
+    grid-template-columns: 1fr;
+    gap: 12px
+  }
+
+  .atlas {
+    grid-row: 1
+  }
+
+  .atlas .canvas {
+    min-height: 0;
+    height: clamp(195px, 28vh, 260px);
+    flex: none
+  }
+
+  .atlas-footer {
+    min-height: 49px;
+    padding: 6px 10px
+  }
+
+  .atlas-attribution {
+    bottom: 49px
+  }
+
+  .atlas-badge {
+    top: 9px;
+    left: 9px
+  }
+
+  .atlas-controls {
+    top: 7px;
+    right: 7px
+  }
+
+  .map-tool {
+    width: 32px;
+    height: 31px
+  }
+
+  .atlas .leaflet-tooltip.stop-label {
+    font-size: 10px;
+    max-width: 92px
+  }
+
+  .map-message:not(:empty) {
+    bottom: 67px
+  }
+
+  .atlas-caption small {
+    font-size: 10px
+  }
+
+  .planner-card {
+    padding: 16px
+  }
+
+  .form-title {
+    margin: 4px 0 12px
+  }
+
+  .form-title h2 {
+    font-size: 22px
+  }
+
+  .stop-stack {
+    gap: 8px
+  }
+
+  .place-field {
+    padding: 7px 11px
+  }
+
+  .place-entry input {
+    font-size: 16px
+  }
+
+  .place-field>label {
+    font-size: 9px
+  }
+
+  .date-row {
+    margin: 1px 0;
+    padding: 7px 0
+  }
+
+  .corridors {
+    display: block;
+    padding-top: 14px;
+    margin-top: 16px
+  }
+
+  .corridors h2 {
+    font-size: 18px
+  }
+
+  .corridor-links {
+    margin-top: 9px;
+    display: grid;
+    grid-template-columns: 1fr 1fr
+  }
+
+  .corridor {
+    padding: 8px;
+    gap: 5px
+  }
+
+  .corridor-icon {
+    display: none
+  }
+
+  .corridor b {
+    font-size: 12px
+  }
+
+  .corridor small {
+    font-size: 10px
+  }
+
+  .summary-note,
+  .checkout-pay,
+  .booking-summary {
+    position: static
+  }
+
+  .details-grid .booking-summary {
+    grid-row: 1
+  }
+
+  .result-toolbar {
+    gap: 6px
+  }
+
+  .result-toolbar .meta {
+    font-size: 12px
+  }
+
+  .ride-card {
+    padding: 16px
+  }
+
+  .ride-foot {
+    gap: 7px
+  }
+
+  .trip-tools {
+    gap: 7px
+  }
+
+  .tabs a {
+    padding: 6px 10px
+  }
+
+  .footer {
+    padding-bottom: 14px
+  }
+
+  .panel {
+    padding: 17px
+  }
+
+  .btn {
+    min-height: 43px
+  }
+
+  .ride-card .itinerary>div {
+    grid-template-columns: 56px 9px 1fr;
+    gap: 6px;
+    font-size: 14px
+  }
+}
+
+@media(max-width:370px) {
+
+  .top-inner,
+  main,
+  .footer {
+    width: calc(100% - 22px)
+  }
+
+  .card-price b {
+    font-size: 21px
+  }
+
+  .atlas-footer .route-symbol {
+    display: none
+  }
+
+  .mode {
+    padding: 4px 6px
+  }
+
+  .tab-tools {
+    flex-wrap: wrap
+  }
+}
+
+@media(prefers-reduced-motion:reduce) {
+
+  *,
+  *:before,
+  *:after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important
+  }
+}
+
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c4d2c3;
+  border-radius: 22px;
+  background: #fffefa;
+  padding: 7px 13px;
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 660
+}
+
+.auto-results {
+  margin-top: 18px;
+  padding: 14px 19px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: #f0f4ea;
+  font-size: 14px;
+  color: #395747
+}
+
+.auto-heading {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 5px
+}
+
+.auto-heading>span {
+  font-size: 12px;
+  color: var(--muted)
+}
+
+.match-chip {
+  display: inline-flex;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 6px 9px;
+  margin: 2px 7px 2px 0;
+  font-weight: 600;
+  font-size: 13px
+}
+
+.lookup-actions small {
+  padding: 5px 7px;
+  white-space: normal;
+  flex: 1
+}
+
+.lookup-actions [data-gps] {
+  white-space: nowrap
+}
+
+.access .btn+.btn {
+  margin-left: 5px
+}
+
+.atlas .leaflet-tile-pane {
+  filter: none
+}
+
+.atlas .leaflet-tooltip.stop-label {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25
+}
+
+.atlas .leaflet-tooltip.stop-label {
+  width: max-content;
+  max-width: 150px
+}
+
+.checkout-layout+.meeting {
+  margin-top: 16px
+}
+
+.stop-fields .place-field {
+  padding: 7px 10px;
+  min-width: 0
+}
+
+.stop-fields {
+  align-items: end
+}
+
+@media(max-width:950px) {
+  .stop-fields>.place-field {
+    grid-column: 1/-1
+  }
+}

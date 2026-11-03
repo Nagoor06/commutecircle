@@ -36,7 +36,7 @@ class GuideTests(unittest.TestCase):
 
     def test_citations_and_no_external_text(self):
         result = self.ask("Booking commitment")
-        self.assertIn("demo money", result["answer"])
+        self.assertIn("sandbox money", result["answer"])
         self.assertTrue(result["sources"][0]["url"].endswith("#booking-commitment"))
 
     def test_no_hit_bypasses_generation(self):
