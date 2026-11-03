@@ -1,0 +1,54 @@
+import {esc,head,back,icon,day,clock,money,dateInput} from '../ui.js';
+import {fieldMarkup} from './place-field.js';
+
+function options(values,selected){
+  return values.map(value=>'<option value="'+esc(value)+'"'+(value==selected?' selected':'')+'>'+esc(value)+'</option>').join('');
+}
+function vehicleFields(car){
+  return [['make','Make','Honda',60],['model','Model','City',60],['color','Colour','White',40]].map(([key,label,example,limit])=>
+    '<label class="field">'+label+'<input name="'+key+'" maxlength="'+limit+'" placeholder="'+example+'" value="'+esc(car[key])+'"></label>').join('');
+}
+export function offerForm(d){
+  const seatOptions=options([1,2,3,4,5,6,7,8],d.seats);
+  const conditions=options(['excellent','good','fair'],d.car.condition);
+  return head('Driver / Create an offer','Offer a ride','Set your stops, departure time and price per seat.')+
+    `<form data-offer-form><div class="offer-layout"><div class="stack">
+    <section class="panel"><div class="panel-cap"><span class="step-no">01</span> Your route</div>
+      <p class="panel-intro">Add stops in travel order. Enter distances and minutes measured from your first stop.</p>
+      <div data-stops></div><button type="button" data-add-stop class="text-btn">${icon('plus',16)} Add an intermediate stop</button></section>
+    <section class="panel"><div class="panel-cap"><span class="step-no">02</span> Departure & fare</div>
+      <div class="form-grid"><label class="field span-2">Departure · local time<input type="datetime-local" name="time" required value="${esc(d.time)}"></label>
+        <label class="field">Full-route fare per seat (₹)<input type="number" min="1" max="100000" step=".01" name="price" required placeholder="200" value="${esc(d.price)}"></label>
+        <label class="field">Seats offered<select name="seats">${seatOptions}</select></label></div></section>
+    <section class="panel"><div class="panel-cap"><span class="step-no">03</span> Vehicle details</div>
+      <label class="checkline"><input type="checkbox" name="withCar" ${d.withCar?'checked':''}> Include my vehicle on this offer</label>
+      <div data-car class="form-grid" ${d.withCar?'':'hidden'}>${vehicleFields(d.car)}
+        <label class="field">Date purchased<input type="date" name="purchased_on" min="1886-01-01" max="${dateInput()}" value="${esc(d.car.purchased_on)}"></label>
+        <label class="field">Driver-reported condition<select name="condition">${conditions}</select></label></div></section></div>
+    <aside class="panel summary-note"><div class="section-index"><span class="index-dot"></span> Offer summary</div>
+      <h2 data-summary></h2><p>Passengers can reserve the legs they travel. The remaining legs stay available.</p>
+      <div class="note-box">${icon('info')}<span>Passengers see your ride after publication. Payments currently use sandbox money.</span></div>
+      <button class="btn primary wide" type="submit">Review ride ${icon('arrow')}</button><div data-notice role="status" hidden></div>
+    </aside></div></form>`;
+}
+export function stopRow(s,i,n){
+  const start=i===0, end=i===n-1;
+  const remove=start||end?'':'<button type="button" class="icon-only" aria-label="Remove stop '+(i+1)+'" data-remove="'+i+'">'+icon('close',16)+'</button>';
+  const field=fieldMarkup('offer-'+i,s,{label:'Meeting place',badge:String(i+1)});
+  return `<div class="offer-stop" data-row="${i}"><div class="stop-heading"><b>${start?'Pickup':end?'Final drop-off':'Intermediate stop'}</b>${remove}</div>
+    <div class="stop-fields">${field}
+      <label class="field">km from start<input data-value="km" type="number" min="0" max="3000" step=".001" required ${start?'readonly':''} value="${esc(s.km)}"></label>
+      <label class="field">min from start<input data-value="minutes" type="number" min="0" max="2880" step="1" required ${start?'readonly':''} value="${esc(s.minutes)}"></label>
+    </div></div>`;
+}
+export function offerReview(offer,button){
+  const timeline=offer.stops.map((p,i)=>`<li><span class="stop-time">${esc(clock(Date.parse(offer.departure)+p.minutes*60000))}</span>
+    <i class="${i===offer.stops.length-1?'last':''}"></i><div><b>${esc(p.name)}</b><small>${p.metres/1000} km from start</small></div></li>`).join('');
+  const car=offer.vehicle?offer.vehicle.make+' '+offer.vehicle.model:'Vehicle details not supplied';
+  return back('#/offer','Edit offer')+head('Driver / Review','Review your ride','Check the route and fare passengers will see.')+
+    `<div class="details-grid"><section class="panel"><div class="panel-cap">${icon('route')} Route and timing</div><ol class="stop-list">${timeline}</ol></section>
+    <section class="panel"><div class="panel-cap">${icon('car')} Your offer</div>
+    <div class="fare-line"><span>Full fare per seat</span><b>${money(offer.price_paise)}</b></div>
+    <p>${esc(day(offer.departure))} · ${offer.capacity} seat(s)</p><p class="muted">${esc(car)}</p>
+    <button data-publish class="btn primary wide">${esc(button)} ${icon('arrow')}</button><div data-notice role="status" hidden></div></section></div>`;
+}
