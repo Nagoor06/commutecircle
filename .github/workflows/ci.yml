@@ -46,9 +46,30 @@ jobs:
           alembic downgrade base
           alembic upgrade head
       - run: pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=85
-      - name: Check planner JavaScript
+      - name: Validate browser modules and package the Pages release
         run: |
-          for file in app/studio/*.js app/studio/*.mjs; do node --input-type=module --check < "$file"; done
+          find app/studio/app -name '*.js' -print0 | xargs -0 -n 1 node --check
+          python ../../scripts/package_web.py --out "$RUNNER_TEMP/cc-pages"
+      - name: Test mobile and desktop identity, booking and refund flows
+        working-directory: .
+        env:
+          CC_BROWSER_IDENTITIES: ${{ runner.temp }}/cc-browser-identities.json
+        run: |
+          npm ci --prefix qa/browser --ignore-scripts --no-audit --no-fund
+          (cd services/api && PYTHONPATH=. python ../../qa/browser/server.py) > "$RUNNER_TEMP/cc-browser-server.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          for i in {1..30}; do curl -fsS http://127.0.0.1:8765/health/ready >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8765/health/ready
+          npm test --prefix qa/browser
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mobile-browser-checks
+          path: qa/browser/evidence/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: commutecircle-pages
+          path: ${{ runner.temp }}/cc-pages/
       - name: Verify runtime container builds
         run: docker build -t commutecircle-api:test .
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

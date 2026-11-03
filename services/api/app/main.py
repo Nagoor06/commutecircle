@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
@@ -23,6 +24,15 @@ def create_app(database_url: str | None = None) -> FastAPI:
         engine.dispose()
 
     app = FastAPI(title="CommuteCircle API", version="0.1.0", lifespan=lifespan)
+    if settings.web_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.web_origins),
+            allow_methods=["GET", "POST", "PUT"],
+            allow_headers=["Authorization", "Content-Type"],
+            allow_credentials=False,
+            max_age=600,
+        )
     app.state.engine = engine
     app.state.token_verifier = TokenVerifier(settings) if settings.oidc_issuer else None
     app.middleware("http")(request_context)

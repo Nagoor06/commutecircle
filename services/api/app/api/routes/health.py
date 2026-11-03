@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.models import Booking, PickupPoint, Ride
+from app.models import Booking, Journey, PickupPoint, Ride, Ticket
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -21,6 +21,8 @@ def ready(request: Request):
             connection.execute(select(PickupPoint.id).limit(1))
             connection.execute(select(Ride.seats_capacity).limit(1))
             connection.execute(select(Booking.id).limit(1))
+            connection.execute(select(Journey.vehicle).limit(0))
+            connection.execute(select(Ticket.stars).limit(0))
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content={"status": "unavailable"})
     return {"status": "ready"}

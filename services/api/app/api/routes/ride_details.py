@@ -2,13 +2,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.models import Booking, Ride
 from app.schemas.ride_details import Review, RideDetails
 from app.services.bookings import is_rider
+from app.services.journey_catalog import driver_reviews
 
 router = APIRouter(prefix="/v1", tags=["ride details"])
 
@@ -18,15 +19,10 @@ def details(ride_id: UUID, principal: RideReader, session: DatabaseSession):
     ride = session.get(Ride, str(ride_id))
     if ride is None:
         raise HTTPException(404, "Ride not found")
-    average, count = session.execute(
-        select(func.avg(Booking.stars), func.count(Booking.stars))
-        .join(Ride, Booking.ride_id == Ride.id)
-        .where(Ride.driver_issuer == ride.driver_issuer, Ride.driver_subject == ride.driver_subject)
-    ).one()
     return {
         "cancelled": ride.cancelled,
         "vehicle": ride.vehicle,
-        "driver_rating": {"average": round(float(average), 1) if count else None, "count": count},
+        "driver_rating": driver_reviews(session, ride.driver_issuer, ride.driver_subject),
     }
 
 

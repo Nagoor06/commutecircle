@@ -12,3 +12,5 @@ coverage.xml
 node_modules/
 .expo/
 dist/
+
+qa/browser/evidence/

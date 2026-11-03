@@ -4,9 +4,11 @@ from fastapi import Request
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session
 
+from app.db.url import driver_url
+
 
 def build_engine(url: str) -> Engine:
-    engine = create_engine(url, pool_pre_ping=True)
+    engine = create_engine(driver_url(url), pool_pre_ping=True)
     if engine.dialect.name == "sqlite":
 
         @event.listens_for(engine, "connect")

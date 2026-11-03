@@ -15,6 +15,7 @@ class Journey(Base):
     departure: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_stop_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     stops: Mapped[list] = mapped_column(JSON)
+    vehicle: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     price_paise: Mapped[int]
     capacity: Mapped[int]
     cancelled: Mapped[bool] = mapped_column(default=False)
@@ -23,6 +24,7 @@ class Journey(Base):
 class Ticket(Base):
     __tablename__ = "journey_tickets"
     __table_args__ = (
+        CheckConstraint("stars BETWEEN 1 AND 5", name="journey_review_stars"),
         CheckConstraint("board >= 0 AND board < alight", name="ordered_ticket_stops"),
         CheckConstraint(
             "refund >= 0 AND refund <= charged AND charged <= fare", name="ticket_amounts"
@@ -38,4 +40,5 @@ class Ticket(Base):
     expires: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     fare: Mapped[int]
     charged: Mapped[int] = mapped_column(default=0)
+    stars: Mapped[int | None]
     refund: Mapped[int] = mapped_column(default=0)

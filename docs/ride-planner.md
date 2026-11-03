@@ -1,79 +1,78 @@
-# Ride planner
+# CommuteCircle web app
 
-The public GitHub Pages edition displays real OpenStreetMap streets, GPS or
-on-submit place search, a sample car and a browser-only seat simulation.
-Selecting a result loads its coordinates in the external map. Search depends
-on the public Nominatim service and is intended for light interactive use.
-Use a managed geocoder with a shared rate limiter before opening a larger pilot.
+Open `/studio/` on the API or deploy its static client at `/commutecircle/` on Pages.
+Hash routes support direct links and browser Back on both hosts. Each navigation
+mounts one screen and cancels work belonging to the previous screen.
 
-The API serves the same files at http://localhost:8000/studio/. Add that URL
-(including its final slash) to the application's Auth0 Allowed Callback URLs
-and http://localhost:8000 to Allowed Web Origins. Preserve the Swagger callback.
-The studio uses PKCE and holds its access token in memory.
+- **Book a ride** has one pannable, pinch-zoomable map. Either pin can be dragged
+  or moved with the keyboard. The two fields independently debounce suggestions
+  by 360 ms. On-device matching uses public station areas and station codes.
+  A configurable Photon endpoint adds place and street matches. A failed lookup
+  preserves local results. Device location is displayed after the user selects it.
+- **Matching rides** update after 420 ms of inactivity for a signed-in rider.
+  Search checks ordered stops, boarding time and all legs in the requested
+  segment *before* pagination. Coordinates use a 2 km radius. A stop without
+  coordinates uses its normalized name. Offers can be browsed without a route.
+- **Ride details** show itinerary, vehicle, passenger reviews, booked distance
+  and segment price. **Checkout** shows the server's ticket, the live hold
+  countdown and a sandbox receipt. Pickup instructions belong to a booked ticket.
+- **Offer a ride** uses one row per stop. Distances and minutes are cumulative
+  from the start. Drivers set seats, full-route fare and optional vehicle.
+  A review step precedes publication. Replaying the same offer ID cannot create
+  a second listing. The backend keeps older offers without coordinates or car details readable.
+- **My trips** separates riding and driving, current reservations and history.
+  Drivers can manage passengers and confirm early exits. Passengers can cancel
+  or rate a completed paid segment. Cancellation includes a fee ceiling so the
+  server asks for a new quote when the fee increases during confirmation.
+- **Help** contains booking policies and the authenticated local RAG assistant
+  when its optional service is enabled.
 
-After migrating, create a future offer in Swagger as before. Optionally include
-this object in the POST /v1/rides body:
+The browser stores no access tokens in local or session storage. PKCE verifier
+and return route are temporary; an offer awaiting sign-in can be resumed in the
+same tab. Search coordinates stay out of document URLs. Tile services receive
+the map area; selecting road preview sends endpoints to OSRM. Known public
+corridors can request a road preview automatically. Straight-line distance is
+labelled explicitly when road routing is unavailable. Driving estimates do not
+determine passenger charges; the confirmed offer's leg distances do.
 
-    "vehicle": {"make":"Honda","model":"City","color":"Pearl white",
-                "purchased_on":"2022-06-12","condition":"good"}
+## Shared booking backend
 
-Sign in to the local studio and select the offer under My ride details.
-An authenticated reader can also GET /v1/rides/{ride_id}/details.
-Old offers have no vehicle snapshot. A rider with an accepted booking may
-PUT {"stars": 4} to /v1/bookings/{booking_id}/rating after departure.
-Changing their rating updates the original review. The average spans all
-rated bookings for that driver. Eligibility establishes booking and departure,
-not physical attendance. No phone numbers, registration plates or rider
-identities appear in the ride details response.
+Configure OIDC as in [local login](local-login.md). Preserve the Swagger callback
+and add the studio's exact callback, including its trailing slash, to Allowed
+Callback URLs. Add the frontend's origin to Allowed Web Origins. Run
+`docker compose up --build -d` to apply migration 0007 and start the same-origin
+app at http://localhost:8000/studio/. A physical device requires a reachable
+HTTPS deployment and a registered callback.
 
-The location picker explores places independently of the API catalogue.
-Booking real rides still uses curated pickup-point IDs. Selecting a private
-location on the map does not create a public pickup point.
+A separately hosted client reads its operator-managed `app-settings.json`.
+Set `apiOrigin` to the actual HTTPS origin of the deployed FastAPI service.
+Set `WEB_ORIGINS` on the API to the exact frontend origin, and register
+`https://nagoor06.github.io/commutecircle/` as an Auth0 callback and
+`https://nagoor06.github.io` as an Allowed Web Origin for Pages. Do not use a
+URL query parameter for the API origin. Only public configuration belongs in
+this file. Place search can point to a self-hosted Photon-compatible endpoint;
+set it to null to use only the bundled station index.
 
-## Pickup coordination and cancellation
+The [Render staging blueprint](../render.yaml) deploys the API and PostgreSQL
+in Singapore. Both use the Free plan. Render supplies the private database
+connection string. The public identity settings match the existing Auth0 SPA.
+Render deploys subsequent changes after CI passes on `main`. The API takes a
+PostgreSQL advisory lock while applying migrations and exposes `/health/ready`.
+Open the [Render setup](https://render.com/deploy?repo=https://github.com/Nagoor06/commutecircle)
+to apply the blueprint. Confirm readiness before connecting Pages. For sign-in
+directly at the API, add the hosted `/studio/` callback and its HTTPS origin
+to the Auth0 application. Free staging databases expire after 30 days.
 
-Pickup and drop-off share one map with separate search fields. Drag either pin or use
-arrow keys while it has focus. Local matches can appear before a network
-response. Unavailable online search falls back to dragging, coordinates and
-known Tenali stops. The meetup card copies a selected public landmark and a
-pickup link only when requested.
+## Release and testing
 
-The driver can cancel an entire upcoming ride from the signed-in studio or
-POST /v1/rides/{ride_id}/cancel. This locks the same ride row as booking
-approval, closes pending and accepted bookings, and excludes the ride from
-search in one transaction. A single passenger cancellation affects their own
-booking. There is no background notification delivery.
+`python scripts/package_web.py --out /path/to/new-output --api-origin https://YOUR-ACTUAL-API-ORIGIN`
+generates an index and immutable asset directory. Omit the origin for a planning-only
+deployment. The same buildless modules ship in the API image. CI packages the
+Pages artifact and runs two isolated Chromium sessions against PostgreSQL and
+the real API. Only the identity provider's transport is local to the test;
+signature, scope, ownership, inventory and receipt logic still execute.
 
-The public ₹20 commitment is a sandbox illustration. Real payments need a
-payment provider, verified payment events, and refund reconciliation before
-charging users. The optional signed-in meeting-note translator sends only the
-entered landmark note to OpenAI. Set OPENAI_API_KEY on the API server. Each
-process limits translation calls to ten per minute. The original card remains
-available when translation fails. Public GitHub Pages does not call OpenAI.
-
-## Priced shared journeys
-
-In the signed-in studio, list a departure, price per seat for the full journey,
-capacity, and ordered public stops with cumulative road kilometres and scheduled
-minutes from departure. These are driver-entered distances and times. The
-public static edition has a fare preview. The authenticated API stores shared
-listings and sandbox payment receipts. Original unpriced, driver-approved
-ride offers keep their existing flow.
-
-Inventory is per leg. For A–B–C, A–B and B–C bookings can occupy one seat on
-the same trip. A hold lasts up to three minutes, never beyond boarding. A
-per-journey PostgreSQL row lock serializes overlapping holds, payment, expiry
-checks, early exits and cancellations. Retrying the same checkout ID or pay
-request cannot double-charge. Sandbox payment and booking confirmation commit
-in the same transaction. No external payment calls are enabled.
-
-Amounts use integer paise. A segment costs the difference between the rounded
-cumulative fares at its stops. A driver-confirmed early exit at an intermediate
-stop refunds the unused distance and releases onward legs. The pilot passenger
-cancellation fee is 0% at least 24 hours before boarding, 10% from 2 to under
-24 hours, and 25% in the last 2 hours before boarding. Unpaid holds have zero
-fee. Driver cancellation before boarding refunds the full active ticket. A
-whole-journey cancellation is available before the journey starts. Receipts
-are available in the rider's history. Alternatives and notifications are not
-automatically arranged. Real charging needs provider-side idempotency, verified
-webhooks and reconciliation of late payments and refunds before launch.
+The public client has no generated inventory. Disconnected deployments allow
+route planning and offer preparation, and explain why booking/publishing is
+unavailable. All payment endpoints in this release use sandbox accounting.
+There is no live payment provider or automatic passenger notification.

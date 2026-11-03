@@ -1,0 +1,36 @@
+# Free staging infrastructure for the Indian pickup network.
+databases:
+  - name: commutecircle-staging-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "17"
+    databaseName: commutecircle
+    user: commutecircle
+    ipAllowList: []
+services:
+  - type: web
+    name: commutecircle-staging-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    autoDeployTrigger: checksPass
+    dockerfilePath: ./services/api/Dockerfile
+    dockerContext: ./services/api
+    dockerCommand: python -m app.cli.start_hosted
+    healthCheckPath: /health/ready
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: commutecircle-staging-db
+          property: connectionString
+      - key: WEB_ORIGINS
+        value: https://nagoor06.github.io
+      - key: OIDC_ISSUER
+        value: https://dev-k7el8butwnjlle3n.us.auth0.com/
+      - key: OIDC_AUDIENCE
+        value: https://commutecircle-api
+      - key: OIDC_JWKS_URL
+        value: https://dev-k7el8butwnjlle3n.us.auth0.com/.well-known/jwks.json
+      - key: DOCS_OAUTH_CLIENT_ID
+        value: 6malfyYSWlRbe2whqk8iSS5zRl2H8yN6

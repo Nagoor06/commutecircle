@@ -1,14 +1,10 @@
 # CommuteCircle
 
-Privacy-aware carpooling built in small, tested increments. Start with public meeting points; add ride offers, seat requests, and driver approval next.
+A carpool app for planning a route, publishing offers, reserving a ride segment and managing a trip. The responsive web app has separate booking, driver, checkout, trips and help screens.
 
-## Actual status
+[Web app guide and staging setup](docs/ride-planner.md) · [Architecture](docs/architecture.md) · [Authentication](docs/authentication.md)
 
-Milestone 1 adds authenticated ride creation, exact public-pickup ride search and caller-owned ride listing. Token verification is implemented; live sign-in requires an OIDC provider. No mobile app, booking, route-overlap matching or cloud deployment is implemented yet.
-
-Foundation CI passed PostgreSQL migration checks, tests, Docker build and image publication. Check GitHub Actions for the current commit. Branch-protection enforcement remains a repository setting to configure.
-
-Read [authentication](docs/authentication.md), [ride API](docs/rides-api.md) and [architecture](docs/architecture.md).
+Shared rides and reservations use FastAPI, PostgreSQL and Auth0. Payment accounting remains in sandbox mode. A static deployment without a configured API still provides location planning and explicitly disables shared bookings.
 
 ## Run locally
 
@@ -72,8 +68,8 @@ docker compose -f compose.yaml -f compose.ride-help.yaml up --build -d
 On first start, Docker downloads two Ollama models. Check progress with
 `docker compose -f compose.yaml -f compose.ride-help.yaml logs prepare-help-models`.
 Sign in at http://localhost:8000/studio/ and ask “Is the ₹20 commitment real money?”
-under **Ask about CommuteCircle**. Swagger also exposes `POST /v1/help/ask`.
-This runs locally with Docker. The static Pages demo has no inference backend.
+under **Help → Ask the guide**. Swagger also exposes `POST /v1/help/ask`.
+This runs locally with Docker. Inference requires the API and optional ride-help services.
 
 The worker embeds the sections of the [rider guide](services/ride-help/guide.md)
 with all-MiniLM, stores them in a SQLite vec0 table, and retrieves up to three
