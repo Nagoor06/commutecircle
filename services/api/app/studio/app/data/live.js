@@ -22,6 +22,7 @@ export function liveClient(token, origin) {
           } : {})
         },
         body: data ? JSON.stringify(data) : undefined,
+        keepalive: !!options.keepalive,
         signal: controller.signal
       });
       if (!response.ok) {
@@ -45,6 +46,13 @@ export function liveClient(token, origin) {
   const ticket = (id, tid) => path(id) + '/tickets/' + encodeURIComponent(tid);
   return {
     mode: 'live',
+    contacts: signal => call('/v1/me/trusted-contacts', 'GET', null, {signal}),
+    saveContact: (slot, data) => call('/v1/me/trusted-contacts/' + slot, 'PUT', data),
+    deleteContact: slot => call('/v1/me/trusted-contacts/' + slot, 'DELETE'),
+    startShare: data => call('/v1/trip-shares', 'POST', data),
+    locateShare: (id, data) => call('/v1/trip-shares/' + id + '/location', 'PUT', data),
+    stopShare: (id, keepalive=false) => call('/v1/trip-shares/' + id + '/stop', 'POST', null, {keepalive}),
+    viewShare: (token, signal) => call('/v1/trip-shares/view', 'POST', {token}, {signal}),
     commute: signal => call('/v1/me/commute', 'GET', null, {signal}),
     saveCommute: data => call('/v1/me/commute', 'PUT', data),
     forgetCommute: () => call('/v1/me/commute', 'DELETE'),

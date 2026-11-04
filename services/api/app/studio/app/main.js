@@ -9,6 +9,7 @@ import {
   liveClient
 } from './data/live.js';
 import {restorePlan, rememberPlan, forgetPlan} from './data/plan.js';
+import {createTripSharing} from './data/trip-sharing.js';
 import {
   startRouter
 } from './router.js';
@@ -54,7 +55,7 @@ async function beginLogin(mode = 'login') {
   }
 }
 function login() {
-  const target = location.hash.startsWith('#/signin') ? '#/book' : location.hash;
+  const target = /^#\/(signin|track)/.test(location.hash) ? '#/book' : location.hash;
   location.hash = '/signin?return=' + encodeURIComponent(target);
 }
 let signingOut = false;
@@ -73,6 +74,19 @@ const state = {
   commute: undefined,
   landmark: '',
   checkoutKeys: new Map()
+};
+const sharingBar = document.querySelector('#sharing-status');
+state.sharing = createTripSharing(api, (current, problem) => {
+  if (problem) { accountStatus.hidden=false; accountStatus.textContent=problem; }
+  sharingBar.hidden = !current;
+  if (!current) return;
+  sharingBar.querySelector('span').textContent = current.status;
+  sharingBar.querySelector('a').href = '#/share/' + current.journey_id +
+    (current.ticket_id ? '?ticket=' + current.ticket_id : '');
+});
+sharingBar.querySelector('button').onclick = async () => {
+  try { await state.sharing.stop(); }
+  catch (e) { accountStatus.hidden=false; accountStatus.textContent=e.message; }
 };
 window.addEventListener('pagehide', () => {
   if (!signingOut) rememberPlan(state);

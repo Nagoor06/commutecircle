@@ -2,6 +2,7 @@ import {head, icon, esc, notice, pending} from '../ui.js';
 import {access} from '../components/access.js';
 import {fieldMarkup, attachField} from '../components/place-field.js';
 import {stopFromPlace, isSame} from '../data/places.js';
+import {contactsMarkup, bindContacts} from '../components/trusted-contacts.js';
 
 export async function mount(ctx) {
   const {root, api, auth, state, geocoder, signal, go} = ctx;
@@ -21,7 +22,7 @@ export async function mount(ctx) {
     <aside class="stack"><section class="panel accent-panel"><div class="panel-cap">${icon('shield')} Circle pickup</div><h2>Your pickup is a public place.</h2>
     <p>Drivers see the booked meeting points. Your employer label and saved preferences stay in your account.</p><p>“Find public stops near me” compares device location with our station catalogue in your browser. It sends no device coordinates to the server.</p>
     <p class="fine">Public points are suggestions, not verified safe places. Check access, lighting and the actual meeting spot.</p></section>
-    <a class="btn secondary" href="#/trips">My bookings & offers ${icon('arrow')}</a></aside></div>`;
+    <a class="btn secondary" href="#/trips">My bookings & offers ${icon('arrow')}</a></aside></div>` + contactsMarkup();
   const fields = [...root.querySelectorAll('[data-field]')].map((node,i) => attachField(node, {
     initial: (i?saved?.workplace:saved?.pickup) || {name:''}, update:()=>{}, onDraft:()=>{},
     geocoder, signal, info:m=>notice(root,m)
@@ -40,4 +41,5 @@ export async function mount(ctx) {
     fields.forEach(f=>f.set({name:''})); root.querySelector('[name=employer]').value='';
     notice(root,'Saved commute deleted.','info');
   },m=>notice(root,m,'error'));
+  await bindContacts(root.querySelector('.trusted-contacts'),api,signal);
 }

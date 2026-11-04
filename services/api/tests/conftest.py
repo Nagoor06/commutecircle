@@ -18,6 +18,8 @@ from app.models import (
     PickupPoint,
     Ride,
     Ticket,
+    TripShare,
+    TrustedContact,
 )
 
 
@@ -28,6 +30,8 @@ def client(tmp_path, monkeypatch):
     command.upgrade(Config("alembic.ini"), "head")
     app = create_app(url)
     with Session(app.state.engine) as session:
+        session.execute(delete(TripShare))
+        session.execute(delete(TrustedContact))
         session.execute(delete(Message))
         session.execute(delete(ChatBlock))
         session.execute(delete(PaymentEntry))

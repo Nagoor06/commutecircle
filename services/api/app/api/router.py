@@ -11,6 +11,7 @@ from app.api.routes import (
     ride_details,
     ride_help,
     rides,
+    trip_sharing,
 )
 
 api_router = APIRouter()
@@ -27,3 +28,4 @@ api_router.include_router(ride_help.router)
 api_router.include_router(journeys.router)
 api_router.include_router(commute.router)
 api_router.include_router(chat.router)
+api_router.include_router(trip_sharing.router)

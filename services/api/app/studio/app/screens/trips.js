@@ -96,6 +96,7 @@ export async function mount(ctx) {
           <div class="button-row"><a class="btn secondary compact" href="${esc(t?checkoutHref(j.id,t.id):rideHref(j.id))}">${t?(t.state==='held'?'Continue checkout':'View receipt'):'View itinerary'}</a></div>`;
         const actions = card.querySelector('.button-row');
         if(t?.charged_paise) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/chat/${j.id}/${t.id}">Booking chat</a>`);
+        if(!history && !j.cancelled && (driving || t?.state==='paid')) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/share/${j.id}${t?'?ticket='+t.id:''}">Share my trip</a>`);
         if (driving && !j.cancelled && Date.parse(j.departure) > Date.now()) button(actions,
           'Cancel ride', async () => {
             if (await cancelJourney(api, j)) await refresh()

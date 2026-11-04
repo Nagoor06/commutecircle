@@ -36,6 +36,14 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       locale: 'en-IN',
       timezoneId: 'Asia/Kolkata'
     });
+    await context.addInitScript(() => {
+      const fix=()=>({coords:{latitude:16.3,longitude:80.6,accuracy:12},timestamp:Date.now()});
+      Object.defineProperty(navigator,'geolocation',{value:{
+        watchPosition:success=>setTimeout(()=>success(fix()),20),
+        getCurrentPosition:success=>setTimeout(()=>success(fix()),20),
+        clearWatch:id=>clearTimeout(id)
+      }});
+    });
     let challenge, code;
     await context.route('https://identity.test/**', async route => {
       const req = route.request(),
@@ -136,6 +144,12 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       exact: true
     }).fill(value);
     await driver.getByLabel('I have checked the public stops').check();
+    const departure=await driver.evaluate(()=>{
+      const d=new Date(Date.now()+30*60*1000);
+      const part=n=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${part(d.getMonth()+1)}-${part(d.getDate())}T${part(d.getHours())}:${part(d.getMinutes())}`;
+    });
+    await driver.getByLabel('Departure · local time').fill(departure);
     const travelDate=(await driver.getByLabel('Departure · local time').inputValue()).slice(0,10);
     await driver.getByRole('button', {
       name: 'Review ride'
@@ -164,6 +178,9 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     });
     await rider.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Profile',exact:true}).click();
     await rider.getByRole('heading',{name:'My profile',exact:true}).waitFor();
+    await rider.getByLabel('Contact name',{exact:true}).fill('Trusted person');
+    await rider.getByRole('button',{name:'Save favourite',exact:true}).click();
+    await rider.locator('.contact-row').getByText('Trusted person',{exact:true}).waitFor();
     await rider.getByLabel('Where do you work?',{exact:false}).fill('CI private office');
     await rider.getByRole('combobox',{name:'Public pickup point',exact:true}).fill('Tenal');
     await rider.getByRole('option',{name:/Tenali Junction/}).first().click();
@@ -218,6 +235,33 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       name: 'Booked',
       exact: true
     }).waitFor();
+    const receiptUrl=rider.url();
+    await rider.getByRole('link',{name:'Share my trip',exact:true}).click();
+    await rider.getByRole('button',{name:'Start location sharing',exact:true}).click();
+    await rider.getByText('Confirm who can see your location before starting.',{exact:true}).waitFor();
+    await rider.getByLabel('I want to share my precise location').check();
+    await rider.getByRole('button',{name:'Start location sharing',exact:true}).click();
+    await rider.locator('main [data-state]').filter({hasText:'Location sharing is on'}).waitFor();
+    await rider.getByRole('button',{name:'Share with Trusted person',exact:true}).waitFor();
+    assert.ok(await rider.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    const firstLink=await rider.getByLabel('Private trip link',{exact:true}).inputValue();
+    const viewerContext=await browser.newContext();
+    const viewer=await viewerContext.newPage();
+    await viewer.goto(firstLink);
+    await viewer.getByRole('link',{name:'Open last known location on OpenStreetMap',exact:true}).waitFor();
+    assert.ok(!(await viewer.locator('main').innerText()).includes('CI private office'));
+    await rider.locator('#sharing-status').getByRole('button',{name:'Stop sharing',exact:true}).click();
+    await rider.locator('main [data-state]').getByText('Sharing is off.',{exact:true}).waitFor();
+    await viewer.getByRole('button',{name:'Refresh location',exact:true}).click();
+    await viewer.getByText('This sharing link has ended. Ask your traveller for a new link.',{exact:true}).waitFor();
+    await rider.getByRole('button',{name:'Start location sharing',exact:true}).click();
+    await rider.locator('main [data-state]').filter({hasText:'Location sharing is on'}).waitFor();
+    const secondLink=await rider.getByLabel('Private trip link',{exact:true}).inputValue();
+    assert.notEqual(firstLink,secondLink);
+    await viewer.goto(secondLink);
+    await viewer.getByRole('link',{name:'Open last known location on OpenStreetMap',exact:true}).waitFor();
+    // Hash navigation keeps explicit sharing active; a full reload deliberately ends it.
+    await rider.evaluate(url=>{location.hash=new URL(url).hash;},receiptUrl);
     await rider.getByRole('link', {name:'Message driver',exact:true}).click();
     await rider.getByLabel('Message', {exact:true}).fill('Call 9876543210');
     await rider.getByRole('button', {name:'Send message',exact:true}).click();
@@ -245,6 +289,9 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       exact: true
     }).click();
     await driver.getByText('No current offers').waitFor();
+    await viewer.getByRole('button',{name:'Refresh location',exact:true}).click();
+    await viewer.getByText('This sharing link has ended. Ask your traveller for a new link.',{exact:true}).waitFor();
+    await viewerContext.close();
     await rider.getByRole('link', {
       name: 'History',
       exact: true

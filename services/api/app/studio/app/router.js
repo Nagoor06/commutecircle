@@ -11,12 +11,15 @@ const routes = {
   signin: () => import('./screens/signin.js'),
   profile: () => import('./screens/profile.js'),
   chat: () => import('./screens/chat.js'),
+  share: () => import('./screens/share.js'),
+  track: () => import('./screens/track.js'),
   help: () => import('./screens/help.js')
 };
 const groups = {
   results: 'find',
   ride: 'find',
   checkout: 'trips',
+  share: 'trips',
   book: 'find'
 };
 const titles = {
@@ -29,6 +32,8 @@ const titles = {
   signin: 'Sign in',
   profile: 'My profile',
   chat: 'Booking chat',
+  share: 'Share my trip',
+  track: 'Follow a trip',
   help: 'Help'
 };
 export const go = route => {
