@@ -40,7 +40,7 @@ export async function mount({
   signal
 }) {
   const points = state.route;
-  state.date ||= dateInput();
+  if (!state.date || state.date < dateInput()) state.date = dateInput();
   let filters = {...(state.query || {}), prefer_commute: auth.signed};
   delete filters.origin; delete filters.destination; delete filters.after; delete filters.before; delete filters.offset;
   root.innerHTML = head('Passenger / Plan a trip', 'Book a ride',
@@ -54,7 +54,7 @@ export async function mount({
       <p class="fine">Meet at public stops. The points you choose are shared with the ride. Browse without an account.</p>
       <div data-notice role="status" hidden></div>
       <button data-find class="btn primary wide">${icon('search')} View matching rides ${icon('arrow')}</button>
-      <button data-browse class="browse-all">Browse all upcoming rides ${icon('chevron',14)}</button>
+      <button data-browse class="browse-all">Browse rides on this date ${icon('chevron',14)}</button>
     </section>${mapFrame()}</div>
     <section class="auto-results" aria-label="Matching rides" aria-live="polite"><div class="auto-heading"><div class="eyebrow"><i></i> Route matches</div><span data-match-count></span></div><div data-matches></div></section>
     <div class="corridors"><div><div class="eyebrow"><i></i> Quick picks</div><h2>Explore a corridor</h2></div><div class="corridor-links">
