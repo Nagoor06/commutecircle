@@ -1,5 +1,6 @@
+import asyncio
 import os
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -12,6 +13,7 @@ from app.auth.tokens import TokenVerifier
 from app.core.config import Settings
 from app.db.session import build_engine
 from app.middleware.request_logging import request_context
+from app.services import location_retention
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
@@ -20,8 +22,14 @@ def create_app(database_url: str | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app):
-        yield
-        engine.dispose()
+        cleanup = asyncio.create_task(location_retention.run(engine))
+        try:
+            yield
+        finally:
+            cleanup.cancel()
+            with suppress(asyncio.CancelledError):
+                await cleanup
+            engine.dispose()
 
     app = FastAPI(title="CommuteCircle API", version="0.1.0", lifespan=lifespan)
     if settings.web_origins:

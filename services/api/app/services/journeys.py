@@ -3,9 +3,10 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.models.journey import Journey, PaymentEntry, Ticket
+from app.models.trip_share import TripShare
 
 
 def utc(t):
@@ -159,6 +160,22 @@ def refund_to(session, ticket, amount, kind, now):
         ticket.refund = amount
 
 
+def revoke_location(session, jid, tid=None):
+    statement = update(TripShare).where(TripShare.journey_id == jid)
+    if tid:
+        statement = statement.where(TripShare.ticket_id == tid)
+    session.execute(
+        statement.values(
+            revoked=True,
+            latitude=None,
+            longitude=None,
+            accuracy_m=None,
+            observed_at=None,
+            updated_at=None,
+        )
+    )
+
+
 def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
     with session.begin():
         j = locked(session, jid)
@@ -199,6 +216,7 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
                 session, t, t.charged - charge, "driver_refund" if driver else "rider_refund", now
             )
             t.state = "driver_cancelled" if driver else "rider_cancelled"
+            revoke_location(session, jid, tid)
         elif action == "exit":
             if not is_driver(j, p):
                 raise HTTPException(403, "Driver must confirm the actual exit")
@@ -212,6 +230,7 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             ):
                 raise HTTPException(409, "Requires an onboard passenger and an earlier route stop")
             t.state = "exited"
+            revoke_location(session, jid, tid)
             t.alight = stop
             refund_to(session, t, t.charged - fare(j, t.board, stop), "exit_refund", now)
         return receipt(t, now)
@@ -233,4 +252,5 @@ def cancel_all(session, jid, p):
                     refund_to(session, t, t.charged, "driver_refund", now)
                     t.state = "driver_cancelled"
             j.cancelled = True
+            revoke_location(session, jid)
     return {"cancelled": True}
