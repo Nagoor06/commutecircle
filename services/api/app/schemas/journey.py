@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
@@ -23,10 +24,17 @@ class Stop(Place):
     minutes: int = Field(ge=0, le=2880, strict=True)
 
 
+class RidePreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    quiet: bool = False
+    air_conditioned: bool = False
+
+
 class Offer(BaseModel):
     model_config = ConfigDict(extra="forbid")
     offer_id: UUID | None = None
     vehicle: Vehicle | None = None
+    preferences: RidePreferences = Field(default_factory=RidePreferences)
     stops: list[Stop] = Field(min_length=2, max_length=16)
     departure: AwareDatetime
     price_paise: int = Field(ge=100, le=10000000, strict=True)
@@ -63,6 +71,15 @@ class RideSearch(BaseModel):
     after: AwareDatetime | None = None
     before: AwareDatetime | None = None
     offset: int = Field(default=0, ge=0, le=10000)
+    radius_m: int = Field(default=2000, ge=100, le=5000, strict=True)
+    destination_radius_m: int = Field(default=2000, ge=100, le=30000, strict=True)
+    min_seats: int = Field(default=1, ge=1, le=8, strict=True)
+    max_fare_paise: int | None = Field(default=None, ge=0, le=10000000, strict=True)
+    min_rating: float | None = Field(default=None, ge=1, le=5, allow_inf_nan=False)
+    quiet: bool = False
+    air_conditioned: bool = False
+    prefer_commute: bool = False
+    sort: Literal["recommended", "departure", "price", "arrival"] = "recommended"
 
     @model_validator(mode="after")
     def window(self):

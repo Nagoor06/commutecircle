@@ -18,7 +18,8 @@ export const carName = v => v ? [v.make, v.model].join(' ') : 'Vehicle details p
 export function rideCard({
   journey: j,
   board: a,
-  alight: b
+  alight: b,
+  match = {}
 }) {
   const from = j.stops[a],
     to = j.stops[b],
@@ -29,6 +30,7 @@ export function rideCard({
     <div class="ride-main"><div class="itinerary"><div><time>${esc(clock(pickupAt(j,a)))}</time><i></i><b>${esc(from.name)}</b></div>
       <div><time>${esc(clock(pickupAt(j,b)))}</time><i></i><b>${esc(to.name)}</b></div></div>
       <div class="card-price"><b>${money(fare(j,a,b))}</b><small>per seat</small></div></div>
+    <div class="match-reasons">${match.commute?'<span class="pill">Your office commute</span>':''}${match.pickup_distance_m!=null?`<span>Pickup ${(match.pickup_distance_m/1000).toFixed(1)} km away</span>`:''}${match.dropoff_distance_m!=null?`<span>Drop-off ${(match.dropoff_distance_m/1000).toFixed(1)} km from your destination</span>`:''}${j.preferences?.quiet?'<span>Quiet ride</span>':''}${j.preferences?.air_conditioned?'<span>AC</span>':''}</div>
     <div class="ride-foot"><span>${icon('car',16)} ${esc(carName(j.vehicle))}</span><span>${icon('seat',16)} ${n} ${n===1?'seat':'seats'}</span>
     <a class="text-btn" href="${esc(rideHref(j.id,a,b))}">View ride ${icon('arrow',15)}</a></div></article>`;
 }

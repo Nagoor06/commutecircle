@@ -16,6 +16,7 @@ class Journey(Base):
     last_stop_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     stops: Mapped[list] = mapped_column(JSON)
     vehicle: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    preferences: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     price_paise: Mapped[int]
     capacity: Mapped[int]
     cancelled: Mapped[bool] = mapped_column(default=False)
@@ -42,3 +43,14 @@ class Ticket(Base):
     charged: Mapped[int] = mapped_column(default=0)
     stars: Mapped[int | None]
     refund: Mapped[int] = mapped_column(default=0)
+
+
+class PaymentEntry(Base):
+    """Sandbox ledger entries committed in the same transaction as seat changes."""
+
+    __tablename__ = "payment_entries"
+    __table_args__ = (CheckConstraint("amount > 0", name="positive_payment_entry"),)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("journey_tickets.id"), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(24), primary_key=True)
+    amount: Mapped[int]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

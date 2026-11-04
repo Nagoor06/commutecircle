@@ -99,6 +99,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       name: 'Sign in',
       exact: true
     }).first().click();
+    await page.getByRole('button', {name: /Continue to secure sign-in/}).click();
     await page.getByRole('button', {
       name: 'Sign out',
       exact: true
@@ -134,6 +135,8 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       ]) await driver.getByLabel(name, {
       exact: true
     }).fill(value);
+    await driver.getByLabel('I have checked the public stops').check();
+    const travelDate=(await driver.getByLabel('Departure · local time').inputValue()).slice(0,10);
     await driver.getByRole('button', {
       name: 'Review ride'
     }).click();
@@ -154,9 +157,21 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       const drop = page.getByRole('combobox', {name: 'Drop-off', exact: true});
       await drop.fill('Mangal');
       await page.getByRole('option', {name: /Mangalagiri/}).first().click();
+      await page.getByLabel('Travel date', {exact:true}).fill(travelDate);
       await page.reload();
       assert.equal(await drop.inputValue(), 'Mangalagiri');
+      await page.locator('[data-matches] a').filter({hasText:'Mangalagiri'}).first().waitFor();
     });
+    await rider.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Profile',exact:true}).click();
+    await rider.getByRole('heading',{name:'My profile',exact:true}).waitFor();
+    await rider.getByLabel('Where do you work?',{exact:false}).fill('CI private office');
+    await rider.getByRole('combobox',{name:'Public pickup point',exact:true}).fill('Tenal');
+    await rider.getByRole('option',{name:/Tenali Junction/}).first().click();
+    await rider.getByRole('combobox',{name:'Office-area meeting point',exact:true}).fill('Mangal');
+    await rider.getByRole('option',{name:/Mangalagiri/}).first().click();
+    await rider.getByLabel('These are public meeting points').check();
+    await rider.getByRole('button',{name:'Save my commute',exact:true}).click();
+    await rider.getByRole('heading',{name:'Book a ride',exact:true}).waitFor();
     const pickup = rider.getByRole('combobox', {
         name: /pickup/i
       }),
@@ -203,6 +218,13 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       name: 'Booked',
       exact: true
     }).waitFor();
+    await rider.getByRole('link', {name:'Message driver',exact:true}).click();
+    await rider.getByLabel('Message', {exact:true}).fill('Call 9876543210');
+    await rider.getByRole('button', {name:'Send message',exact:true}).click();
+    await rider.getByText(/Phone numbers, emails, contact handles and links are not allowed/).waitFor();
+    await rider.getByLabel('Message', {exact:true}).fill('I’m at the pickup point.');
+    await rider.getByRole('button', {name:'Send message',exact:true}).click();
+    await rider.locator('.message').getByText('I’m at the pickup point.',{exact:true}).waitFor();
     await rider.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {
       name: 'My trips',
       exact: true
@@ -300,6 +322,7 @@ test('guest navigation never invents rides; stop hints work when external lookup
     await page.getByRole('combobox', {name: 'Pickup', exact: true}).waitFor();
     assert.equal(configRequests, 0, 'route planning is independent of the booking service');
     await page.getByRole('button', {name: 'Sign in', exact: true}).first().click();
+    await page.getByRole('button', {name:/Continue to secure sign-in/}).click();
     await page.getByText('Could not reach the booking service. Try signing in again.').waitFor();
     assert.equal(configRequests, 1);
   } finally {

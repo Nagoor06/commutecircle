@@ -1,3 +1,4 @@
+import {stopFromPlace} from '../data/places.js';
 import {
   meetingMarkup,
   bindMeeting
@@ -28,7 +29,7 @@ import {
   cancelTicket
 } from '../components/ticket-actions.js';
 export async function mount(ctx) {
-  if (!ctx.api) return access(ctx, 'Checkout', 'Your reservation and receipt are private.');
+  if (!ctx.api || !ctx.auth.signed) return access(ctx, 'Checkout', 'Your reservation and receipt are private.');
   const {
     root,
     api,
@@ -41,8 +42,8 @@ export async function mount(ctx) {
   if (signal.aborted) return;
   let ticket = j.tickets.find(t => t.id === tid);
   if (!ticket || j.owner) throw Error('This passenger checkout is unavailable.');
-  let interval;
-  signal.addEventListener('abort', () => clearInterval(interval), {
+  let interval, refreshTimer, generation=0, reading=false;
+  signal.addEventListener('abort', () => {clearInterval(interval);clearInterval(refreshTimer)}, {
     once: true
   });
 
@@ -61,8 +62,12 @@ export async function mount(ctx) {
       ${held?`<p class="hold-clock">${icon('clock')} Seat held for <b data-clock></b></p><button data-pay class="btn primary wide">Pay ${money(t.fare_paise)} in sandbox ${icon('arrow')}</button>`:''}
       ${state==='expired'?`<p>Your hold expired. No payment was taken.</p><a class="btn secondary wide" href="${esc(rideHref(jid,t.board,t.alight))}">Check availability</a>`:''}
       ${['held','paid'].includes(state)&&+pickupAt(j,t.board)>Date.now()?'<button data-cancel class="text-btn cancel">Cancel reservation</button>':''}
+      ${t.charged_paise?`<a class="btn secondary wide" href="#/chat/${jid}/${tid}">Message driver</a>`:''}
+      ${state==='driver_cancelled'?'<button class="btn primary wide" data-alternatives>Find another ride</button>':''}
       ${!held?'<a class="text-btn" href="#/trips">View my trips →</a>':''}
       ${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
+    const alternatives = root.querySelector('[data-alternatives]');
+    if (alternatives) alternatives.onclick = () => { ctx.state.query={origin:stopFromPlace(j.stops[t.board]),destination:stopFromPlace(j.stops[t.alight])}; ctx.go('results'); };
     const meeting = root.querySelector('.meeting');
     if (meeting) bindMeeting(meeting, {
       getPoint: () => j.stops[t.board],
@@ -87,6 +92,7 @@ export async function mount(ctx) {
       interval = setInterval(update, 1000);
       const pay = root.querySelector('[data-pay]');
       if (pay) pay.onclick = () => pending(pay, async () => {
+        generation++;
         const paid = await api.pay(jid, tid);
         if (signal.aborted) return;
         ticket = paid;
@@ -95,6 +101,7 @@ export async function mount(ctx) {
     }
     const cancel = root.querySelector('[data-cancel]');
     if (cancel) cancel.onclick = () => pending(cancel, async () => {
+      generation++;
       if (await cancelTicket(api, j, t) && !signal.aborted) {
         ticket = (await api.detail(jid, signal)).tickets.find(x => x.id === tid);
         if (!signal.aborted) paint()
@@ -102,4 +109,15 @@ export async function mount(ctx) {
     }, e => notice(root, e, 'error'));
   }
   paint();
+  refreshTimer=setInterval(async()=>{
+    if(reading||document.hidden||signal.aborted)return;
+    reading=true;const current=generation;
+    try{
+      const fresh=await api.detail(jid,signal), next=fresh.tickets.find(t=>t.id===tid);
+      if(!signal.aborted&&current===generation&&next&&JSON.stringify(next)!==JSON.stringify(ticket)){
+        ticket=next;paint();
+      }
+    }catch(e){if(!signal.aborted)notice(root,'Could not refresh the reservation. Retry from My trips.','error');}
+    finally{reading=false;}
+  },10000);
 }

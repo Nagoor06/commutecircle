@@ -16,7 +16,7 @@ export function liveClient(token, origin) {
         method,
         credentials: 'same-origin',
         headers: {
-          Authorization: 'Bearer ' + token,
+          ...(token ? {Authorization: 'Bearer ' + token} : {}),
           ...(data ? {
             'Content-Type': 'application/json'
           } : {})
@@ -45,6 +45,12 @@ export function liveClient(token, origin) {
   const ticket = (id, tid) => path(id) + '/tickets/' + encodeURIComponent(tid);
   return {
     mode: 'live',
+    commute: signal => call('/v1/me/commute', 'GET', null, {signal}),
+    saveCommute: data => call('/v1/me/commute', 'PUT', data),
+    forgetCommute: () => call('/v1/me/commute', 'DELETE'),
+    messages: (id, tid, signal) => call(ticket(id, tid) + '/messages', 'GET', null, {signal}),
+    sendMessage: (id, tid, data) => call(ticket(id, tid) + '/messages', 'POST', data),
+    blockChat: (id, tid) => call(ticket(id, tid) + '/messages/block', 'POST'),
     search: (q, signal) => call('/v1/journeys/search', 'POST', q, {
       signal
     }),

@@ -6,6 +6,10 @@ import {
 } from '../ui.js';
 const guide = 'https://github.com/Nagoor06/commutecircle/blob/main/services/ride-help/guide.md';
 const items = [
+  ['Can I browse without signing in?', 'Yes. Choose a date and public meeting points to see rides, fares and vehicle details. Sign in when booking, listing or messaging.'],
+  ['How does Circle pickup protect my address?', 'Choose a public pickup point. Nearby-stop lookup compares your location locally, then lets you choose a station area. Your device location is not used as the pickup pin. Never choose a private home pin.'],
+  ['How do I see office rides first?', 'Open Profile and save your public pickup and office-area meeting points. Best commute match puts available rides between those points first. Your employer label stays private.'],
+  ['Can I message without sharing my phone?', 'Booking chat opens after confirmation. Common phone numbers, emails and contact links are blocked. Either participant can block further messages. Disguised details may bypass filters, so keep the conversation about the ride.'],
   ['How do I find a seat?',
     'Set a pickup and drop-off on Find. Results match the stops in travel order, check seats on every leg and exclude boarding times that have passed.'
   ],
@@ -39,7 +43,7 @@ export function mount({
       'Answers about reservations, fares and meeting your driver.') +
     `<div class="help-layout"><section class="panel"><div class="panel-cap">${icon('help')} Common questions</div>${items.map(([q,a])=>`<details class="faq"><summary>${esc(q)} ${icon('down',16)}</summary><p>${esc(a)}</p></details>`).join('')}</section>
    <aside class="stack"><section class="panel accent-panel"><div class="panel-cap">${icon('spark')} Ride assistant</div><h2>Ask the guide</h2>
-   ${api&&auth.help?'<form data-ask><label class="field">Question<input required maxlength="300" placeholder="When can I cancel for free?"></label><button class="btn primary">Ask question</button></form><p data-answer role="status"></p>':'<p>AI answers with source links are available in the signed-in studio when the local ride-help service is running.</p>'}
+   ${api&&auth.signed&&auth.help?'<form data-ask><label class="field">Question<input required maxlength="300" placeholder="When can I cancel for free?"></label><p class="fine">Ask general questions. Leave out home addresses, phone numbers and workplace names.</p><button class="btn primary">Ask question</button></form><p data-answer role="status"></p>':'<p>AI answers with source links are available in the signed-in studio when the local ride-help service is running.</p>'}
    <a data-source href="${guide}" target="_blank" rel="noopener" class="text-btn">Open rider guide ${icon('arrow',16)}</a></section>
 </aside></div>`;
   const form = root.querySelector('[data-ask]');

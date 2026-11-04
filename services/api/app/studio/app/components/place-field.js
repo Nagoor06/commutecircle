@@ -12,6 +12,7 @@ import {
   immediateMatches,
   suggest
 } from '../data/geocoder.js';
+import {nearbyPublicStops} from '../data/public-stops.js';
 
 export function fieldMarkup(i, p, options = {}) {
   const label = options.label || (i ? 'Drop-off' : 'Pickup'),
@@ -20,7 +21,7 @@ export function fieldMarkup(i, p, options = {}) {
   return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${i?'orange':''}">${esc(badge)}</span>${esc(label)}</label>
     <div class="place-entry"><input id="${id}" aria-label="${esc(label)}" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list" value="${esc(p.name)}"><button type="button" class="icon-only" aria-label="Edit ${esc(label)}">${icon('pin',17)}</button></div>
     <small class="place-sub">${esc(p.area||'Public meeting place')}</small>
-    <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-gps type="button">${icon('target',14)} Use location</button></div></div>
+    <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>
   </div>`;
 }
 export function attachField(node, {
@@ -183,7 +184,7 @@ export function attachField(node, {
       return
     }
     info('Waiting for location permission…');
-    navigator.geolocation.getCurrentPosition(({
+    navigator.geolocation.getCurrentPosition(async ({
       coords
     }) => {
       if (signal.aborted || id !== generation) return;
@@ -197,8 +198,14 @@ export function attachField(node, {
         info('This point is outside map coverage.');
         return
       }
-      show([p], 'Confirm current location');
-      info('');
+      try {
+        const candidates = await nearbyPublicStops(p, signal);
+        if (signal.aborted || id !== generation) return;
+        show(candidates, candidates.length ? 'Choose a public stop. Device coordinates stay in this browser.' : 'No catalogue stops within 5 km. Search for a public landmark.');
+        info('');
+      } catch (error) {
+        if (!signal.aborted && id === generation) info(error.message);
+      }
     }, () => {
       if (!signal.aborted && id === generation) info(
         'Device location is unavailable. You can type a stop or drag a pin.')

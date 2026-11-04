@@ -9,7 +9,7 @@ For initial local testing, use your existing public Native application. In its S
 | Setting | Value |
 |---|---|
 | Allowed Callback URLs | `http://localhost:8000/docs/oauth2-redirect` |
-| Allowed Web Origins | `http://localhost:8000` |
+| Allowed Web Origins (SPA clients, if shown) | `http://localhost:8000` |
 | Allowed Origins (CORS) | `http://localhost:8000` |
 
 Confirm Authorization Code is enabled under Advanced Settings / Grant Types and Token Endpoint Authentication Method is None. Enable your database connection for this application so users can sign up/sign in. Save changes. A separate development SPA client can be used instead by changing only DOCS_OAUTH_CLIENT_ID; keep development callbacks separate from production mobile configuration.
@@ -38,4 +38,4 @@ Tokens remain in Swagger memory and are not persisted across page reloads. Swagg
 
 Troubleshooting: callback mismatch means the exact URL is missing in Auth0; invalid_client means public-client/grant configuration needs checking; a CORS failure means Allowed Origins needs checking. A 403 after login usually means a required scope was not granted (check RBAC assignment). A 503 means missing provider configuration or unreachable signing keys. Give the error message/status when asking for help, without tokens or authorization codes.
 
-Automated tests verify OpenAPI URLs, required scopes, PKCE configuration, callback page, nonpersistent token settings, and unchanged rejection of unauthenticated requests. Live Auth0 sign-in requires completing the above dashboard settings and has not been verified by the assistant.
+Automated tests verify OpenAPI URLs, required scopes, PKCE configuration, callback page, nonpersistent token settings, and rejection of unauthenticated booking and listing requests; priced-journey discovery is public. Live Auth0 sign-in requires completing the above dashboard settings and has not been verified by the assistant.

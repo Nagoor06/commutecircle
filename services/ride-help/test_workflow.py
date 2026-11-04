@@ -46,3 +46,23 @@ class GuideTests(unittest.TestCase):
     def test_invalid_and_abstaining_model_choices(self):
         for self.model.choice in [0, 99, True, "insert text"]:
             self.assertEqual(self.ask("Last seat")["sources"], [])
+
+    def test_private_input_never_reaches_inference(self):
+        for question in [
+            "Call ９８７６５４３２１０",
+            "my home address is 12 Secret Street",
+            "contact me@example.org",
+        ]:
+            self.assertEqual(self.ask(question)["status"], "private_input")
+        self.assertEqual(self.model.selections, 0)
+
+    def test_new_privacy_and_commute_topics_have_sources(self):
+        for topic in [
+            "Circle pickup privacy",
+            "Workplace commute matching",
+            "Booking chat",
+            "Browse and filter rides",
+        ]:
+            answer = self.ask(topic)
+            self.assertEqual(answer["status"], "answered")
+            self.assertTrue(answer["sources"])

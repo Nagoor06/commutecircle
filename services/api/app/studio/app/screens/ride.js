@@ -25,11 +25,12 @@ import {
   policy
 } from '../components/ride-summary.js';
 export async function mount(ctx) {
-  if (!ctx.api) return access(ctx, 'Ride details', 'Sign in to see the driver, route and available seats.');
+  if (!ctx.api) return access(ctx, 'Ride details', 'The ride service is currently unavailable.');
   const {
     root,
     api,
     state,
+    auth,
     signal,
     parts,
     query,
@@ -76,7 +77,7 @@ export async function mount(ctx) {
     root.querySelector('[data-fare]').innerHTML =
       `<div class="fare-line"><span>Segment fare</span><b>${money(fare(j,a,b))}</b></div><p class="meta">${(j.stops[b].metres-j.stops[a].metres)/1000} km · ${esc(clock(pickupAt(j,a)))} pickup · ${n} seats</p>`;
     book.textContent = j.owner ? 'Manage your offer' : prior ? (prior.state === 'paid' ? 'Open receipt' :
-      'Continue checkout') : closed ? 'Booking closed' : n ? 'Hold one seat' : 'Segment is full';
+      'Continue checkout') : closed ? 'Booking closed' : n ? (auth.signed ? 'Hold one seat' : 'Sign in to book') : 'Segment is full';
     book.disabled = !j.owner && !prior && (closed || n < 1);
     book.onclick = () => pending(book, async () => {
       if (j.owner) {
@@ -87,6 +88,7 @@ export async function mount(ctx) {
         location.hash = checkoutHref(j.id, prior.id);
         return
       }
+      if (!auth.signed) { auth.login(); return; }
       const key = j.id + ':' + a + ':' + b;
       if (!state.checkoutKeys.has(key)) state.checkoutKeys.set(key, requestId());
       const ticket = await api.hold(j.id, a, b, state.checkoutKeys.get(key));

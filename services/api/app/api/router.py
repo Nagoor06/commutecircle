@@ -2,6 +2,8 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     bookings,
+    chat,
+    commute,
     health,
     journeys,
     meeting_notes,
@@ -23,3 +25,5 @@ api_router.include_router(meeting_notes.router)
 api_router.include_router(ride_help.router)
 
 api_router.include_router(journeys.router)
+api_router.include_router(commute.router)
+api_router.include_router(chat.router)
