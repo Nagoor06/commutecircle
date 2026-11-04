@@ -142,7 +142,9 @@ export async function mount({
       matchRequest = req;
       node.textContent = 'Checking available seats…';
       try {
-        const response = await api.search(q, req.signal);
+        const response = await api.search(q, req.signal, message => {
+          if (current === matchVersion && !signal.aborted) node.textContent = message;
+        });
         if (current !== matchVersion || signal.aborted) return;
         count.textContent = response.items.length + (response.more ? '+' : '') + ' available';
         node.replaceChildren();

@@ -6,6 +6,7 @@ import {
 } from '../ui.js';
 const guide = 'https://github.com/Nagoor06/commutecircle/blob/main/services/ride-help/guide.md';
 const items = [
+  ['How can my favourite contacts follow my trip?', 'Save up to five favourites in Profile. Open Share my trip from a confirmed booking or your driver offer, agree to precise location sharing, then send the private link yourself. Anyone with the link can view it without an account. Stop sharing or cancellation ends access. Keep the page open: phone browsers can pause background GPS, and five minutes without updates ends the link.'],
   ['Can I browse without signing in?', 'Yes. Choose a date and public meeting points to see rides, fares and vehicle details. Sign in when booking, listing or messaging.'],
   ['How does Circle pickup protect my address?', 'Choose a public pickup point. Nearby-stop lookup compares your location locally, then lets you choose a station area. Your device location is not used as the pickup pin. Never choose a private home pin.'],
   ['How do I see office rides first?', 'Open Profile and save your public pickup and office-area meeting points. Best commute match puts available rides between those points first. Your employer label stays private.'],

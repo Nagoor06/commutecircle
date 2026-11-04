@@ -1,3 +1,5 @@
+import {recoverSearch} from './search-recovery.js';
+
 export class ApiError extends Error {
   constructor(status, message) {
     super(message);
@@ -59,9 +61,9 @@ export function liveClient(token, origin) {
     messages: (id, tid, signal) => call(ticket(id, tid) + '/messages', 'GET', null, {signal}),
     sendMessage: (id, tid, data) => call(ticket(id, tid) + '/messages', 'POST', data),
     blockChat: (id, tid) => call(ticket(id, tid) + '/messages/block', 'POST'),
-    search: (q, signal) => call('/v1/journeys/search', 'POST', q, {
+    search: (q, signal, onStatus) => recoverSearch(() => call('/v1/journeys/search', 'POST', q, {
       signal
-    }),
+    }), signal, onStatus),
     detail: (id, signal) => call(path(id), 'GET', null, {
       signal
     }),
