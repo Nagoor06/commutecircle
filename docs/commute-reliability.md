@@ -6,6 +6,8 @@
 
 Priced-journey discovery, search, details and quotes accept guests. Supplied bearer tokens are still verified. Public projections exclude identities, tickets and private commute preferences. All `/v1/` responses are `no-store`. Booking, publishing, cancellation, reviews, profiles and chat require authenticated scopes.
 
+Read-only ride search retries transient connection/502/503/504 failures up to two times, with visible recovery text and a bounded total wait of about one minute. Changing stops, filters or screens cancels the request and any pending retry. Authentication and validation errors are not retried. Booking and payment operations do not use this automatic recovery. Browsing all routes preserves the selected calendar date and other filters.
+
 `/v1/me/commute` uses an atomic upsert keyed by issuer and subject. Only that account can read/delete its public nodal pickup, office-area point and optional employer label. There is no residence field. Users confirm that selected points are public; software cannot certify this from an arbitrary pin.
 
 Nearby-stop lookup downloads the CC0 DataMeet catalogue and computes distance in the browser. Raw device coordinates are never used as the pickup pin or sent to the booking server. The user chooses a public suggestion. Typed queries and selected routing stops still reach the configured Photon/OSRM providers. Public points are not safety certifications.

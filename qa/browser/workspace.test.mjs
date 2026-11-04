@@ -175,6 +175,25 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       await page.reload();
       assert.equal(await drop.inputValue(), 'Mangalagiri');
       await page.locator('[data-matches] a').filter({hasText:'Mangalagiri'}).first().waitFor();
+      let unavailable=true;
+      await page.route('**/v1/journeys/search',route=>{
+        if(unavailable){unavailable=false;return route.fulfill({status:503,json:{detail:'Temporarily unavailable'}});}
+        return route.continue();
+      });
+      await page.getByRole('button',{name:'View matching rides',exact:true}).click();
+      await page.getByText('The ride service may be waking up. Retrying automatically (1/2)…',{exact:true}).waitFor();
+      await page.locator('.result-list').getByText('₹100',{exact:false}).first().waitFor();
+      await page.unroute('**/v1/journeys/search');
+      await page.getByRole('link',{name:'Edit search',exact:true}).click();
+      await page.getByLabel('Travel date',{exact:true}).fill('2099-01-01');
+      await page.getByRole('button',{name:'View matching rides',exact:true}).click();
+      await page.getByRole('heading',{name:'No rides for this search',exact:true}).waitFor();
+      await page.getByRole('button',{name:'Show all routes',exact:true}).click();
+      await page.getByText('Rides on your selected date',{exact:true}).waitFor();
+      await page.getByRole('heading',{name:'No rides for this search',exact:true}).waitFor();
+      await page.getByRole('link',{name:'Edit search',exact:true}).click();
+      await page.getByLabel('Travel date',{exact:true}).fill(travelDate);
+      await page.locator('[data-matches] a').filter({hasText:'Mangalagiri'}).first().waitFor();
     });
     await rider.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Profile',exact:true}).click();
     await rider.getByRole('heading',{name:'My profile',exact:true}).waitFor();
