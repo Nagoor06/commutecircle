@@ -27,7 +27,7 @@ import {
   cancelTicket
 } from '../components/ticket-actions.js';
 export async function mount(ctx) {
-  if (!ctx.api) return access(ctx, 'My trips', 'Sign in to manage your reservations and offers.');
+  if (!ctx.api || !ctx.auth.signed) return access(ctx, 'My trips', 'Sign in to manage your reservations and offers.');
   const {
     root,
     api,
@@ -95,6 +95,7 @@ export async function mount(ctx) {
           <p class="muted">${esc(clock(pickupAt(j,a)))} pickup · ${t?'Segment '+money(t.fare_paise)+' · Refund '+money(t.refund_paise):'Full-route seat '+money(j.price_paise)}</p>
           <div class="button-row"><a class="btn secondary compact" href="${esc(t?checkoutHref(j.id,t.id):rideHref(j.id))}">${t?(t.state==='held'?'Continue checkout':'View receipt'):'View itinerary'}</a></div>`;
         const actions = card.querySelector('.button-row');
+        if(t?.charged_paise) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/chat/${j.id}/${t.id}">Booking chat</a>`);
         if (driving && !j.cancelled && Date.parse(j.departure) > Date.now()) button(actions,
           'Cancel ride', async () => {
             if (await cancelJourney(api, j)) await refresh()
@@ -122,6 +123,7 @@ export async function mount(ctx) {
             row.innerHTML =
               `<b>${esc(j.stops[ticket.board].name)} → ${esc(j.stops[ticket.alight].name)}</b>
               <small>${esc(ticketLabel[ticket.state])} · ${money(ticket.charged_paise)} charged · ${money(ticket.refund_paise)} refunded</small>`;
+            if(ticket.charged_paise) row.insertAdjacentHTML('beforeend', `<a class="text-btn" href="#/chat/${j.id}/${ticket.id}">Passenger chat</a>`);
             if (['held', 'paid'].includes(ticket.state) && pickupAt(j, ticket.board) > Date.now()) button(
               row, 'Cancel and refund', async () => {
                 if (await cancelTicket(api, j, ticket)) await refresh()

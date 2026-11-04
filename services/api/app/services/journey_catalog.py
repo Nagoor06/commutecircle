@@ -2,11 +2,14 @@
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from heapq import nsmallest
 from itertools import islice
+from types import SimpleNamespace
 
 from sqlalchemy import func, select
 
-from app.models import Booking, Journey, Ride, Ticket
+from app.models import Booking, Commute, Journey, Ride, Ticket
+from app.schemas.journey import Place
 from app.services import journeys
 from app.services.locations import distance_m
 
@@ -55,6 +58,7 @@ def views(session, candidates, principal, now=None):
                 id=j.id,
                 stops=j.stops,
                 vehicle=j.vehicle,
+                preferences=j.preferences or {},
                 price_paise=j.price_paise,
                 capacity=j.capacity,
                 departure=journeys.utc(j.departure),
@@ -71,25 +75,52 @@ def views(session, candidates, principal, now=None):
     return result
 
 
-def near(place, stop):
+def gap(place, stop):
     if place is None:
-        return True
+        return None
     if place.lat is not None and stop.get("lat") is not None:
-        return distance_m(place.lat, place.lon, stop["lat"], stop["lon"]) <= PICKUP_RADIUS_M
-    return " ".join(place.name.casefold().split()) == " ".join(stop["name"].casefold().split())
+        return round(distance_m(place.lat, place.lon, stop["lat"], stop["lon"]))
+    if " ".join(place.name.casefold().split()) == " ".join(stop["name"].casefold().split()):
+        return 0
+    return None
 
 
-def segment(row, query, start, end):
+def near(place, stop, radius=PICKUP_RADIUS_M):
+    distance = gap(place, stop)
+    return place is None or (distance is not None and distance <= radius)
+
+
+def segment(row, query, start, end, commute=None):
     stops = row["stops"]
+    options = []
     for a, stop in enumerate(stops[:-1]):
         boarding = row["departure"] + timedelta(minutes=stop["minutes"])
-        if boarding <= start or (end and boarding >= end) or not near(query.origin, stop):
+        if (
+            boarding <= start
+            or (end and boarding >= end)
+            or not near(query.origin, stop, query.radius_m)
+        ):
             continue
-        # For browsing, prefer the longest available part of the ride.
-        for b in range(len(stops) - 1, a, -1):
-            if near(query.destination, stops[b]) and min(row["free"][a:b]) > 0:
-                return a, b
-    return None
+        for b in range(a + 1, len(stops)):
+            if (
+                not near(query.destination, stops[b], query.destination_radius_m)
+                or min(row["free"][a:b]) < query.min_seats
+            ):
+                continue
+            price = journeys.fare(SimpleNamespace(**row), a, b)
+            if query.max_fare_paise is not None and price > query.max_fare_paise:
+                continue
+            commute_match = bool(
+                commute
+                and near(commute[0], stop, query.radius_m)
+                and near(commute[1], stops[b], query.destination_radius_m)
+            )
+            # Choose the closest actual stops in travel order, never a fictitious pickup.
+            target = query.destination or (commute[1] if commute_match else None)
+            source = query.origin or (commute[0] if commute_match else None)
+            distance = (gap(source, stop) or 0) + (gap(target, stops[b]) or 0)
+            options.append(((not commute_match, distance, a, -b), a, b, commute_match, price))
+    return min(options) if options else None
 
 
 def search(session, principal, query):
@@ -98,23 +129,69 @@ def search(session, principal, query):
     stmt = select(Journey).where(Journey.cancelled.is_(False), Journey.last_stop_at > start)
     if query.before:
         stmt = stmt.where(Journey.departure < query.before)
+    saved = (
+        session.get(Commute, (principal.issuer, principal.subject))
+        if principal and query.prefer_commute
+        else None
+    )
+    commute = (Place(**saved.pickup), Place(**saved.workplace)) if saved else None
     candidates = iter(
         session.scalars(
             stmt.order_by(Journey.departure, Journey.id).execution_options(yield_per=80)
         )
     )
-    matches = []
-    skipped = 0
-    while batch := list(islice(candidates, 80)):
-        for row in views(session, batch, principal, now):
-            selection = segment(row, query, start, query.before)
-            if not selection:
-                continue
-            if skipped < query.offset:
-                skipped += 1
-                continue
-            a, b = selection
-            matches.append({"journey": row, "board": a, "alight": b})
-            if len(matches) > PAGE:
-                return {"items": matches[:PAGE], "more": True}
-    return {"items": matches, "more": False}
+    ratings = {}
+
+    def matches():
+        while batch := list(islice(candidates, 80)):
+            identities = {j.id: (j.issuer, j.driver) for j in batch}
+            for row in views(session, batch, principal, now):
+                if any(
+                    getattr(query, flag) and not row["preferences"].get(flag)
+                    for flag in ("quiet", "air_conditioned")
+                ):
+                    continue
+                selection = segment(row, query, start, query.before, commute)
+                if not selection:
+                    continue
+                identity = identities[row["id"]]
+                if identity not in ratings:
+                    ratings[identity] = driver_reviews(session, *identity)
+                row["driver_rating"] = ratings[identity]
+                if query.min_rating and (row["driver_rating"]["average"] or 0) < query.min_rating:
+                    continue
+                _, a, b, commute_match, price = selection
+                origin_gap = gap(query.origin, row["stops"][a])
+                arrival_gap = gap(query.destination, row["stops"][b])
+                boarding = row["departure"] + timedelta(minutes=row["stops"][a]["minutes"])
+                common = (boarding, row["id"], a, b)
+                rank = (
+                    (price,)
+                    if query.sort == "price"
+                    else (arrival_gap if arrival_gap is not None else float("inf"),)
+                    if query.sort == "arrival"
+                    else (not commute_match, (origin_gap or 0) + (arrival_gap or 0))
+                    if query.sort == "recommended"
+                    else ()
+                ) + common
+                yield (
+                    rank,
+                    {
+                        "journey": row,
+                        "board": a,
+                        "alight": b,
+                        "match": {
+                            "commute": commute_match,
+                            "pickup_distance_m": origin_gap,
+                            "dropoff_distance_m": arrival_gap,
+                            "fare_paise": price,
+                        },
+                    },
+                )
+
+    # Keep only the requested page in memory even when sorting a large catalogue.
+    selected = nsmallest(query.offset + PAGE + 1, matches(), key=lambda item: item[0])
+    return {
+        "items": [item for _, item in selected[query.offset : query.offset + PAGE]],
+        "more": len(selected) > query.offset + PAGE,
+    }

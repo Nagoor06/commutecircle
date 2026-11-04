@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.routes.bookings import DatabaseSession
-from app.auth.dependencies import RideReader, RideWriter
+from app.auth.dependencies import PublicReader, RideReader, RideWriter
 from app.models.journey import Journey, Ticket
 from app.schemas.journey import CancelTicket, ExitStop, Hold, Offer, RideSearch, Segment
 from app.schemas.ride_details import Review
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/v1/journeys", tags=["priced journeys (sandbox)"])
 def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
     stops = [s.model_dump(exclude_none=True) for s in data.stops]
     vehicle = data.vehicle.model_dump(mode="json") if data.vehicle else None
+    preferences = data.preferences.model_dump()
     offer_id = str(data.offer_id) if data.offer_id else None
 
     def replay(existing):
@@ -27,6 +28,7 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
             not service.is_driver(existing, principal)
             or existing.stops != stops
             or existing.vehicle != vehicle
+            or (existing.preferences or {"quiet": False, "air_conditioned": False}) != preferences
             or service.utc(existing.departure) != data.departure
             or existing.price_paise != data.price_paise
             or existing.capacity != data.capacity
@@ -50,6 +52,7 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
                 last_stop_at=data.departure + timedelta(minutes=data.stops[-1].minutes),
                 stops=stops,
                 vehicle=vehicle,
+                preferences=preferences,
                 price_paise=data.price_paise,
                 capacity=data.capacity,
             )
@@ -66,7 +69,7 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
 
 
 @router.get("")
-def discover(principal: RideReader, session: DatabaseSession, offset: int = Query(0, ge=0)):
+def discover(principal: PublicReader, session: DatabaseSession, offset: int = Query(0, ge=0)):
     rows = session.scalars(
         select(Journey)
         .where(Journey.cancelled.is_(False), Journey.last_stop_at > datetime.now(UTC))
@@ -94,12 +97,12 @@ def history(principal: RideReader, session: DatabaseSession, offset: int = Query
 
 
 @router.post("/search")
-def find(data: RideSearch, principal: RideReader, session: DatabaseSession):
+def find(data: RideSearch, principal: PublicReader, session: DatabaseSession):
     return catalog.search(session, principal, data)
 
 
 @router.get("/{jid}")
-def detail(jid: UUID, principal: RideReader, session: DatabaseSession):
+def detail(jid: UUID, principal: PublicReader, session: DatabaseSession):
     j = session.get(Journey, str(jid))
     if not j:
         raise HTTPException(404, "Journey not found")
@@ -128,7 +131,7 @@ def rate(jid: UUID, tid: UUID, data: Review, principal: RideWriter, session: Dat
 
 
 @router.post("/{jid}/quote")
-def quote(jid: UUID, data: Segment, principal: RideReader, session: DatabaseSession):
+def quote(jid: UUID, data: Segment, principal: PublicReader, session: DatabaseSession):
     j = session.get(Journey, str(jid))
     if not j:
         raise HTTPException(404, "Journey not found")

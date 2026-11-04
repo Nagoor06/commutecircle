@@ -16,6 +16,7 @@ const items = [
   ['find', 'compass', 'Book a ride'],
   ['offer', 'car', 'Offer a ride'],
   ['trips', 'ticket', 'My trips'],
+  ['profile', 'user', 'Profile'],
   ['help', 'help', 'Help']
 ];
 document.querySelector('.primary-nav').innerHTML = items.map(([route, symbol, title]) =>
@@ -33,27 +34,32 @@ if (query.has('code') || query.has('error')) {
   document.querySelector('.startup').textContent = 'Finishing sign-in…';
 }
 const auth = await session(settings);
-const api = auth.token ? liveClient(auth.token, auth.apiOrigin) : null;
+if (auth.problem && auth.apiOrigin && !location.hash) location.hash='/signin';
+const api = auth.apiOrigin ? liveClient(auth.token, auth.apiOrigin) : null;
 const account = document.querySelector('#account');
-account.innerHTML = auth.apiOrigin ? '<button class="account-btn" data-auth>' + icon('user', 16) + (api ?
+account.innerHTML = auth.apiOrigin ? '<button class="account-btn" data-auth>' + icon('user', 16) + (auth.token ?
   'Sign out' : 'Sign in') + '</button>' : '<span class="mode">' + icon('user', 13) + ' Guest</span>';
 const gate = account.querySelector('[data-auth]');
 const accountStatus = document.querySelector('#account-status');
-async function login() {
+async function beginLogin(mode = 'login') {
   if (!gate || gate.disabled) return;
   gate.disabled = true;
   accountStatus.hidden = false;
   accountStatus.textContent = 'Connecting to sign-in… Your route will be here when you return.';
   try {
-    await signIn(auth)
+    await signIn(auth, mode)
   } catch (error) {
     gate.disabled = false;
     accountStatus.textContent = error.message || 'Sign-in is unavailable. Please try again.';
   }
 }
+function login() {
+  const target = location.hash.startsWith('#/signin') ? '#/book' : location.hash;
+  location.hash = '/signin?return=' + encodeURIComponent(target);
+}
 let signingOut = false;
 if (gate) gate.onclick = () => {
-  if (api) {
+  if (auth.token) {
     signingOut = true;
     forgetPlan();
     location.replace(new URL('./', location.href));
@@ -64,6 +70,7 @@ if (gate) gate.onclick = () => {
 const state = {
   ...restorePlan(),
   offer: null,
+  commute: undefined,
   landmark: '',
   checkoutKeys: new Map()
 };
@@ -83,6 +90,8 @@ startRouter({
   state,
   auth: {
     enabled: !!auth.apiOrigin,
+    signed: !!auth.token,
+    begin: beginLogin,
     help: !!auth.config?.ride_help_enabled,
     problem: auth.problem,
     login

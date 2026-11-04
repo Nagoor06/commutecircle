@@ -8,7 +8,17 @@ from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
 from app.main import create_app
-from app.models import Booking, Journey, PickupPoint, Ride, Ticket
+from app.models import (
+    Booking,
+    ChatBlock,
+    Commute,
+    Journey,
+    Message,
+    PaymentEntry,
+    PickupPoint,
+    Ride,
+    Ticket,
+)
 
 
 @pytest.fixture
@@ -18,6 +28,10 @@ def client(tmp_path, monkeypatch):
     command.upgrade(Config("alembic.ini"), "head")
     app = create_app(url)
     with Session(app.state.engine) as session:
+        session.execute(delete(Message))
+        session.execute(delete(ChatBlock))
+        session.execute(delete(PaymentEntry))
+        session.execute(delete(Commute))
         session.execute(delete(Ticket))
         session.execute(delete(Journey))
         session.execute(delete(Booking))

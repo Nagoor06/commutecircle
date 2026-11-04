@@ -41,7 +41,7 @@ determine passenger charges; the confirmed offer's leg distances do.
 
 Configure OIDC as in [local login](local-login.md). Preserve the Swagger callback
 and add the studio's exact callback, including its trailing slash, to Allowed
-Callback URLs. Add the frontend's origin to Allowed Web Origins. Run
+Callback URLs. For a SPA client, add the frontend origin to Allowed Web Origins when that field is exposed. The existing Native client uses full-page PKCE redirects; it does not use silent-auth web-message flows. Run
 `docker compose up --build -d` to apply migration 0007 and start the same-origin
 app at http://localhost:8000/studio/. A physical device requires a reachable
 HTTPS deployment and a registered callback.
@@ -57,7 +57,7 @@ set it to null to use only the bundled station index.
 
 The [Render staging blueprint](../render.yaml) deploys the API and PostgreSQL
 in Singapore. Both use the Free plan. Render supplies the private database
-connection string. The public identity settings match the existing Auth0 SPA.
+connection string. The public identity settings match the existing Auth0 public Native client (CommuteCircle Mobile).
 Render deploys subsequent changes after CI passes on `main`. The API takes a
 PostgreSQL advisory lock while applying migrations and exposes `/health/ready`.
 Open the [Render setup](https://render.com/deploy?repo=https://github.com/Nagoor06/commutecircle)

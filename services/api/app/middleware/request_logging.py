@@ -14,6 +14,9 @@ async def request_context(request, call_next):
         response = await call_next(request)
         status = response.status_code
         response.headers["X-Request-ID"] = request_id
+        if request.url.path.startswith("/v1/"):
+            # Authenticated projections share URLs with public discovery.
+            response.headers["Cache-Control"] = "no-store"
         return response
     finally:
         # Never log query strings, bodies, credentials, or user coordinates.

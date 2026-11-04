@@ -1,5 +1,6 @@
 // Only icon names from this table can introduce SVG markup.
 const paths = {
+  sliders: '<path d="M3 6h7m4 0h7M3 12h13m4 0h1M3 18h3m4 0h11M10 3v6m6 0v6M6 15v6"/>',
   compass: '<circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/>',
   car: '<path d="m3 15 1-6 2-4h12l2 4 1 6v3h-3v-2H6v2H3zM5 10h14M6 13h2m8 0h2"/>',
   ticket: '<path d="M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4Z"/><path d="M8 8v2m0 4v2"/>',

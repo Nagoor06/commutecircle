@@ -8,6 +8,9 @@ const routes = {
   checkout: () => import('./screens/checkout.js'),
   offer: () => import('./screens/offer.js'),
   trips: () => import('./screens/trips.js'),
+  signin: () => import('./screens/signin.js'),
+  profile: () => import('./screens/profile.js'),
+  chat: () => import('./screens/chat.js'),
   help: () => import('./screens/help.js')
 };
 const groups = {
@@ -23,6 +26,9 @@ const titles = {
   checkout: 'Checkout',
   offer: 'Offer a ride',
   trips: 'My trips',
+  signin: 'Sign in',
+  profile: 'My profile',
+  chat: 'Booking chat',
   help: 'Help'
 };
 export const go = route => {

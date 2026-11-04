@@ -1,3 +1,4 @@
+import {filtersMarkup, bindFilters} from '../components/search-filters.js';
 import {
   rideHref
 } from '../components/ride-summary.js';
@@ -39,13 +40,18 @@ export async function mount({
   signal
 }) {
   const points = state.route;
+  state.date ||= dateInput();
+  let filters = {...(state.query || {}), prefer_commute: auth.signed};
+  delete filters.origin; delete filters.destination; delete filters.after; delete filters.before; delete filters.offset;
   root.innerHTML = head('Passenger / Plan a trip', 'Book a ride',
       'Pick your stops. See who’s going your way.') +
     `<div class="find-layout"><section class="planner-card"><div class="section-index"><span class="index-dot"></span> Journey planner</div>
       <div class="form-title"><h2>Where are you headed?</h2></div>
       <div class="stop-stack">${fieldMarkup(0,points[0])}<button class="swap-btn" data-swap aria-label="Swap pickup and drop-off">${icon('swap',16)}</button>${fieldMarkup(1,points[1])}</div>
-      <label class="date-row">${icon('calendar',19)}<span>Travel day</span><select aria-label="Travel day">
-        <option value="">Any upcoming day</option><option value="${dateInput()}">Today</option><option value="${dateInput(new Date(Date.now()+86400000))}">Tomorrow</option></select></label>
+      <label class="date-row">${icon('calendar',19)}<span>Travel date</span><input type="date" aria-label="Travel date" min="${dateInput()}" value="${esc(state.date)}" required></label>
+      ${filtersMarkup(filters)}
+      <a class="text-btn" href="#/profile">${icon('shield',16)} Set up my private office commute</a>
+      <p class="fine">Meet at public stops. The points you choose are shared with the ride. Browse without an account.</p>
       <div data-notice role="status" hidden></div>
       <button data-find class="btn primary wide">${icon('search')} View matching rides ${icon('arrow')}</button>
       <button data-browse class="browse-all">Browse all upcoming rides ${icon('chevron',14)}</button>
@@ -80,8 +86,8 @@ export async function mount({
     info,
     signal
   })));
-  const date = root.querySelector('.date-row select');
-  if ([...date.options].some(o => o.value === state.date)) date.value = state.date;
+  const date = root.querySelector('.date-row input');
+  bindFilters(root, value => { filters = {...filters, ...value}; scheduleMatches(); });
   date.onchange = () => {
     state.date = date.value;
     scheduleMatches()
@@ -114,14 +120,15 @@ export async function mount({
         node.textContent = 'Choose two different stops to see matching rides.';
         return
       }
+      if (!date.value) { node.textContent='Choose a travel date to see rides.'; return; }
       const q = {
         origin: stopFromPlace(route[0]),
         destination: stopFromPlace(route[1]),
-        ...range()
+        ...range(), ...filters
       };
       state.query = q;
       if (!api) {
-        node.textContent = auth.problem || 'Sign in to see available seats on this route.';
+        node.textContent = auth.problem || 'The booking service is currently unavailable.';
         if (auth.enabled) {
           const btn = document.createElement('button');
           btn.className = 'text-btn';
@@ -171,15 +178,16 @@ export async function mount({
 
   function search(browse = false) {
     try {
+      if (!date.value) throw Error('Choose a travel date.');
       if (!browse) {
         const [a, b] = fields.map(f => f.value());
         if (isSame(a, b)) throw Error('Choose two different meeting points.');
         points.splice(0, 2, a, b);
       }
-      state.query = browse ? range() : {
+      state.query = browse ? {...range(), ...filters} : {
         origin: stopFromPlace(points[0]),
         destination: stopFromPlace(points[1]),
-        ...range()
+        ...range(), ...filters
       };
       go('results');
     } catch (e) {
@@ -207,6 +215,14 @@ export async function mount({
     scheduleMatches()
   });
   scheduleMatches();
+  if (auth.signed && !state.commute && !state.query) {
+    api.commute(signal).then(saved => {
+      if (!saved || signal.aborted || matchVersion !== 1) return;
+      state.commute = saved;
+      points.splice(0,2,saved.pickup,saved.workplace);
+      fields.forEach((f,i)=>f.set(points[i])); map?.update(); scheduleMatches();
+    }).catch(()=>{});
+  }
   map = await attachMap(root.querySelector('.atlas'), {
     points: () => points,
     change: set,

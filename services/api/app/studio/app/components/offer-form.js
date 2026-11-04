@@ -14,12 +14,16 @@ export function offerForm(d){
   return head('Driver / Create an offer','Offer a ride','Set your stops, departure time and price per seat.')+
     `<form data-offer-form><div class="offer-layout"><div class="stack">
     <section class="panel"><div class="panel-cap"><span class="step-no">01</span> Your route</div>
-      <p class="panel-intro">Add stops in travel order. Enter distances and minutes measured from your first stop.</p>
+      <p class="panel-intro">Choose public stops in travel order. Calculate road distances and estimated times, then review them before publishing.</p>
+      <button type="button" data-calculate class="btn secondary">${icon('route')} Calculate route & timings</button>
+      <label class="checkline"><input type="checkbox" name="addPublic" ${d.addPublic?'checked':''}> Add nearby public stops along a two-stop route</label>
+      <p class="fine">Uses the selected stops with OSRM routing. Added stops change the route. Review every meeting point and allow for traffic.</p>
       <div data-stops></div><button type="button" data-add-stop class="text-btn">${icon('plus',16)} Add an intermediate stop</button></section>
     <section class="panel"><div class="panel-cap"><span class="step-no">02</span> Departure & fare</div>
       <div class="form-grid"><label class="field span-2">Departure · local time<input type="datetime-local" name="time" required value="${esc(d.time)}"></label>
         <label class="field">Full-route fare per seat (₹)<input type="number" min="1" max="100000" step=".01" name="price" required placeholder="200" value="${esc(d.price)}"></label>
         <label class="field">Seats offered<select name="seats">${seatOptions}</select></label></div></section>
+    <section class="panel"><div class="panel-cap">Ride preferences</div><label class="checkline"><input type="checkbox" name="quiet" ${d.quiet?'checked':''}> Quiet ride · keep calls brief</label><label class="checkline"><input type="checkbox" name="air_conditioned" ${d.air_conditioned?'checked':''}> Air conditioning available</label></section>
     <section class="panel"><div class="panel-cap"><span class="step-no">03</span> Vehicle details</div>
       <label class="checkline"><input type="checkbox" name="withCar" ${d.withCar?'checked':''}> Include my vehicle on this offer</label>
       <div data-car class="form-grid" ${d.withCar?'':'hidden'}>${vehicleFields(d.car)}
@@ -28,6 +32,7 @@ export function offerForm(d){
     <aside class="panel summary-note"><div class="section-index"><span class="index-dot"></span> Offer summary</div>
       <h2 data-summary></h2><p>Passengers can reserve the legs they travel. The remaining legs stay available.</p>
       <div class="note-box">${icon('info')}<span>Passengers see your ride after publication. Payments currently use sandbox money.</span></div>
+      <label class="checkline"><input type="checkbox" required> I have checked the public stops and estimated route timings.</label>
       <button class="btn primary wide" type="submit">Review ride ${icon('arrow')}</button><div data-notice role="status" hidden></div>
     </aside></div></form>`;
 }

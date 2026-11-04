@@ -36,3 +36,15 @@ def current_principal(
 
 RideReader = Annotated[Principal, Security(current_principal, scopes=["rides:read"])]
 RideWriter = Annotated[Principal, Security(current_principal, scopes=["rides:write"])]
+
+
+def optional_reader(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+) -> Principal | None:
+    if credentials is None:
+        return None
+    return current_principal(request, SecurityScopes(scopes=["rides:read"]), credentials)
+
+
+PublicReader = Annotated[Principal | None, Depends(optional_reader)]

@@ -38,7 +38,7 @@ class GuideIndex:
             raise ValueError("Incomplete corpus embeddings")
         self.size = len(embeddings[0])
         # The WSGI worker owns this connection; rebuild from the versioned guide on restart.
-        self.db = sqlite3.connect(":memory:")
+        self.db = sqlite3.connect(":memory:", check_same_thread=False)
         self.db.enable_load_extension(True)
         sqlite_vec.load(self.db)
         self.db.enable_load_extension(False)

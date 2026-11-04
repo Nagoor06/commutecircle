@@ -28,7 +28,7 @@ class Citation(BaseModel):
 
 
 class Answer(BaseModel):
-    status: Literal["answered", "no_evidence"]
+    status: Literal["answered", "no_evidence", "private_input"]
     answer: str
     sources: list[Citation]
 

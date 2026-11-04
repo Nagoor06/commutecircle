@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
-
+from privacy import privacy_answer, private_input
 from retrieval import GuideIndex
 
 ROOT = (
@@ -48,7 +48,13 @@ def build_graph(model):
     graph.add_node("retrieve", retrieve)
     graph.add_node("answer", answer)
     graph.add_node("abstain", lambda _: {"answer": no_answer()})
-    graph.add_edge(START, "retrieve")
+    graph.add_node("protect_privacy", lambda _: {"answer": privacy_answer()})
+    graph.add_conditional_edges(
+        START,
+        lambda s: "protect_privacy" if private_input(s["question"]) else "retrieve",
+        ["protect_privacy", "retrieve"],
+    )
+    graph.add_edge("protect_privacy", END)
     graph.add_conditional_edges(
         "retrieve",
         lambda s: "answer" if s["evidence"] else "abstain",

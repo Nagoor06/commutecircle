@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from app.models.journey import Journey, Ticket
+from app.models.journey import Journey, PaymentEntry, Ticket
 
 
 def utc(t):
@@ -41,11 +41,11 @@ def locked(session, jid):
 
 
 def is_driver(j, p):
-    return (j.issuer, j.driver) == (p.issuer, p.subject)
+    return p is not None and (j.issuer, j.driver) == (p.issuer, p.subject)
 
 
 def is_rider(t, p):
-    return (t.issuer, t.rider) == (p.issuer, p.subject)
+    return p is not None and (t.issuer, t.rider) == (p.issuer, p.subject)
 
 
 def tickets(session, j):
@@ -78,6 +78,7 @@ def receipt(t, now):
         fare_paise=t.fare,
         charged_paise=t.charged,
         refund_paise=t.refund,
+        net_paise=t.charged - t.refund,
         currency="INR",
         payment_mode="sandbox",
     )
@@ -115,6 +116,14 @@ def hold(session, jid, p, data):
                 raise HTTPException(409, "Checkout ID already used")
             return receipt(prior, now)
         rows = tickets(session, j)
+        # Recover the same reservation after a lost response or a browser reload.
+        for existing in rows:
+            if (
+                is_rider(existing, p)
+                and (existing.board, existing.alight) == (data.board, data.alight)
+                and status(existing, now) in ("held", "paid")
+            ):
+                return receipt(existing, now)
         q = quote(j, rows, data, now)
         if not q["seats_available"]:
             raise HTTPException(409, "Seat unavailable. Nothing charged.")
@@ -142,6 +151,14 @@ def hold(session, jid, p, data):
         return receipt(t, now)
 
 
+def refund_to(session, ticket, amount, kind, now):
+    """Append only the increase; the journey lock serializes all financial changes."""
+    delta = amount - ticket.refund
+    if delta > 0:
+        session.add(PaymentEntry(ticket_id=ticket.id, kind=kind, amount=delta, created_at=now))
+        ticket.refund = amount
+
+
 def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
     with session.begin():
         j = locked(session, jid)
@@ -157,9 +174,16 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
                 return receipt(t, now)
             if state != "held" or j.cancelled:
                 raise HTTPException(409, "Checkout closed. Nothing charged.")
+            if min(inventory(j, tickets(session, j), now)[t.board : t.alight]) < 0:
+                raise HTTPException(409, "Seat inventory changed. Nothing charged.")
+            session.add(PaymentEntry(ticket_id=t.id, kind="charge", amount=t.fare, created_at=now))
             t.charged = t.fare
             t.state = "paid"
         elif action == "cancel":
+            if state == "rider_cancelled" and is_driver(j, p):
+                refund_to(session, t, t.charged, "driver_refund", now)
+                t.state = "driver_cancelled"
+                return receipt(t, now)
             if state in ("driver_cancelled", "rider_cancelled", "expired"):
                 return receipt(t, now)
             remaining = pickup(j, t.board) - now
@@ -171,7 +195,9 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
                 raise HTTPException(
                     409, "Cancellation fee changed. Review the new fee before cancelling."
                 )
-            t.refund = t.charged - charge
+            refund_to(
+                session, t, t.charged - charge, "driver_refund" if driver else "rider_refund", now
+            )
             t.state = "driver_cancelled" if driver else "rider_cancelled"
         elif action == "exit":
             if not is_driver(j, p):
@@ -187,7 +213,7 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
                 raise HTTPException(409, "Requires an onboard passenger and an earlier route stop")
             t.state = "exited"
             t.alight = stop
-            t.refund = t.charged - fare(j, t.board, stop)
+            refund_to(session, t, t.charged - fare(j, t.board, stop), "exit_refund", now)
         return receipt(t, now)
 
 
@@ -201,8 +227,10 @@ def cancel_all(session, jid, p):
             if now >= utc(j.departure):
                 raise HTTPException(409, "Journey has started")
             for t in tickets(session, j):
-                if status(t, now) in ("held", "paid", "exited"):
-                    t.refund = t.charged
+                if status(t, now) in ("held", "paid", "exited", "rider_cancelled"):
+                    # A cancelled ride cannot retain a passenger cancellation fee,
+                    # including when the two cancellation requests race.
+                    refund_to(session, t, t.charged, "driver_refund", now)
                     t.state = "driver_cancelled"
             j.cancelled = True
     return {"cancelled": True}

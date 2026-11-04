@@ -70,7 +70,7 @@ export async function session(settings) {
     if (!response.ok) return {
       config,
       apiOrigin,
-      problem: 'Sign-in failed. Please try again.'
+      problem: 'Sign-in could not finish. Try signing in again. If you already registered, choose Sign in or reset your password on the secure login page.'
     };
     const result = await response.json();
     if (!result.access_token) throw Error();
@@ -87,7 +87,7 @@ export async function session(settings) {
     }
   }
 }
-export async function signIn(session) {
+export async function signIn(session, mode = 'login') {
   const {apiOrigin} = session;
   const config = session.config || await signInConfig(apiOrigin);
   const verifier = random(),
@@ -97,7 +97,7 @@ export async function signIn(session) {
     verifier,
     state,
     apiOrigin,
-    route: location.hash
+    route: location.hash.startsWith('#/signin') ? new URLSearchParams(location.hash.split('?')[1]).get('return') || '#/book' : location.hash
   }));
   const url = new URL('authorize', config.issuer);
   url.search = new URLSearchParams({
@@ -110,5 +110,6 @@ export async function signIn(session) {
     code_challenge: base64url(new Uint8Array(digest)),
     code_challenge_method: 'S256'
   });
+  if (mode === 'signup') url.searchParams.set('screen_hint', 'signup');
   location.assign(url);
 }
