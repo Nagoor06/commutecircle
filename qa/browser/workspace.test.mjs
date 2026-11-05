@@ -264,6 +264,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     await driver.locator('main [data-state]').filter({hasText:'Location sharing is on'}).waitFor();
     await rider.getByRole('button',{name:'Refresh location',exact:true}).click();
     await rider.getByText('Live location · driver GPS',{exact:true}).waitFor();
+    await rider.getByText('Vehicle location from the driver’s device · Silver Honda City',{exact:true}).waitFor();
     await rider.getByRole('button',{name:'Show live map',exact:true}).click();
     await rider.locator('.vehicle-marker').waitFor();
     assert.equal(await rider.locator('.traveller-marker').count(),0);

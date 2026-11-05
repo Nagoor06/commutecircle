@@ -170,7 +170,7 @@ def snapshot(share, journey, a, b, now):
         "source": "passenger" if share.ticket_id else "driver",
         "vehicle": None
         if share.ticket_id
-        else {key: (journey.vehicle or {}).get(key) for key in ("make", "model", "colour")},
+        else {key: (journey.vehicle or {}).get(key) for key in ("make", "model", "color")},
         "stops": [
             {key: stop.get(key) for key in ("name", "lat", "lon")}
             for stop in journey.stops[a : b + 1]
