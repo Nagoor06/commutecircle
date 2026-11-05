@@ -6,9 +6,10 @@ from app.models.trip_share import TripShare, TrustedContact
 __all__ = ["PickupPoint", "Ride", "Booking"]
 
 from app.models.booking import Booking
-from app.models.chat import ChatBlock, Message
+from app.models.chat import ChatBlock, ChatRead, Message
 from app.models.commute import Commute
 from app.models.journey import Journey, PaymentEntry, Ticket
 
 __all__ += ["Journey", "Ticket", "PaymentEntry", "Commute", "ChatBlock", "Message"]
 __all__ += ["TripShare", "TrustedContact"]
+__all__ += ["ChatRead"]

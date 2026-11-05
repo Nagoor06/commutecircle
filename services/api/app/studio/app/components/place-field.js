@@ -10,6 +10,7 @@ import {
 } from '../data/places.js';
 import {
   immediateMatches,
+  describeMatches,
   suggest
 } from '../data/geocoder.js';
 import {nearbyPublicStops} from '../data/public-stops.js';
@@ -18,7 +19,7 @@ export function fieldMarkup(i, p, options = {}) {
   const label = options.label || (i ? 'Drop-off' : 'Pickup'),
     badge = options.badge || (i ? 'B' : 'A');
   const id = 'place-' + i;
-  return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${i?'orange':''}">${esc(badge)}</span>${esc(label)}</label>
+  return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${badge==='A'?'':'orange'}">${esc(badge)}</span>${esc(label)}</label>
     <div class="place-entry"><input id="${id}" aria-label="${esc(label)}" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list" value="${esc(p.name)}"><button type="button" class="icon-only" aria-label="Edit ${esc(label)}">${icon('pin',17)}</button></div>
     <small class="place-sub">${esc(p.area||'Public meeting place')}</small>
     <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>
@@ -30,7 +31,8 @@ export function attachField(node, {
   onDraft,
   info,
   signal,
-  geocoder
+  geocoder,
+  anchor = () => null
 }) {
   const input = node.querySelector('input'),
     sub = node.querySelector('.place-sub'),
@@ -92,15 +94,14 @@ export function attachField(node, {
 
   function search(edited) {
     invalidate();
-    const q = input.value.trim();
+    let q = input.value.trim();
+    const focusPoint = anchor();
     if (edited) {
       sub.textContent = 'Choose a matching place to update the pin';
       onDraft()
     }
-    if (!q || (!edited && normal(q) === normal(selected.name))) {
-      show(immediateMatches(''), 'Suggested places');
-      return
-    }
+    if (!edited && normal(q) === normal(selected.name)) q = '';
+    if (!q && !finitePlace(focusPoint)) { show(immediateMatches(''), 'Suggested public places'); return; }
     try {
       const pair = parseCoordinates(q);
       if (pair) {
@@ -111,29 +112,30 @@ export function attachField(node, {
       show([], e.message);
       return
     }
-    if (q.length < 2) {
-      show(immediateMatches(q), 'Type at least 2 letters');
+    if (q && q.length < 2) {
+      show(describeMatches(immediateMatches(q,focusPoint),focusPoint), 'Type at least 2 letters');
       return
     }
     const id = generation;
-    show(immediateMatches(q), 'Looking for places…');
+    show(describeMatches(immediateMatches(q,focusPoint),focusPoint), q ? 'Looking for places…' : 'Finding public stops near your other stop…');
     timer = setTimeout(async () => {
       const req = new AbortController();
       request = req;
       try {
         const local = items => {
-          if (id === generation && !signal.aborted) show(items, items.length ? 'Matching places' :
+          if (id === generation && !signal.aborted) show(describeMatches(items,focusPoint), items.length ? 'Matching places' :
             'Looking for places…')
         };
         const result = await suggest(q, {
           signal: req.signal,
           onLocal: local,
-          geocoder
+          geocoder,
+          anchor: focusPoint
         });
         if (id !== generation || signal.aborted) return;
-        show(result.items, result.offline ?
+        show(q ? describeMatches(result.items,focusPoint) : result.items, result.offline ?
           'Online lookup unavailable. Use a station, coordinates or a pin.' : result.items.length ?
-          'Matching places' : 'No matching place. Try a different name or drag the pin.');
+          (finitePlace(focusPoint) ? 'Near your other stop first. Type a city to search farther away.' : 'Matching places') : 'No matching place. Try a different name or drag the pin.');
       } catch (e) {
         if (id === generation && !signal.aborted) show([], e.message)
       }

@@ -11,6 +11,7 @@ from app.main import create_app
 from app.models import (
     Booking,
     ChatBlock,
+    ChatRead,
     Commute,
     Journey,
     Message,
@@ -33,6 +34,7 @@ def client(tmp_path, monkeypatch):
         session.execute(delete(TripShare))
         session.execute(delete(TrustedContact))
         session.execute(delete(Message))
+        session.execute(delete(ChatRead))
         session.execute(delete(ChatBlock))
         session.execute(delete(PaymentEntry))
         session.execute(delete(Commute))

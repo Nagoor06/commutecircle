@@ -48,10 +48,10 @@ export async function mount({
     `<div class="find-layout"><section class="planner-card"><div class="section-index"><span class="index-dot"></span> Journey planner</div>
       <div class="form-title"><h2>Where are you headed?</h2></div>
       <div class="stop-stack">${fieldMarkup(0,points[0])}<button class="swap-btn" data-swap aria-label="Swap pickup and drop-off">${icon('swap',16)}</button>${fieldMarkup(1,points[1])}</div>
-      <label class="date-row">${icon('calendar',19)}<span>Travel date</span><input type="date" aria-label="Travel date" min="${dateInput()}" value="${esc(state.date)}" required></label>
+      <label class="date-row"><span>Travel date</span><input type="date" aria-label="Travel date" min="${dateInput()}" value="${esc(state.date)}" required></label>
       ${filtersMarkup(filters)}
       <a class="text-btn" href="#/profile">${icon('shield',16)} Set up my private office commute</a>
-      <p class="fine">Meet at public stops. The points you choose are shared with the ride. Browse without an account.</p>
+      <p class="fine">Choose public meeting points, not your home. Map and address providers receive selected points. Browse without an account.</p>
       <div data-notice role="status" hidden></div>
       <button data-find class="btn primary wide">${icon('search')} View matching rides ${icon('arrow')}</button>
       <button data-browse class="browse-all">Browse rides on this date ${icon('chevron',14)}</button>
@@ -80,6 +80,7 @@ export async function mount({
   }
   root.querySelectorAll('[data-field]').forEach((el, i) => fields.push(attachField(el, {
     initial: points[i],
+    anchor: () => points[1-i],
     update: p => set(i, p),
     onDraft: scheduleMatches,
     geocoder,
@@ -228,6 +229,7 @@ export async function mount({
   map = await attachMap(root.querySelector('.atlas'), {
     points: () => points,
     change: set,
-    signal
+    signal,
+    geocoder
   });
 }

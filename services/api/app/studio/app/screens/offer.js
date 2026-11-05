@@ -80,6 +80,7 @@ export function mount(ctx){
       const input=node.querySelector('input');
       input.required=true;input.maxLength=80;input.dataset.value='name';
       attachField(node,{initial:{...d.stops[i]},geocoder,signal:rowScope.signal,info:m=>notice(root,m),
+        anchor:()=>d.stops[i ? i-1 : 1],
         onDraft:()=>{},update:place=>{Object.assign(d.stops[i],place);d.ready=null;summary();if(d.stops.every(finitePlace))queueRoute()}});
     });
     root.querySelector('[data-add-stop]').disabled=d.stops.length>=16;

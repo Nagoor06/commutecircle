@@ -83,7 +83,7 @@ def read(session, jid, tid, principal):
             select(Message)
             .where(Message.ticket_id == tid)
             .order_by(Message.created_at.desc(), Message.id.desc())
-            .limit(100)
+            .limit(200)
         )
     )
     return {

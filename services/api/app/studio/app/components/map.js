@@ -1,11 +1,11 @@
 import {
   vectorBase
 } from './vector-base.js';
+import {pinResolver, reversePlace} from '../data/reverse-geocoder.js';
 import {
   icon
 } from '../ui.js';
 import {
-  places,
   finitePlace,
   distance
 } from '../data/places.js';
@@ -47,7 +47,8 @@ export function mapFrame() {
 export async function attachMap(host, {
   points,
   change,
-  signal
+  signal,
+  geocoder
 }) {
   const msg = host.querySelector('[data-map-msg]');
   let L;
@@ -111,6 +112,8 @@ export async function attachMap(host, {
       ...p
     }));
   const road = host.querySelector('[data-road]');
+  const resolver = pinResolver({current:points, change, signal,
+    resolve:(point, requestSignal)=>reversePlace(point,{geocoder,signal:requestSignal})});
 
   function label(kind, cue) {
     host.querySelector('[data-route-kind]').textContent = kind;
@@ -159,6 +162,7 @@ export async function attachMap(host, {
       })
     });
     marker.on('dragstart', () => {
+      resolver.cancel(i);
       revision++;
       pending?.abort();
       msg.textContent = ''
@@ -173,13 +177,12 @@ export async function attachMap(host, {
     });
 
     function commit(pos) {
+      initialized=false;
       const p = pos.wrap();
-      change(i, {
-        name: i ? 'Drop-off pin' : 'Pickup pin',
+      resolver.move(i, {
         lat: Math.max(-85, Math.min(85, p.lat)),
-        lon: p.lng,
-        area: 'Selected on the map'
-      }, false)
+        lon: p.lng
+      })
     }
     marker.on('dragend', () => commit(marker.getLatLng()));
     marker.on('add', () => {
@@ -202,15 +205,18 @@ export async function attachMap(host, {
     return marker;
   }
   marks = [buildMarker(0), buildMarker(1)];
-  let autoTimer;
+  let autoTimer, initialized=false;
 
   function update(autofit = true) {
-    revision++;
-    pending?.abort();
+    resolver.sync();
+    const next=points();
+    const changed=!initialized || next.some((p,i)=>p.lat!==localPoints[i]?.lat || p.lon!==localPoints[i]?.lon);
+    initialized=true;
+    if(changed){revision++;pending?.abort();}
     localPoints = points().map(p => ({
       ...p
     }));
-    msg.textContent = '';
+    if(changed)msg.textContent = '';
     if (autofit) fit();
     localPoints.forEach((p, i) => {
       const marker = marks[i];
@@ -233,12 +239,12 @@ export async function attachMap(host, {
         className: 'stop-label'
       });
     });
-    direct();
-    clearTimeout(autoTimer);
-    if (localPoints.every(p => places.some(k => k.lat === p.lat && k.lon === p.lon))) {
-      autoTimer = setTimeout(() => {
-        if (!signal.aborted) road.click()
-      }, 450);
+    if(changed){
+      direct();
+      clearTimeout(autoTimer);
+      if(localPoints.length===2 && localPoints.every(finitePlace)){
+        autoTimer=setTimeout(()=>{if(!signal.aborted)road.click();},650);
+      }
     }
   }
 

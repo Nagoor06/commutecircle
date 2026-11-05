@@ -23,7 +23,7 @@ export function offerForm(d){
       <div class="form-grid"><label class="field span-2">Departure · local time<input type="datetime-local" name="time" required value="${esc(d.time)}"></label>
         <label class="field">Full-route fare per seat (₹)<input type="number" min="1" max="100000" step=".01" name="price" required placeholder="200" value="${esc(d.price)}"></label>
         <label class="field">Seats offered<select name="seats">${seatOptions}</select></label></div></section>
-    <section class="panel"><div class="panel-cap">Ride preferences</div><label class="checkline"><input type="checkbox" name="quiet" ${d.quiet?'checked':''}> Quiet ride · keep calls brief</label><label class="checkline"><input type="checkbox" name="air_conditioned" ${d.air_conditioned?'checked':''}> Air conditioning available</label></section>
+    <section class="panel"><div class="panel-cap">Ride preferences</div><label class="checkline"><input type="checkbox" name="quiet" ${d.quiet?'checked':''}> ${icon('quiet',18)} <span>Quiet ride · keep calls brief</span></label><label class="checkline"><input type="checkbox" name="air_conditioned" ${d.air_conditioned?'checked':''}> ${icon('snowflake',18)} <span>Air conditioning available</span></label></section>
     <section class="panel"><div class="panel-cap"><span class="step-no">03</span> Vehicle details</div>
       <label class="checkline"><input type="checkbox" name="withCar" ${d.withCar?'checked':''}> Include my vehicle on this offer</label>
       <div data-car class="form-grid" ${d.withCar?'':'hidden'}>${vehicleFields(d.car)}
@@ -39,7 +39,7 @@ export function offerForm(d){
 export function stopRow(s,i,n){
   const start=i===0, end=i===n-1;
   const remove=start||end?'':'<button type="button" class="icon-only" aria-label="Remove stop '+(i+1)+'" data-remove="'+i+'">'+icon('close',16)+'</button>';
-  const field=fieldMarkup('offer-'+i,s,{label:'Meeting place',badge:String(i+1)});
+  const field=fieldMarkup('offer-'+i,s,{label:'Meeting place',badge:i===0?'A':end?'B':String(i+1)});
   return `<div class="offer-stop" data-row="${i}"><div class="stop-heading"><b>${start?'Pickup':end?'Final drop-off':'Intermediate stop'}</b>${remove}</div>
     <div class="stop-fields">${field}
       <label class="field">km from start<input data-value="km" type="number" min="0" max="3000" step=".001" required ${start?'readonly':''} value="${esc(s.km)}"></label>

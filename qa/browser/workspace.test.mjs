@@ -288,6 +288,25 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     await rider.getByLabel('Message', {exact:true}).fill('I’m at the pickup point.');
     await rider.getByRole('button', {name:'Send message',exact:true}).click();
     await rider.locator('.message').getByText('I’m at the pickup point.',{exact:true}).waitFor();
+    await rider.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Messages',exact:true}).click();
+    await rider.locator('.conversation').filter({hasText:'I’m at the pickup point.'}).waitFor();
+    assert.ok(await rider.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile inbox overflows');
+    await driver.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Messages',exact:true}).click();
+    await driver.getByRole('link',{name:'Unread',exact:true}).click();
+    await driver.locator('.conversation .unread-count').getByText('1',{exact:true}).waitFor();
+    await driver.locator('.conversation').first().click();
+    await driver.locator('.message').getByText('I’m at the pickup point.',{exact:true}).waitFor();
+    await driver.getByLabel('Message',{exact:true}).fill('Meet by the public sign.');
+    await driver.getByRole('button',{name:'Send message',exact:true}).click();
+    await driver.locator('.message').getByText('Meet by the public sign.',{exact:true}).waitFor();
+    await driver.getByRole('link',{name:'All messages',exact:true}).click();
+    await driver.getByRole('link',{name:'Unread',exact:true}).click();
+    await driver.getByRole('heading',{name:'You’re all caught up',exact:true}).waitFor();
+    await driver.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'My trips',exact:true}).click();
+    await driver.getByRole('link',{name:'Driving',exact:true}).click();
+    await rider.getByRole('button',{name:'Refresh',exact:true}).click();
+    await rider.locator('.conversation.unread').filter({hasText:'Meet by the public sign.'}).waitFor();
+    await rider.screenshot({path:'evidence/mobile-messages.png',fullPage:true});
     await rider.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {
       name: 'My trips',
       exact: true
@@ -331,6 +350,8 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     await rider.getByRole('heading', {
       name: 'My trips'
     }).waitFor();
+    await rider.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Messages',exact:true}).click();
+    await rider.locator('.conversation').getByText('Read only',{exact:true}).waitFor();
     assert.deepEqual(errors, []);
   } finally {
     await browser.close()
@@ -362,6 +383,28 @@ test('guest navigation never invents rides; stop hints work when external lookup
     await page.getByRole('combobox', {
       name: /pickup/i
     }).press('Escape');
+    await page.locator('.search-filters summary').click();
+    const checkbox=page.getByLabel('Air conditioning',{exact:true});
+    const dimensions=await checkbox.boundingBox();
+    assert.ok(dimensions.width<=22 && dimensions.height<=22,'AC checkbox must retain its control size');
+    await checkbox.check();
+    await page.locator('.search-filters summary').click();
+    const lookups=[];
+    await page.route('https://photon.komoot.io/**',async route=>{
+      const url=new URL(route.request().url());lookups.push(url);
+      const isReverse=url.pathname==='/reverse';
+      return route.fulfill({json:{features:[{properties:{name:isReverse?'Station Road':'Local Bus Stop',city:'Tenali'},geometry:{type:'Point',coordinates:[Number(url.searchParams.get('lon'))+.00001,Number(url.searchParams.get('lat'))+.00001]}}]}});
+    });
+    await page.locator('[aria-label="Move pickup pin"]').press('ArrowUp');
+    await page.getByRole('combobox',{name:'Pickup',exact:true}).filter({visible:true}).waitFor();
+    await page.waitForFunction(()=>document.querySelector('[aria-label="Pickup"]').value==='Station Road');
+    assert.ok(!(await page.locator('.stop-label').allTextContents()).includes('Pickup pin'));
+    await page.getByRole('combobox',{name:'Drop-off',exact:true}).fill('Local Bus');
+    await page.getByRole('option',{name:/Local Bus Stop/}).waitFor();
+    const forward=lookups.find(u=>u.pathname==='/api/'), reverse=lookups.find(u=>u.pathname==='/reverse');
+    assert.ok(forward && reverse);
+    assert.ok(Math.abs(Number(forward.searchParams.get('lat'))-Number(reverse.searchParams.get('lat')))<.0001);
+    await page.getByRole('combobox',{name:'Drop-off',exact:true}).press('Escape');
     assert.equal(await page.locator('[aria-label="Route map"]').count(), 1);
     await page.getByRole('link', {
       name: 'My trips',
