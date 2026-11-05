@@ -55,7 +55,7 @@ export async function tripTracker(root,{read,signal,driver=false}){
       const fresh=await read(signal);if(signal.aborted)return;
       data=fresh;received=performance.now();failed=false;error.hidden=true;
       if(data.origin){
-        get('[data-route]').innerHTML=`<h2>${esc(data.origin)} → ${esc(data.destination)}</h2><p class="fine">${data.source==='driver'?'Vehicle location from the driver’s device':'Traveller location from the passenger’s device'}${data.vehicle?' · '+esc([data.vehicle.colour,data.vehicle.make,data.vehicle.model].filter(Boolean).join(' ')):''}</p>`;
+        get('[data-route]').innerHTML=`<h2>${esc(data.origin)} → ${esc(data.destination)}</h2><p class="fine">${data.source==='driver'?'Vehicle location from the driver’s device':'Traveller location from the passenger’s device'}${data.vehicle?' · '+esc([data.vehicle.color,data.vehicle.make,data.vehicle.model].filter(Boolean).join(' ')):''}</p>`;
       }
       paint();
     }catch(e){

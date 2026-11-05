@@ -277,6 +277,8 @@ def driver_start(client, authenticated, jid, allowed=True):
 def test_driver_tracking_requires_separate_consent_and_paid_own_ticket(client, authenticated):
     jid, tid, rider = trip(client, authenticated, paid=False)
     path = f"/v1/journeys/{jid}/tickets/{tid}/driver-location"
+    with Session(client.app.state.engine) as session, session.begin():
+        session.get(Journey, jid).vehicle = {"make": "Honda", "model": "City", "color": "Silver"}
     share = driver_start(client, authenticated, jid, allowed=False)
     assert locate(client, share, authenticated()).is_success
     assert view(client, share).json()["source"] == "driver"
@@ -292,6 +294,7 @@ def test_driver_tracking_requires_separate_consent_and_paid_own_ticket(client, a
     assert response.headers["cache-control"] == "no-store"
     assert response.json()["state"] == "live"
     assert response.json()["source"] == "driver"
+    assert response.json()["vehicle"] == {"make": "Honda", "model": "City", "color": "Silver"}
     assert response.json()["position"]["latitude"] == 16.3
     assert share["token"] not in response.text and "token_hash" not in response.text
     assert (
