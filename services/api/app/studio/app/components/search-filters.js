@@ -8,8 +8,8 @@ export function filtersMarkup(q = {}) {
     <label class="field">Sort rides<select data-filter="sort">${options([['recommended','Best commute match'],['departure','Earliest pickup'],['price','Lowest segment fare'],['arrival','Closest drop-off']],q.sort||'recommended')}</select></label>
     <label class="field">Driver rating<select data-filter="min_rating">${options([['','Any rating'],[4,'4+ stars'],[4.5,'4.5+ stars']],q.min_rating||'')}</select></label>
     <label class="field">Available seats<select data-filter="min_seats">${options([[1,'At least 1'],[2,'At least 2'],[3,'At least 3'],[4,'At least 4']],q.min_seats||1)}</select></label>
-    <label class="checkline"><input data-filter="quiet" type="checkbox" ${q.quiet?'checked':''}> Quiet ride</label>
-    <label class="checkline"><input data-filter="air_conditioned" type="checkbox" ${q.air_conditioned?'checked':''}> Air conditioning</label>
+    <label class="checkline"><input data-filter="quiet" type="checkbox" ${q.quiet?'checked':''}> ${icon('quiet',17)} <span>Quiet ride</span></label>
+    <label class="checkline"><input data-filter="air_conditioned" type="checkbox" ${q.air_conditioned?'checked':''}> ${icon('snowflake',17)} <span>Air conditioning</span></label>
     <p class="fine span-2">Proximity is straight-line distance, not a walking route. Check the actual stop. Vehicle preferences are driver-reported. Checkout reserves one seat.</p></div></details>`;
 }
 export function bindFilters(root, onChange) {

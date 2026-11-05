@@ -25,7 +25,8 @@ export async function mount(ctx) {
     <a class="btn secondary" href="#/trips">My bookings & offers ${icon('arrow')}</a></aside></div>` + contactsMarkup();
   const fields = [...root.querySelectorAll('[data-field]')].map((node,i) => attachField(node, {
     initial: (i?saved?.workplace:saved?.pickup) || {name:''}, update:()=>{}, onDraft:()=>{},
-    geocoder, signal, info:m=>notice(root,m)
+    geocoder, signal, info:m=>notice(root,m),
+    anchor:()=>{try{return fields[1-i]?.value()}catch{return null}}
   }));
   root.querySelector('form').onsubmit = e => {e.preventDefault(); pending(e.submitter, async()=>{
     const [pickup, workplace] = fields.map(f=>stopFromPlace(f.value()));

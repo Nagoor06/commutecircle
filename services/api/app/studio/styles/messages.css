@@ -1,0 +1,26 @@
+/* Inbox and conversation layout are independent of the booking screens. */
+.inbox{max-width:960px;margin:auto;padding:0;overflow:hidden}
+.inbox-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 12px;flex-wrap:wrap}
+.inbox-toolbar .tabs{margin:0;display:flex;flex-wrap:wrap}
+.inbox-note{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--muted);padding:0 24px 16px;margin:0!important;border-bottom:1px solid var(--edge)}
+.inbox [data-notice]{margin:16px 24px}
+.inbox [data-more]{width:calc(100% - 48px);margin:12px 24px 24px}
+.inbox .empty{border:0;box-shadow:none;border-radius:0}
+.conversation{display:flex;gap:16px;align-items:center;padding:22px 24px;border-bottom:1px solid #e1e7dc;transition:background .15s}
+.conversation:hover,.conversation:focus-visible{background:#f1f6e9}
+.conversation.unread{background:#f5f8ed}
+.conversation-avatar{width:48px;height:48px;display:grid;place-items:center;flex:none;background:#e6efdd;border:1px solid #d4e1ca;border-radius:16px;color:var(--green)}
+.conversation-copy{min-width:0;flex:1}
+.conversation-heading{display:flex;align-items:start;gap:12px;justify-content:space-between}
+.conversation-heading b{font-size:16px;line-height:1.4;letter-spacing:-.02em}
+.unread-count{display:inline-flex;justify-content:center;align-items:center;min-width:23px;height:23px;padding:0 6px;border-radius:20px;background:var(--green);color:white;font-size:11px;font-weight:700;flex:none}
+.conversation-preview{margin:5px 0 8px!important;color:var(--muted);font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.conversation-meta{display:flex;flex-wrap:wrap;gap:5px 16px;color:var(--muted);font-size:12px}
+.conversation-meta>span{display:inline-flex;align-items:center;gap:5px}
+.conversation-state{color:var(--green);font-weight:600}
+.chat-context{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--edge)}
+.chat-context .pill{font-size:11px}
+.chat-panel [data-messages]{scrollbar-gutter:stable}
+.chat-panel .chat-privacy{text-align:left;margin-top:0;font-size:12px}
+.chat-panel .message small{display:block;font-size:11px}
+@media(max-width:600px){.inbox-toolbar{padding:16px}.inbox-note{padding:0 16px 16px}.conversation{padding:18px 16px;gap:11px}.conversation-avatar{width:38px;height:38px;border-radius:12px}.conversation-heading b{font-size:14px}.conversation-preview{font-size:13px}.conversation-meta{font-size:11px;gap:5px 10px}.conversation>.icon{display:none}.inbox-toolbar .tabs a{font-size:12px}.inbox [data-notice]{margin:16px}}

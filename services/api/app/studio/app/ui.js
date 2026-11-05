@@ -1,5 +1,9 @@
 // Only icon names from this table can introduce SVG markup.
 const paths = {
+  message: '<path d="M21 11a8 8 0 0 1-8 8H7l-4 3V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/><path d="M7 9h10M7 13h7"/>',
+  snowflake: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 4l3 3 3-3M9 20l3-3 3 3M4 10l4-1-1-4M17 19l-1-4 4-1M4 14l4 1-1 4M17 5l-1 4 4 1"/>',
+  quiet: '<path d="m11 4-6 5H2v6h3l6 5ZM16 9l6 6m0-6-6 6"/>',
+  refresh: '<path d="M20 7v5h-5M4 17v-5h5M5.2 8a7 7 0 0 1 11.5-3L20 8M4 16l3.3 3A7 7 0 0 0 18.8 16"/>',
   sliders: '<path d="M3 6h7m4 0h7M3 12h13m4 0h1M3 18h3m4 0h11M10 3v6m6 0v6M6 15v6"/>',
   compass: '<circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/>',
   car: '<path d="m3 15 1-6 2-4h12l2 4 1 6v3h-3v-2H6v2H3zM5 10h14M6 13h2m8 0h2"/>',

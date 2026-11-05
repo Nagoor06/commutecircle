@@ -17,11 +17,13 @@ const items = [
   ['find', 'compass', 'Book a ride'],
   ['offer', 'car', 'Offer a ride'],
   ['trips', 'ticket', 'My trips'],
+  ['messages', 'message', 'Messages'],
   ['profile', 'user', 'Profile'],
   ['help', 'help', 'Help']
 ];
+const shortNames={find:'Book',offer:'Offer',trips:'Trips'};
 document.querySelector('.primary-nav').innerHTML = items.map(([route, symbol, title]) =>
-  `<a href="#/${route==='find'?'book':route}" data-nav="${route}">${icon(symbol,18)}<span>${title}</span></a>`
+  `<a href="#/${route==='find'?'book':route}" data-nav="${route}" aria-label="${title}">${icon(symbol,18)}<span class="nav-full">${title}</span><span class="nav-short" aria-hidden="true">${shortNames[route]||title}</span></a>`
   ).join('');
 let settings = {};
 try {

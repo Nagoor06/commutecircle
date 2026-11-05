@@ -52,8 +52,8 @@ export function parseCoordinates(text) {
   if (!finitePlace(value)) throw Error('Use latitude between −85 and 85 and longitude between −180 and 180.');
   return {
     ...value,
-    name: 'Map pin',
-    area: value.lat.toFixed(4) + ', ' + value.lon.toFixed(4)
+    name: value.lat.toFixed(5) + ', ' + value.lon.toFixed(5),
+    area: 'Selected coordinates · check this public meeting point'
   };
 }
 export function isSame(a, b) {

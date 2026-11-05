@@ -58,7 +58,9 @@ export function liveClient(token, origin) {
     commute: signal => call('/v1/me/commute', 'GET', null, {signal}),
     saveCommute: data => call('/v1/me/commute', 'PUT', data),
     forgetCommute: () => call('/v1/me/commute', 'DELETE'),
+    conversations: (query={},signal) => call('/v1/me/conversations?'+new URLSearchParams(query),'GET',null,{signal}),
     messages: (id, tid, signal) => call(ticket(id, tid) + '/messages', 'GET', null, {signal}),
+    readMessages: (id, tid, message_id, signal) => call(ticket(id,tid)+'/messages/read','POST',{message_id},{signal}),
     sendMessage: (id, tid, data) => call(ticket(id, tid) + '/messages', 'POST', data),
     blockChat: (id, tid) => call(ticket(id, tid) + '/messages/block', 'POST'),
     search: (q, signal, onStatus) => recoverSearch(() => call('/v1/journeys/search', 'POST', q, {

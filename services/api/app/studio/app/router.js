@@ -11,6 +11,7 @@ const routes = {
   signin: () => import('./screens/signin.js'),
   profile: () => import('./screens/profile.js'),
   chat: () => import('./screens/chat.js'),
+  messages: () => import('./screens/messages.js'),
   share: () => import('./screens/share.js'),
   track: () => import('./screens/track.js'),
   help: () => import('./screens/help.js')
@@ -20,6 +21,7 @@ const groups = {
   ride: 'find',
   checkout: 'trips',
   share: 'trips',
+  chat: 'messages',
   book: 'find'
 };
 const titles = {
@@ -32,6 +34,7 @@ const titles = {
   signin: 'Sign in',
   profile: 'My profile',
   chat: 'Booking chat',
+  messages: 'Messages',
   share: 'Share my trip',
   track: 'Follow a trip',
   help: 'Help'
@@ -53,6 +56,7 @@ export function startRouter(app) {
     const main = document.querySelector('#main');
     const root = document.createElement('div');
     root.className = 'page';
+    root.innerHTML = '<p class="loading" role="status">Opening your screen…</p>';
     main.replaceChildren(root);
     main.setAttribute('aria-busy', 'true');
     document.title = (titles[name] || 'Page unavailable') + ' · CommuteCircle';
