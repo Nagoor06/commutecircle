@@ -72,6 +72,11 @@ def view(data: ShareToken, session: DatabaseSession):
     return trip_sharing.view(session, data.token)
 
 
+@router.get("/journeys/{jid}/tickets/{tid}/driver-location")
+def driver_location(jid: UUID, tid: UUID, principal: RideReader, session: DatabaseSession):
+    return trip_sharing.driver_view(session, str(jid), str(tid), principal)
+
+
 @router.put("/trip-shares/{sid}/location")
 def locate(sid: UUID, data: LocationUpdate, principal: RideWriter, session: DatabaseSession):
     return trip_sharing.locate(session, str(sid), principal, data)

@@ -14,7 +14,7 @@ const base = 'http://127.0.0.1:8765';
 const signed = JSON.parse(await readFile(process.env.CC_BROWSER_IDENTITIES, 'utf8'));
 
 test('driver offer → debounced passenger matches → segment checkout → driver refund', {
-  timeout: 115000
+  timeout: 155000
 }, async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -39,7 +39,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     await context.addInitScript(() => {
       const fix=()=>({coords:{latitude:16.3,longitude:80.6,accuracy:12},timestamp:Date.now()});
       Object.defineProperty(navigator,'geolocation',{value:{
-        watchPosition:success=>setTimeout(()=>success(fix()),20),
+        watchPosition:success=>{window.sendTestFix=success;return setTimeout(()=>success(fix()),20);},
         getCurrentPosition:success=>setTimeout(()=>success(fix()),20),
         clearWatch:id=>clearTimeout(id)
       }});
@@ -255,10 +255,45 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       exact: true
     }).waitFor();
     const receiptUrl=rider.url();
+    await rider.getByRole('link',{name:'Track vehicle',exact:true}).click();
+    await rider.getByText('The driver is not sharing vehicle location with passengers yet.',{exact:true}).waitFor();
+    await driver.getByRole('link',{name:'Share my trip',exact:true}).first().click();
+    await driver.getByLabel('I want to share my live GPS location').check();
+    await driver.getByLabel('Also let my confirmed passengers track').check();
+    await driver.getByRole('button',{name:'Start location sharing',exact:true}).click();
+    await driver.locator('main [data-state]').filter({hasText:'Location sharing is on'}).waitFor();
+    await rider.getByRole('button',{name:'Refresh location',exact:true}).click();
+    await rider.getByText('Live location · driver GPS',{exact:true}).waitFor();
+    await rider.getByRole('button',{name:'Show live map',exact:true}).click();
+    await rider.locator('.vehicle-marker').waitFor();
+    assert.equal(await rider.locator('.traveller-marker').count(),0);
+    // Pan while following is off so a changed marker cannot be hidden by map recentering.
+    const canvas=rider.locator('[data-live-canvas]'), bounds=await canvas.boundingBox();
+    await rider.mouse.move(bounds.x+120,bounds.y+150);await rider.mouse.down();
+    await rider.mouse.move(bounds.x+160,bounds.y+180,{steps:8});await rider.mouse.up();
+    await rider.getByRole('button',{name:'Follow location',exact:true}).waitFor();
+    const initialPosition=await rider.locator('.live-position').getAttribute('style');
+    // Throttle is real; wait for the next allowed fix without changing app clocks.
+    await driver.waitForTimeout(5100);
+    const moved=driver.waitForResponse(r=>r.url().endsWith('/location')&&r.request().method()==='PUT');
+    await driver.evaluate(()=>window.sendTestFix({coords:{latitude:16.301,longitude:80.602,accuracy:18},timestamp:Date.now()}));
+    assert.equal((await moved).status(),200);
+    await rider.getByRole('button',{name:'Refresh location',exact:true}).click();
+    await rider.waitForFunction(previous=>document.querySelector('.live-position')?.getAttribute('style')!==previous,initialPosition);
+    assert.match(await rider.locator('[data-external]').getAttribute('href'),/16.301/);
+    assert.ok(await rider.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'live map overflows mobile');
+    await rider.screenshot({path:'evidence/mobile-live-vehicle.png',fullPage:true});
+    await driver.locator('#sharing-status').getByRole('button',{name:'Stop sharing',exact:true}).click();
+    await rider.getByRole('button',{name:'Refresh location',exact:true}).click();
+    await rider.getByText('The driver is not sharing vehicle location with passengers yet.',{exact:true}).waitFor();
+    assert.equal(await rider.locator('.vehicle-marker').count(),0,'revocation removes the vehicle and coordinates');
+    assert.equal(await rider.locator('[data-external]').getAttribute('href'),null);
+    await rider.evaluate(url=>{location.hash=new URL(url).hash;},receiptUrl);
+
     await rider.getByRole('link',{name:'Share my trip',exact:true}).click();
     await rider.getByRole('button',{name:'Start location sharing',exact:true}).click();
     await rider.getByText('Confirm who can see your location before starting.',{exact:true}).waitFor();
-    await rider.getByLabel('I want to share my precise location').check();
+    await rider.getByLabel('I want to share my live GPS location').check();
     await rider.getByRole('button',{name:'Start location sharing',exact:true}).click();
     await rider.locator('main [data-state]').filter({hasText:'Location sharing is on'}).waitFor();
     await rider.getByRole('button',{name:'Share with Trusted person',exact:true}).waitFor();
@@ -266,9 +301,13 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     const firstLink=await rider.getByLabel('Private trip link',{exact:true}).inputValue();
     const viewerContext=await browser.newContext();
     const viewer=await viewerContext.newPage();
+    await viewerContext.route('https://tiles.openfreemap.org/**',r=>r.abort());
     await viewer.goto(firstLink);
     await viewer.getByRole('link',{name:'Open last known location on OpenStreetMap',exact:true}).waitFor();
     assert.ok(!(await viewer.locator('main').innerText()).includes('CI private office'));
+    await viewer.getByRole('button',{name:'Show live map',exact:true}).click();
+    await viewer.locator('.traveller-marker').waitFor();
+    assert.equal(await viewer.locator('.vehicle-marker').count(),0,'a rider position must never impersonate the vehicle');
     await rider.locator('#sharing-status').getByRole('button',{name:'Stop sharing',exact:true}).click();
     await rider.locator('main [data-state]').getByText('Sharing is off.',{exact:true}).waitFor();
     await viewer.getByRole('button',{name:'Refresh location',exact:true}).click();
@@ -377,9 +416,10 @@ test('guest navigation never invents rides; stop hints work when external lookup
     await page.getByRole('combobox', {
       name: /pickup/i
     }).fill('Hyder');
-    await page.getByRole('option', {
-      name: /Hyderabad Deccan/i
-    }).waitFor();
+    await page.getByRole('button',{name:'Search farther away',exact:true}).waitFor();
+    assert.equal(await page.getByRole('option',{name:/Hyderabad Deccan/i}).count(),0);
+    await page.getByRole('button',{name:'Search farther away',exact:true}).click();
+    await page.getByRole('option',{name:/Hyderabad Deccan/i}).waitFor();
     await page.getByRole('combobox', {
       name: /pickup/i
     }).press('Escape');

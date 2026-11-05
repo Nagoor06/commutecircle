@@ -10,9 +10,11 @@ the traveller selects the recipient before sending.
 The dedicated sharing screen asks for consent before requesting precise device
 location. A persistent app-wide status and Stop sharing control remain visible
 while navigating between screens. The recipient opens a separate guest tracking
-screen with latest update time, device-reported accuracy and an explicit link to
-view the position on OpenStreetMap. Map coordinates are sent to that third party
-only when the recipient opens the map. No contacts, employer, login identifier or
+screen with a live GPS map, update age, device-reported accuracy and an optional
+OpenStreetMap link. The recipient explicitly opens the in-app map before tiles
+load from OpenFreeMap; its requests disclose the area viewed, never the capability
+token. The external OpenStreetMap link discloses the selected coordinates only
+when opened. The driver consent explains map-provider access. No contacts, employer, login identifier or
 phone number appears in the tracking response.
 
 ## Access and lifecycle
@@ -46,8 +48,8 @@ phone number appears in the tracking response.
 ## Failure behaviour
 
 GPS requires HTTPS and browser permission. A denied permission stops sharing.
-The app requests a fresh fix every 20 seconds while visible, in addition to a
-location watch, and throttles uploads to at most one per ten seconds. It never
+The app requests a fresh fix every 10 seconds while visible, in addition to a
+location watch, and throttles uploads to at most one per five seconds. It never
 re-sends a cached fix as a new update. Screen locking, background tabs, battery
 saving, poor GPS or network loss can pause updates. The receiver sees update age
 and stale status, not an invented live marker. These browser constraints mean
@@ -73,3 +75,33 @@ No messages are sent to real contacts in tests.
 
 References: [W3C Geolocation](https://www.w3.org/TR/geolocation/) and
 [MDN watchPosition](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/watchPosition).
+
+## Live vehicle tracking
+
+Drivers have a separate, initially unchecked consent to share with confirmed
+passengers. Existing links and new contact-only links remain private to their
+recipients. Passengers open **Track vehicle** from My trips or their receipt.
+`GET /v1/journeys/{jid}/tickets/{tid}/driver-location` checks the signed-in
+passenger, paid ticket, journey, travel window and active driver consent each
+time. Cancelling or exiting a ticket removes that passenger's access; it does
+not stop sharing for other passengers. No tracking token is exposed to riders.
+
+The viewer polls every five seconds while visible and refreshes on reconnection.
+The driver GPS watch uploads at most every five seconds (plus a fresh fix request
+every ten seconds when stationary). This is periodic live tracking, not an SLA
+for five-second delivery. A car marker means the **driver's device position**,
+not independently verified vehicle telemetry. Passenger links use a person
+marker instead. Movement interpolates briefly between received GPS fixes and
+never extrapolates a route or invents movement. Approximate fixes show accuracy;
+large jumps and reduced-motion preferences skip animation. Manual map panning
+pauses following until the viewer chooses Follow location.
+
+Freshness ages locally using server time even if subsequent requests fail. A
+paused, disconnected or stale feed shows a last-known position, and expired or
+revoked access removes the map and position link. No route matching, geocoding,
+ETA estimate or location history is computed from private live coordinates.
+
+Migration 0011 defaults passenger access to false for every existing link.
+API tests cover consent, strangers, unpaid/wrong/cancelled tickets, early exit,
+travel windows and expiry. Browser CI verifies real API GPS uploads, moving car
+markers, rider/person markers, mobile layout and removing a marker on stop.

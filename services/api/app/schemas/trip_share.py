@@ -28,6 +28,13 @@ class ShareStart(BaseModel):
     model_config = ConfigDict(extra="forbid")
     journey_id: UUID
     ticket_id: UUID | None = None
+    passengers_allowed: bool = Field(default=False, strict=True)
+
+    @model_validator(mode="after")
+    def driver_sharing_only(self):
+        if self.ticket_id and self.passengers_allowed:
+            raise ValueError("Only a driver can share vehicle location with booked passengers")
+        return self
 
 
 class ShareToken(BaseModel):

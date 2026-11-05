@@ -73,6 +73,7 @@ def start(session, principal, data):
             token_hash=digest(token),
             created_at=now,
             expires_at=min(now + timedelta(hours=4), end),
+            passengers_allowed=data.passengers_allowed,
         )
         session.add(share)
         session.flush()
@@ -127,6 +128,38 @@ def view(session, token):
         raise HTTPException(410, "This trip-sharing link has ended.")
     journey = session.get(Journey, share.journey_id)
     a, b = eligible(session, journey, share.ticket_id)
+    return snapshot(share, journey, a, b, now)
+
+
+def driver_view(session, jid, tid, principal):
+    # The journey lock orders access against cancellation/exit and sharing revocation.
+    with session.begin():
+        journey = journeys.locked(session, jid)
+        a, b = eligible(session, journey, tid, principal)
+        now = datetime.now(UTC)
+        if (
+            not journeys.pickup(journey, a) - timedelta(hours=1)
+            <= now
+            < journeys.pickup(journey, b) + timedelta(hours=1)
+        ):
+            raise HTTPException(409, "Live tracking is available near your booked travel time.")
+        share = session.scalar(
+            select(TripShare)
+            .where(
+                TripShare.journey_id == jid,
+                TripShare.ticket_id.is_(None),
+                TripShare.passengers_allowed.is_(True),
+                TripShare.revoked.is_(False),
+            )
+            .order_by(TripShare.created_at.desc())
+            .limit(1)
+        )
+        if not share or expired(share, now):
+            return {"state": "off", "position": None}
+        return snapshot(share, journey, a, b, now)
+
+
+def snapshot(share, journey, a, b, now):
     # A delayed but accepted observation must not look newer than the GPS fix.
     age = (
         (now - min(journeys.utc(share.updated_at), journeys.utc(share.observed_at))).total_seconds()
@@ -134,6 +167,15 @@ def view(session, token):
         else None
     )
     return {
+        "source": "passenger" if share.ticket_id else "driver",
+        "vehicle": None
+        if share.ticket_id
+        else {key: (journey.vehicle or {}).get(key) for key in ("make", "model", "colour")},
+        "stops": [
+            {key: stop.get(key) for key in ("name", "lat", "lon")}
+            for stop in journey.stops[a : b + 1]
+        ],
+        "server_time": now,
         "origin": journey.stops[a]["name"],
         "destination": journey.stops[b]["name"],
         "expires_at": share.expires_at,
