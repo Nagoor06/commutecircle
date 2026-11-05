@@ -44,3 +44,19 @@ Drivers list public stops in travel order and set a full-route price per seat. T
 
 ## Priced journey refunds
 A driver-confirmed early exit refunds the unused distance and makes the onward legs available again. Passenger cancellation fees depend on time before pickup; driver cancellation refunds the full sandbox charge. A receipt shows the charged and refunded amounts. Real bank refund timings are not applicable to sandbox checkout.
+
+## Live vehicle location and nearby suggestions
+
+From a confirmed booking, choose Track vehicle. The driver must explicitly start
+location sharing and separately allow confirmed passengers. The viewer chooses
+Show live map; tiles reveal the viewed area to OpenFreeMap but never the private
+link. A car marker represents driver-device GPS, while a rider's own share link
+uses a person marker. The page polls every five seconds while visible, shows
+accuracy and update age, and marks stale or disconnected updates as paused. No
+movement is predicted after the last received fix. Cancelling or exiting a ticket
+removes its tracking access; driver cancellation ends sharing for everyone.
+
+Pickup and drop-off suggestions default to within 50 km of the opposite stop,
+measured in a straight line. Choose Search farther away to find distant places.
+This suggestion radius does not limit the trip distance. No private live GPS
+coordinates, share tokens or trusted-contact details belong in the AI helper.

@@ -11,12 +11,12 @@ export function createTripSharing(api, notify) {
       if(!unloading)throw Error('Device tracking stopped. The server could not confirm revocation; the link ends after five minutes without updates.');
     }
   }
-  async function start(journey_id,ticket_id){
+  async function start(journey_id,ticket_id,passengers_allowed=false){
     if(!navigator.geolocation)throw Error('Location is unavailable on this device.');
     await stop();const generation=++version;
-    const result=await api.startShare({journey_id,...(ticket_id?{ticket_id}:{})});
+    const result=await api.startShare({journey_id,passengers_allowed,...(ticket_id?{ticket_id}:{})});
     if(generation!==version){await api.stopShare(result.id);return;}
-    current={...result,journey_id,ticket_id,status:'Waiting for device location…',updated_at:null};
+    current={...result,journey_id,ticket_id,passengers_allowed,status:'Waiting for device location…',updated_at:null};
     sequence=0;lastSent=0;sending=false;announce();
     function deadline(){
       clearTimeout(expiry);
@@ -24,7 +24,7 @@ export function createTripSharing(api, notify) {
     }
     deadline();
     const received=async position=>{
-      if(generation!==version||sending||Date.now()-lastSent<10000)return;
+      if(generation!==version||sending||Date.now()-lastSent<5000)return;
       sending=true;lastSent=Date.now();
       try{
         const response=await api.locateShare(result.id,{latitude:position.coords.latitude,longitude:position.coords.longitude,
@@ -49,7 +49,7 @@ export function createTripSharing(api, notify) {
     const options={enableHighAccuracy:true,maximumAge:0,timeout:15000};
     watch=navigator.geolocation.watchPosition(received,failed,options);
     // Request a fresh fix even while stationary. Never re-send a cached point as a new update.
-    poll=setInterval(()=>{if(!document.hidden&&generation===version)navigator.geolocation.getCurrentPosition(received,failed,options);},20000);
+    poll=setInterval(()=>{if(!document.hidden&&generation===version)navigator.geolocation.getCurrentPosition(received,failed,options);},10000);
   }
   window.addEventListener('pagehide',()=>{stop(true).catch(()=>{});});
   return {start,stop,get current(){return current;},subscribe(listener){listeners.add(listener);listener(current);return()=>listeners.delete(listener);}};

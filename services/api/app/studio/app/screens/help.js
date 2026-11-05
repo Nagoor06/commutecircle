@@ -6,6 +6,8 @@ import {
 } from '../ui.js';
 const guide = 'https://github.com/Nagoor06/commutecircle/blob/main/services/ride-help/guide.md';
 const items = [
+  ['Can I track the vehicle live?', 'Open Track vehicle from a confirmed booking. Your driver must start location sharing and separately allow confirmed passengers. Choose Show live map to follow the car marker from the driver’s GPS, with update age and accuracy. Your own Share my trip link shows your location as a passenger, using a person marker. Keep the sharing browser open; updates can pause in the background.'],
+  ['Why are location suggestions within 50 km?', 'Pickup and drop-off suggestions use a 50 km straight-line radius around the opposite stop. Select Search farther away to find distant cities. You can also type coordinates or move a map pin beyond that radius. This suggestion range does not limit how far you can travel.'],
   ['How can my favourite contacts follow my trip?', 'Save up to five favourites in Profile. Open Share my trip from a confirmed booking or your driver offer, agree to precise location sharing, then send the private link yourself. Anyone with the link can view it without an account. Stop sharing or cancellation ends access. Keep the page open: phone browsers can pause background GPS, and five minutes without updates ends the link.'],
   ['Can I browse without signing in?', 'Yes. Choose a date and public meeting points to see rides, fares and vehicle details. Sign in when booking, listing or messaging.'],
   ['How does Circle pickup protect my address?', 'Choose a public pickup point. Nearby-stop lookup compares your location locally, then lets you choose a station area. Your device location is not used as the pickup pin. Never choose a private home pin.'],

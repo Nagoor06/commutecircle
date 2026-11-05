@@ -116,11 +116,17 @@ def test_shared_link_is_capability_only_and_hides_identity(client, authenticated
         "updated_at",
         "state",
         "position",
+        "source",
+        "vehicle",
+        "stops",
+        "server_time",
     }
     assert all(
         secret not in response.text
         for secret in ["rider", "driver-a", "identity.example", tid, jid]
     )
+    assert response.json()["source"] == "passenger"
+    assert response.json()["vehicle"] is None
     assert view(client, {"token": "x" * 43}).status_code == 410
     with Session(client.app.state.engine) as session:
         row = session.get(TripShare, share["id"])
@@ -256,3 +262,96 @@ def test_stop_racing_location_cannot_restore_access(client, authenticated):
     assert view(client, share).status_code == 410
     with Session(engine) as session:
         assert session.get(TripShare, share["id"]).latitude is None
+
+
+def driver_start(client, authenticated, jid, allowed=True):
+    response = client.post(
+        "/v1/trip-shares",
+        headers=authenticated(),
+        json={"journey_id": jid, "passengers_allowed": allowed},
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def test_driver_tracking_requires_separate_consent_and_paid_own_ticket(client, authenticated):
+    jid, tid, rider = trip(client, authenticated, paid=False)
+    path = f"/v1/journeys/{jid}/tickets/{tid}/driver-location"
+    share = driver_start(client, authenticated, jid, allowed=False)
+    assert locate(client, share, authenticated()).is_success
+    assert view(client, share).json()["source"] == "driver"
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=authenticated(subject="stranger")).status_code == 404
+    assert client.get(path, headers=rider).status_code == 410
+    client.post(f"/v1/journeys/{jid}/tickets/{tid}/sandbox-pay", headers=rider).raise_for_status()
+    assert client.get(path, headers=rider).json() == {"state": "off", "position": None}
+    share = driver_start(client, authenticated, jid)
+    assert client.get(path, headers=rider).json()["state"] == "waiting"
+    assert locate(client, share, authenticated()).is_success
+    response = client.get(path, headers=rider)
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["state"] == "live"
+    assert response.json()["source"] == "driver"
+    assert response.json()["position"]["latitude"] == 16.3
+    assert share["token"] not in response.text and "token_hash" not in response.text
+    assert (
+        client.post(
+            "/v1/trip-shares",
+            headers=rider,
+            json={
+                "journey_id": jid,
+                "ticket_id": tid,
+                "passengers_allowed": True,
+            },
+        ).status_code
+        == 422
+    )
+    other_jid, _, _ = trip(client, authenticated)
+    assert (
+        client.get(
+            f"/v1/journeys/{other_jid}/tickets/{tid}/driver-location", headers=rider
+        ).status_code
+        == 404
+    )
+
+
+@pytest.mark.parametrize(
+    "action", ["stop", "rider_cancel", "driver_cancel", "exit", "expired", "window"]
+)
+def test_driver_location_access_ends_without_revealing_last_fix(client, authenticated, action):
+    jid, tid, rider = trip(client, authenticated)
+    share = driver_start(client, authenticated, jid)
+    locate(client, share, authenticated()).raise_for_status()
+    base = f"/v1/journeys/{jid}"
+    path = f"{base}/tickets/{tid}/driver-location"
+    assert client.get(path, headers=rider).json()["state"] == "live"
+    if action == "stop":
+        client.post(
+            f"/v1/trip-shares/{share['id']}/stop", headers=authenticated()
+        ).raise_for_status()
+    elif action == "rider_cancel":
+        client.post(f"{base}/tickets/{tid}/cancel", headers=rider).raise_for_status()
+    elif action == "driver_cancel":
+        client.post(f"{base}/cancel", headers=authenticated()).raise_for_status()
+    elif action == "exit":
+        with Session(client.app.state.engine) as session, session.begin():
+            session.get(Journey, jid).departure = datetime.now(UTC) - timedelta(minutes=10)
+        client.post(
+            f"{base}/tickets/{tid}/exit", headers=authenticated(), json={"stop": 1}
+        ).raise_for_status()
+    else:
+        with Session(client.app.state.engine) as session, session.begin():
+            if action == "expired":
+                session.get(TripShare, share["id"]).updated_at = datetime.now(UTC) - timedelta(
+                    minutes=6
+                )
+            else:
+                session.get(Journey, jid).departure = datetime.now(UTC) + timedelta(hours=4)
+    response = client.get(path, headers=rider)
+    assert response.status_code == (
+        200 if action in {"stop", "expired"} else 409 if action == "window" else 410
+    )
+    assert "latitude" not in response.text
+    if action in {"rider_cancel", "exit"}:
+        # Ending one passenger's access must not stop the driver's sharing for others.
+        assert view(client, share).json()["state"] == "live"

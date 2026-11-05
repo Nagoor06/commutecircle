@@ -54,6 +54,7 @@ export function liveClient(token, origin) {
     startShare: data => call('/v1/trip-shares', 'POST', data),
     locateShare: (id, data) => call('/v1/trip-shares/' + id + '/location', 'PUT', data),
     stopShare: (id, keepalive=false) => call('/v1/trip-shares/' + id + '/stop', 'POST', null, {keepalive}),
+    driverLocation: (id,tid,signal) => call(ticket(id,tid)+'/driver-location','GET',null,{signal}),
     viewShare: (token, signal) => call('/v1/trip-shares/view', 'POST', {token}, {signal}),
     commute: signal => call('/v1/me/commute', 'GET', null, {signal}),
     saveCommute: data => call('/v1/me/commute', 'PUT', data),

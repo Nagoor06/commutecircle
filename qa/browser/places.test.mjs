@@ -30,7 +30,7 @@ test('search sends the selected stop bias and never reuses a different anchor ca
   assert.equal(online.length,2);
   assert.equal(online[0].searchParams.get('lat'),'16.2500');
   assert.equal(online[1].searchParams.get('lon'),'77.2000');
-  assert.equal(online[0].searchParams.has('bbox'),false,'explicit far-city search must remain possible');
+  assert.equal(online[0].searchParams.has('bbox'),true,'nearby searches must constrain the provider');
 });
 
 test('reverse lookup names a pin but preserves exactly selected coordinates',async t=>{
@@ -71,4 +71,32 @@ test('rapid pin moves, independent pins and manual replacements reject stale rep
   resolver.move(0,{lat:16.29,lon:80.68});await pause(5);controller.abort();
   requests[3].resolve({...requests[3].p,name:'After leaving'});await pause(0);
   assert.notEqual(points[0].name,'After leaving');
+});
+
+test('50 km default applies in both directions, including provider results and offline stations',async t=>{
+  const near={lat:16.3,lon:80.65}, far={lat:17.4,lon:78.47},urls=[];
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url);urls.push(u);
+    if(u.protocol==='file:')return {ok:true,json:async()=>[['Bus Station Local','BSL',near.lat,near.lon],['Bus Station Far','BSF',far.lat,far.lon]]};
+    return {ok:true,json:async()=>({features:[feature('Bus Station Far',far.lat,far.lon),feature('Bus Station Local',near.lat,near.lon)]})};
+  });
+  const settings={signal:new AbortController().signal,geocoder:'https://radius.test/api/',anchor};
+  const nearby=(await suggest('Bus Station',settings)).items.map(p=>p.name);
+  assert.ok(nearby.includes('Bus Station Local'));assert.ok(!nearby.includes('Bus Station Far'));
+  assert.deepEqual((await suggest('Bus Station',{...settings,anchor:far})).items.map(p=>p.name),[],'the other endpoint itself is not a destination');
+  assert.ok((await suggest('Bus Station',{...settings,radius:Infinity})).items.some(p=>p.name==='Bus Station Far'));
+  assert.equal(urls.filter(u=>u.protocol==='https:').at(-1).searchParams.has('bbox'),false);
+  assert.ok(!(await suggest('Bus Station',{...settings,geocoder:null})).items.some(p=>p.name==='Bus Station Far'),'offline catalogue also honours 50 km');
+  assert.equal((await suggest('17.4,78.47',settings)).items[0].lat,17.4,'an intentionally entered distant pin is allowed');
+});
+
+test('50 km filtering works across the international date line without an invalid box',async t=>{
+  let request;
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};request=u;
+    return {ok:true,json:async()=>({features:[feature('Island Landing',0,-179.9),feature('Island Far',0,178)]})};
+  });
+  const result=await suggest('Island',{signal:new AbortController().signal,geocoder:'https://date.test/api/',anchor:{lat:0,lon:179.9}});
+  assert.equal(result.items.length,1);assert.equal(result.items[0].name,'Island Landing');
+  assert.equal(request.searchParams.has('bbox'),false);
 });

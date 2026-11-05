@@ -13,6 +13,7 @@ const routes = {
   chat: () => import('./screens/chat.js'),
   messages: () => import('./screens/messages.js'),
   share: () => import('./screens/share.js'),
+  'track-driver': () => import('./screens/track-driver.js'),
   track: () => import('./screens/track.js'),
   help: () => import('./screens/help.js')
 };
@@ -21,6 +22,7 @@ const groups = {
   ride: 'find',
   checkout: 'trips',
   share: 'trips',
+  'track-driver': 'trips',
   chat: 'messages',
   book: 'find'
 };
@@ -37,6 +39,7 @@ const titles = {
   messages: 'Messages',
   share: 'Share my trip',
   track: 'Follow a trip',
+  'track-driver': 'Live vehicle location',
   help: 'Help'
 };
 export const go = route => {
