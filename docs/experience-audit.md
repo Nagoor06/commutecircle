@@ -8,7 +8,7 @@ rider, driver, checkout, profile or sharing screens.
 - Pickup and drop-off use the opposite selected point as a location bias. Driver
   intermediate stops use the previous stop. Profile uses the other commute point.
 - Empty-field suggestions are public catalogue stops within 50 km, ordered by
-  straight-line distance. Typed city names can still find farther places.
+  straight-line distance. Search farther away enables suggestions beyond 50 km.
 - Ambiguous same-named stations remain separate when their coordinates differ.
   Provider caches include the selected anchor. There is no hard country boundary.
 - Pin dragging and keyboard movement immediately retain the exact coordinates.

@@ -79,7 +79,9 @@ References: [W3C Geolocation](https://www.w3.org/TR/geolocation/) and
 ## Live vehicle tracking
 
 Drivers have a separate, initially unchecked consent to share with confirmed
-passengers. Existing links and new contact-only links remain private to their
+passengers. The screen asks drivers to begin at a public meeting point and keep
+passenger sharing off at home, because live GPS reveals their precise position.
+Existing links and new contact-only links remain private to their
 recipients. Passengers open **Track vehicle** from My trips or their receipt.
 `GET /v1/journeys/{jid}/tickets/{tid}/driver-location` checks the signed-in
 passenger, paid ticket, journey, travel window and active driver consent each
