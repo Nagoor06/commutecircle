@@ -234,6 +234,8 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             t.state = "driver_cancelled" if driver else "rider_cancelled"
             revoke_location(session, jid, tid)
         elif action == "exit":
+            if t.travel_state and t.travel_state != "boarded":
+                raise HTTPException(409, "Passenger boarding must be confirmed")
             if t.travel_state == "completed":
                 raise HTTPException(409, "Completed booking cannot change exit")
             if not is_driver(j, p):
