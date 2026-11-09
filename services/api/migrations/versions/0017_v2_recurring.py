@@ -36,14 +36,16 @@ def upgrade():
         sa.Column("service_date", sa.Date(), primary_key=True),
         sa.Column("reason", sa.String(120), nullable=False),
     )
-    op.add_column("journeys", sa.Column("recurring_template_id", sa.String(36), sa.ForeignKey("recurring_rides.id")))
-    op.add_column("journeys", sa.Column("recurring_date", sa.Date()))
-    op.create_unique_constraint("uq_recurring_occurrence", "journeys", ["recurring_template_id", "recurring_date"])
+    with op.batch_alter_table("journeys") as batch:
+        batch.add_column(sa.Column("recurring_template_id", sa.String(36), sa.ForeignKey("recurring_rides.id")))
+        batch.add_column(sa.Column("recurring_date", sa.Date()))
+        batch.create_unique_constraint("uq_recurring_occurrence", ["recurring_template_id", "recurring_date"])
 
 
 def downgrade():
-    op.drop_constraint("uq_recurring_occurrence", "journeys", type_="unique")
-    op.drop_column("journeys", "recurring_date")
-    op.drop_column("journeys", "recurring_template_id")
+    with op.batch_alter_table("journeys") as batch:
+        batch.drop_constraint("uq_recurring_occurrence", type_="unique")
+        batch.drop_column("recurring_date")
+        batch.drop_column("recurring_template_id")
     op.drop_table("recurring_exceptions")
     op.drop_table("recurring_rides")
