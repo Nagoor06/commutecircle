@@ -8,6 +8,7 @@ from sqlalchemy import select, update
 from app.models.journey import Journey, PaymentEntry, Ticket
 from app.models.trip_share import TripShare
 from app.services.notification_outbox import enqueue
+from app.services.v2_common import verify_access
 
 
 def utc(t):
@@ -75,6 +76,9 @@ def receipt(t, now):
         board=t.board,
         alight=t.alight,
         state=status(t, now),
+        travel_state=t.travel_state,
+        boarded_at=t.boarded_at,
+        completed_at=t.completed_at,
         expires=utc(t.expires),
         stars=t.stars,
         fare_paise=t.fare,
@@ -106,6 +110,9 @@ def hold(session, jid, p, data):
     with session.begin():
         j = locked(session, jid)
         now = datetime.now(UTC)
+        verify_access(session, j, p)
+        if j.booking_mode != "instant":
+            raise HTTPException(409, "Request driver approval before checkout")
         if is_driver(j, p):
             raise HTTPException(409, "You listed this ride")
         prior = session.get(Ticket, str(data.checkout_id))
@@ -198,6 +205,11 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             t.charged = t.fare
             t.state = "paid"
         elif action == "cancel":
+            if state == "requested":
+                t.state = "driver_cancelled" if is_driver(j, p) else "rider_cancelled"
+                return receipt(t, now)
+            if t.travel_state == "boarded":
+                raise HTTPException(409, "Boarded passenger requires an incident or interruption workflow")
             if state == "rider_cancelled" and is_driver(j, p):
                 refund_to(session, t, t.charged, "driver_refund", now)
                 t.state = "driver_cancelled"
@@ -220,6 +232,8 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             t.state = "driver_cancelled" if driver else "rider_cancelled"
             revoke_location(session, jid, tid)
         elif action == "exit":
+            if t.travel_state == "completed":
+                raise HTTPException(409, "Completed booking cannot change exit")
             if not is_driver(j, p):
                 raise HTTPException(403, "Driver must confirm the actual exit")
             if state in ("paid", "exited") and stop == t.alight:
