@@ -30,6 +30,9 @@ class DriverVerification(Base):
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewer: Mapped[str | None] = mapped_column(String(255))
+    __table_args__ = (
+        CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_driver_verification"),
+    )
 
 
 class VerifiedVehicle(Base):
@@ -41,11 +44,16 @@ class VerifiedVehicle(Base):
     model: Mapped[str] = mapped_column(String(60))
     color: Mapped[str] = mapped_column(String(40))
     registration: Mapped[str] = mapped_column(String(24))
+    seat_capacity: Mapped[int]
     status: Mapped[str] = mapped_column(String(16), default="pending")
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewer: Mapped[str | None] = mapped_column(String(255))
-    __table_args__ = (Index("ix_verified_vehicles_owner", "issuer", "subject"),)
+    __table_args__ = (
+        Index("ix_verified_vehicles_owner", "issuer", "subject"),
+        CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_vehicle_verification"),
+        CheckConstraint("seat_capacity BETWEEN 1 AND 8", name="valid_vehicle_capacity"),
+    )
 
 
 class BoardingChallenge(Base):
