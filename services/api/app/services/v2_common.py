@@ -22,11 +22,13 @@ def staff(p):
         raise HTTPException(403, "Staff permission required")
 
 
-def eligible_driver(session, principal, vehicle_id):
+def eligible_driver(session, principal, vehicle_id, capacity=None):
     driver = session.get(DriverVerification, (principal.issuer, principal.subject))
     vehicle = session.get(VerifiedVehicle, vehicle_id) if vehicle_id else None
     if not driver or driver.status != "approved" or not vehicle or vehicle.status != "approved" or not owner(vehicle, principal):
         raise HTTPException(403, "Verified driver and approved vehicle required")
+    if capacity is not None and capacity > vehicle.seat_capacity:
+        raise HTTPException(422, "More passengers than approved vehicle capacity")
     return vehicle
 
 
