@@ -12,6 +12,8 @@ from sqlalchemy import select
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.models.v2 import CircleInvitation, CircleMember, CommuteCircle
+from app.models.journey import Journey
+from app.services import journey_catalog
 
 router = APIRouter(prefix="/v1", tags=["V2 circles"])
 
@@ -60,6 +62,22 @@ def circle_details(cid: UUID, principal: RideReader, session: DatabaseSession, r
         raise HTTPException(404, "Circle not found")
     count = len(list(session.scalars(select(CircleMember).where(CircleMember.circle_id == circle.id).limit(101))))
     return {**display_circle(circle, membership(session, circle.id, principal).role), "members": count}
+
+
+@router.get("/circles/{cid}/journeys")
+def browse_circle(cid: UUID, principal: RideReader, session: DatabaseSession, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    if not membership(session, str(cid), principal):
+        raise HTTPException(404, "Circle not found")
+    rows = list(session.scalars(
+        select(Journey).where(
+            Journey.circle_id == str(cid),
+            Journey.cancelled.is_(False),
+            Journey.last_stop_at > datetime.now(UTC),
+        ).order_by(Journey.departure, Journey.id).limit(50)
+    ))
+    return [{"journey": view, "board": 0, "alight": len(view["stops"]) - 1, "match": {}}
+            for view in journey_catalog.views(session, rows, principal)]
 
 
 @router.post("/circles/{cid}/invitations", status_code=201)
