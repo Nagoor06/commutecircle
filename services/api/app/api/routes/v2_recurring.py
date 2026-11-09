@@ -45,7 +45,7 @@ class RecurringInput(BaseModel):
             raise ValueError("Schedule dates must cover at most 90 days")
         if self.stops[0].metres or self.stops[0].minutes:
             raise ValueError("First stop must have zero time and distance")
-        for a, b in zip(self.stops, self.stops[1:]):
+        for a, b in zip(self.stops, self.stops[1:], strict=False):
             if b.metres <= a.metres or b.minutes <= a.minutes:
                 raise ValueError("Route distance and time must increase")
         return self
@@ -156,7 +156,7 @@ def exception(
             .with_for_update()
         )
         if journey and not journey.cancelled:
-            # Preserve full driver-cancellation refund semantics; never silently cancel paid tickets.
+            # Preserve driver-refund semantics; never cancel paid tickets silently.
             if session.scalar(
                 select(__import__("app.models.journey", fromlist=["Ticket"]).Ticket.id)
                 .where(
