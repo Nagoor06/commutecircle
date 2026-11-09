@@ -8,12 +8,12 @@ from sqlalchemy.exc import IntegrityError
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import PublicReader, RideReader, RideWriter
 from app.models.journey import Journey, Ticket
+from app.models.v2 import CircleMember
 from app.schemas.journey import CancelTicket, ExitStop, Hold, Offer, RideSearch, Segment
 from app.schemas.ride_details import Review
 from app.services import journey_catalog as catalog
 from app.services import journeys as service
 from app.services.v2_common import eligible_driver, required_verification, verify_access
-from app.models.v2 import CircleMember
 
 router = APIRouter(prefix="/v1/journeys", tags=["priced journeys (sandbox)"])
 
@@ -39,7 +39,8 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
             or existing.price_paise != data.price_paise
             or existing.capacity != data.capacity
             or existing.booking_mode != data.booking_mode
-            or existing.vehicle_registration_id != (str(data.vehicle_id) if data.vehicle_id else None)
+            or existing.vehicle_registration_id
+            != (str(data.vehicle_id) if data.vehicle_id else None)
             or existing.circle_id != (str(data.circle_id) if data.circle_id else None)
         ):
             raise HTTPException(
@@ -55,9 +56,16 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
             if data.departure <= datetime.now(UTC):
                 raise HTTPException(422, "Departure must be in the future")
             if data.booking_mode == "approval" or required_verification():
-                eligible_driver(session, principal, str(data.vehicle_id) if data.vehicle_id else None, data.capacity)
+                eligible_driver(
+                    session,
+                    principal,
+                    str(data.vehicle_id) if data.vehicle_id else None,
+                    data.capacity,
+                )
             if data.circle_id:
-                member = session.get(CircleMember, (str(data.circle_id), principal.issuer, principal.subject))
+                member = session.get(
+                    CircleMember, (str(data.circle_id), principal.issuer, principal.subject)
+                )
                 if not member or member.role != "owner":
                     raise HTTPException(404, "Circle not found")
             j = Journey(
@@ -90,7 +98,11 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
 def discover(principal: PublicReader, session: DatabaseSession, offset: int = Query(0, ge=0)):
     rows = session.scalars(
         select(Journey)
-        .where(Journey.cancelled.is_(False), Journey.circle_id.is_(None), Journey.last_stop_at > datetime.now(UTC))
+        .where(
+            Journey.cancelled.is_(False),
+            Journey.circle_id.is_(None),
+            Journey.last_stop_at > datetime.now(UTC),
+        )
         .order_by(Journey.departure, Journey.id)
         .offset(offset)
         .limit(50)

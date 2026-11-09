@@ -25,7 +25,13 @@ def staff(p):
 def eligible_driver(session, principal, vehicle_id, capacity=None):
     driver = session.get(DriverVerification, (principal.issuer, principal.subject))
     vehicle = session.get(VerifiedVehicle, vehicle_id) if vehicle_id else None
-    if not driver or driver.status != "approved" or not vehicle or vehicle.status != "approved" or not owner(vehicle, principal):
+    if (
+        not driver
+        or driver.status != "approved"
+        or not vehicle
+        or vehicle.status != "approved"
+        or not owner(vehicle, principal)
+    ):
         raise HTTPException(403, "Verified driver and approved vehicle required")
     if capacity is not None and capacity > vehicle.seat_capacity:
         raise HTTPException(422, "More passengers than approved vehicle capacity")
@@ -43,11 +49,16 @@ def verify_access(session, journey, principal, allow_ticket=False):
             return
         if allow_ticket:
             from app.models.journey import Ticket
-            found = session.scalar(select(Ticket.id).where(
-                Ticket.journey_id == journey.id,
-                Ticket.issuer == principal.issuer,
-                Ticket.rider == principal.subject,
-            ).limit(1))
+
+            found = session.scalar(
+                select(Ticket.id)
+                .where(
+                    Ticket.journey_id == journey.id,
+                    Ticket.issuer == principal.issuer,
+                    Ticket.rider == principal.subject,
+                )
+                .limit(1)
+            )
             if found:
                 return
     raise HTTPException(404, "Journey not found")

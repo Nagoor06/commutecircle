@@ -15,7 +15,9 @@ def upgrade():
     op.add_column("journey_tickets", sa.Column("completed_at", sa.DateTime(timezone=True)))
     op.create_table(
         "boarding_challenges",
-        sa.Column("ticket_id", sa.String(36), sa.ForeignKey("journey_tickets.id"), primary_key=True),
+        sa.Column(
+            "ticket_id", sa.String(36), sa.ForeignKey("journey_tickets.id"), primary_key=True
+        ),
         sa.Column("salt", sa.String(64), nullable=False),
         sa.Column("digest", sa.String(64), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),

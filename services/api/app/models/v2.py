@@ -3,7 +3,16 @@
 from datetime import date, datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -31,7 +40,10 @@ class DriverVerification(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewer: Mapped[str | None] = mapped_column(String(255))
     __table_args__ = (
-        CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_driver_verification"),
+        CheckConstraint(
+            "status IN ('pending','approved','rejected','suspended')",
+            name="valid_driver_verification",
+        ),
     )
 
 
@@ -51,7 +63,10 @@ class VerifiedVehicle(Base):
     reviewer: Mapped[str | None] = mapped_column(String(255))
     __table_args__ = (
         Index("ix_verified_vehicles_owner", "issuer", "subject"),
-        CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_vehicle_verification"),
+        CheckConstraint(
+            "status IN ('pending','approved','rejected','suspended')",
+            name="valid_vehicle_verification",
+        ),
         CheckConstraint("seat_capacity BETWEEN 1 AND 8", name="valid_vehicle_capacity"),
     )
 

@@ -23,11 +23,17 @@ class Journey(Base):
     price_paise: Mapped[int]
     capacity: Mapped[int]
     cancelled: Mapped[bool] = mapped_column(default=False)
-    vehicle_registration_id: Mapped[str | None] = mapped_column(ForeignKey("verified_vehicles.id"), nullable=True)
+    vehicle_registration_id: Mapped[str | None] = mapped_column(
+        ForeignKey("verified_vehicles.id"), nullable=True
+    )
     booking_mode: Mapped[str] = mapped_column(String(16), default="instant")
-    recurring_template_id: Mapped[str | None] = mapped_column(ForeignKey("recurring_rides.id"), nullable=True)
+    recurring_template_id: Mapped[str | None] = mapped_column(
+        ForeignKey("recurring_rides.id"), nullable=True
+    )
     recurring_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    circle_id: Mapped[str | None] = mapped_column(ForeignKey("commute_circles.id"), nullable=True, index=True)
+    circle_id: Mapped[str | None] = mapped_column(
+        ForeignKey("commute_circles.id"), nullable=True, index=True
+    )
 
 
 class Ticket(Base):
@@ -53,7 +59,9 @@ class Ticket(Base):
     consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consent_version: Mapped[str | None] = mapped_column(String(24), nullable=True)
     consent_fare_paise: Mapped[int | None] = mapped_column(nullable=True)
-    consent_pickup_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consent_pickup_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     travel_state: Mapped[str | None] = mapped_column(String(24), nullable=True)
     boarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -26,7 +26,10 @@ def upgrade():
         sa.Column("submitted_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("reviewed_at", sa.DateTime(timezone=True)),
         sa.Column("reviewer", sa.String(255)),
-        sa.CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_driver_verification"),
+        sa.CheckConstraint(
+            "status IN ('pending','approved','rejected','suspended')",
+            name="valid_driver_verification",
+        ),
     )
     op.create_table(
         "verified_vehicles",
@@ -42,12 +45,19 @@ def upgrade():
         sa.Column("submitted_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("reviewed_at", sa.DateTime(timezone=True)),
         sa.Column("reviewer", sa.String(255)),
-        sa.CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_vehicle_verification"),
+        sa.CheckConstraint(
+            "status IN ('pending','approved','rejected','suspended')",
+            name="valid_vehicle_verification",
+        ),
         sa.CheckConstraint("seat_capacity BETWEEN 1 AND 8", name="valid_vehicle_capacity"),
     )
     op.create_index("ix_verified_vehicles_owner", "verified_vehicles", ["issuer", "subject"])
     with op.batch_alter_table("journeys") as batch:
-        batch.add_column(sa.Column("vehicle_registration_id", sa.String(36), sa.ForeignKey("verified_vehicles.id")))
+        batch.add_column(
+            sa.Column(
+                "vehicle_registration_id", sa.String(36), sa.ForeignKey("verified_vehicles.id")
+            )
+        )
 
 
 def downgrade():

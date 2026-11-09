@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.models.v2 import CommuterProfile, DriverVerification, VerifiedVehicle
-from app.services.v2_common import eligible_driver, owner, staff
+from app.services.v2_common import staff
 
 router = APIRouter(prefix="/v1", tags=["V2 verification"])
 
@@ -41,7 +41,14 @@ class Decision(BaseModel):
 
 
 def visible_vehicle(row, owner_view=False):
-    result = {"id": row.id, "make": row.make, "model": row.model, "color": row.color, "seat_capacity": row.seat_capacity, "status": row.status}
+    result = {
+        "id": row.id,
+        "make": row.make,
+        "model": row.model,
+        "color": row.color,
+        "seat_capacity": row.seat_capacity,
+        "status": row.status,
+    }
     if owner_view:
         result["registration"] = row.registration
     return result
@@ -61,7 +68,14 @@ def save_profile(data: ProfileData, principal: RideWriter, session: DatabaseSess
         if row:
             row.display_name = data.display_name
         else:
-            session.add(CommuterProfile(issuer=principal.issuer, subject=principal.subject, display_name=data.display_name, created_at=datetime.now(UTC)))
+            session.add(
+                CommuterProfile(
+                    issuer=principal.issuer,
+                    subject=principal.subject,
+                    display_name=data.display_name,
+                    created_at=datetime.now(UTC),
+                )
+            )
     return {"display_name": data.display_name}
 
 
@@ -75,14 +89,32 @@ def apply(data: DriverApplication, principal: RideWriter, session: DatabaseSessi
             row.status, row.evidence_reference = "pending", data.evidence_reference
             row.submitted_at, row.reviewed_at, row.reviewer = datetime.now(UTC), None, None
         else:
-            session.add(DriverVerification(issuer=principal.issuer, subject=principal.subject, status="pending", evidence_reference=data.evidence_reference, submitted_at=datetime.now(UTC)))
+            session.add(
+                DriverVerification(
+                    issuer=principal.issuer,
+                    subject=principal.subject,
+                    status="pending",
+                    evidence_reference=data.evidence_reference,
+                    submitted_at=datetime.now(UTC),
+                )
+            )
     return {"status": "pending", "message": "Application recorded; not verified until reviewed"}
 
 
 @router.post("/me/vehicles", status_code=201)
 def submit_vehicle(data: VehicleData, principal: RideWriter, session: DatabaseSession):
     with session.begin():
-        row = VerifiedVehicle(issuer=principal.issuer, subject=principal.subject, make=data.make, model=data.model, color=data.color, registration=data.registration.upper(), seat_capacity=data.seat_capacity, status="pending", submitted_at=datetime.now(UTC))
+        row = VerifiedVehicle(
+            issuer=principal.issuer,
+            subject=principal.subject,
+            make=data.make,
+            model=data.model,
+            color=data.color,
+            registration=data.registration.upper(),
+            seat_capacity=data.seat_capacity,
+            status="pending",
+            submitted_at=datetime.now(UTC),
+        )
         session.add(row)
         session.flush()
         result = visible_vehicle(row, True)
@@ -93,26 +125,55 @@ def submit_vehicle(data: VehicleData, principal: RideWriter, session: DatabaseSe
 def eligibility(principal: RideReader, session: DatabaseSession, response: Response):
     response.headers["Cache-Control"] = "no-store"
     row = session.get(DriverVerification, (principal.issuer, principal.subject))
-    vehicles = list(session.scalars(select(VerifiedVehicle).where(VerifiedVehicle.issuer == principal.issuer, VerifiedVehicle.subject == principal.subject).order_by(VerifiedVehicle.submitted_at.desc()).limit(25)))
-    return {"driver_status": row.status if row else "unverified", "vehicles": [visible_vehicle(v, True) for v in vehicles], "can_offer": bool(row and row.status == "approved" and any(v.status == "approved" for v in vehicles))}
+    vehicles = list(
+        session.scalars(
+            select(VerifiedVehicle)
+            .where(
+                VerifiedVehicle.issuer == principal.issuer,
+                VerifiedVehicle.subject == principal.subject,
+            )
+            .order_by(VerifiedVehicle.submitted_at.desc())
+            .limit(25)
+        )
+    )
+    return {
+        "driver_status": row.status if row else "unverified",
+        "vehicles": [visible_vehicle(v, True) for v in vehicles],
+        "can_offer": bool(
+            row and row.status == "approved" and any(v.status == "approved" for v in vehicles)
+        ),
+    }
 
 
 @router.get("/staff/driver-verifications")
 def pending_drivers(principal: RideReader, session: DatabaseSession, response: Response):
     staff(principal)
     response.headers["Cache-Control"] = "no-store"
-    rows = session.scalars(select(DriverVerification).where(DriverVerification.status == "pending").limit(50))
-    return [{"issuer": r.issuer, "subject": r.subject,
-             "status": r.status, "evidence_reference": r.evidence_reference} for r in rows]
+    rows = session.scalars(
+        select(DriverVerification).where(DriverVerification.status == "pending").limit(50)
+    )
+    return [
+        {
+            "issuer": r.issuer,
+            "subject": r.subject,
+            "status": r.status,
+            "evidence_reference": r.evidence_reference,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/staff/vehicles")
 def pending_vehicles(principal: RideReader, session: DatabaseSession, response: Response):
     staff(principal)
     response.headers["Cache-Control"] = "no-store"
-    rows = session.scalars(select(VerifiedVehicle).where(VerifiedVehicle.status == "pending").limit(50))
-    return [{"id": r.id, "issuer": r.issuer, "subject": r.subject,
-             **visible_vehicle(r, True)} for r in rows]
+    rows = session.scalars(
+        select(VerifiedVehicle).where(VerifiedVehicle.status == "pending").limit(50)
+    )
+    return [
+        {"id": r.id, "issuer": r.issuer, "subject": r.subject, **visible_vehicle(r, True)}
+        for r in rows
+    ]
 
 
 @router.post("/staff/driver-verifications/{subject}/decision")
@@ -128,7 +189,9 @@ def decide_driver(subject: str, data: Decision, principal: RideWriter, session: 
 
 
 @router.post("/staff/vehicles/{vehicle_id}/decision")
-def decide_vehicle(vehicle_id: UUID, data: Decision, principal: RideWriter, session: DatabaseSession):
+def decide_vehicle(
+    vehicle_id: UUID, data: Decision, principal: RideWriter, session: DatabaseSession
+):
     staff(principal)
     with session.begin():
         row = session.get(VerifiedVehicle, str(vehicle_id))

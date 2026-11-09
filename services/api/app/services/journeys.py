@@ -209,7 +209,9 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
                 t.state = "driver_cancelled" if is_driver(j, p) else "rider_cancelled"
                 return receipt(t, now)
             if t.travel_state == "boarded":
-                raise HTTPException(409, "Boarded passenger requires an incident or interruption workflow")
+                raise HTTPException(
+                    409, "Boarded passenger requires an incident or interruption workflow"
+                )
             if state == "rider_cancelled" and is_driver(j, p):
                 refund_to(session, t, t.charged, "driver_refund", now)
                 t.state = "driver_cancelled"

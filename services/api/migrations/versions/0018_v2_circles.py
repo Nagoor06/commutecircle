@@ -20,7 +20,9 @@ def upgrade():
     )
     op.create_table(
         "circle_members",
-        sa.Column("circle_id", sa.String(36), sa.ForeignKey("commute_circles.id"), primary_key=True),
+        sa.Column(
+            "circle_id", sa.String(36), sa.ForeignKey("commute_circles.id"), primary_key=True
+        ),
         sa.Column("issuer", sa.String(512), primary_key=True),
         sa.Column("subject", sa.String(255), primary_key=True),
         sa.Column("role", sa.String(16), nullable=False),

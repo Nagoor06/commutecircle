@@ -25,7 +25,16 @@ class Pin(BaseModel):
 
 
 def event(session, j, t, principal, kind, now):
-    session.add(TripEvent(journey_id=j.id, ticket_id=t.id, issuer=principal.issuer, subject=principal.subject, kind=kind, created_at=now))
+    session.add(
+        TripEvent(
+            journey_id=j.id,
+            ticket_id=t.id,
+            issuer=principal.issuer,
+            subject=principal.subject,
+            kind=kind,
+            created_at=now,
+        )
+    )
 
 
 @router.post("/{jid}/tickets/{tid}/boarding-challenge")
@@ -46,13 +55,23 @@ def create_pin(jid: UUID, tid: UUID, principal: RideWriter, session: DatabaseSes
         digest = hashlib.pbkdf2_hmac("sha256", pin.encode(), bytes.fromhex(salt), 200_000).hex()
         challenge = session.get(BoardingChallenge, t.id)
         if challenge is None:
-            challenge = BoardingChallenge(ticket_id=t.id, salt=salt, digest=digest, expires_at=now + timedelta(minutes=5), attempts=0)
+            challenge = BoardingChallenge(
+                ticket_id=t.id,
+                salt=salt,
+                digest=digest,
+                expires_at=now + timedelta(minutes=5),
+                attempts=0,
+            )
             session.add(challenge)
         else:
             if challenge.attempts >= 5 and challenge.expires_at > now:
                 raise HTTPException(429, "Boarding attempts temporarily locked")
             challenge.salt, challenge.digest = salt, digest
-            challenge.expires_at, challenge.attempts, challenge.used_at = now + timedelta(minutes=5), 0, None
+            challenge.expires_at, challenge.attempts, challenge.used_at = (
+                now + timedelta(minutes=5),
+                0,
+                None,
+            )
         return {"pin": pin, "expires_at": challenge.expires_at}
 
 
@@ -67,12 +86,21 @@ def board(jid: UUID, tid: UUID, data: Pin, principal: RideWriter, session: Datab
         if not journeys.is_driver(j, principal) or not t or t.journey_id != j.id:
             raise HTTPException(404, "Ticket not found")
         challenge = session.get(BoardingChallenge, t.id)
-        if t.state != "paid" or t.travel_state in ("boarded", "completed") or j.cancelled or not challenge or challenge.used_at or journeys.utc(challenge.expires_at) <= now:
+        if (
+            t.state != "paid"
+            or t.travel_state in ("boarded", "completed")
+            or j.cancelled
+            or not challenge
+            or challenge.used_at
+            or journeys.utc(challenge.expires_at) <= now
+        ):
             raise HTTPException(409, "Boarding challenge unavailable")
         if challenge.attempts >= 5:
             raise HTTPException(429, "Too many attempts")
         challenge.attempts += 1
-        digest = hashlib.pbkdf2_hmac("sha256", data.pin.encode(), bytes.fromhex(challenge.salt), 200_000).hex()
+        digest = hashlib.pbkdf2_hmac(
+            "sha256", data.pin.encode(), bytes.fromhex(challenge.salt), 200_000
+        ).hex()
         if not hmac.compare_digest(digest, challenge.digest):
             error = 429 if challenge.attempts >= 5 else 422
         else:
@@ -94,7 +122,11 @@ def complete(jid: UUID, tid: UUID, principal: RideWriter, session: DatabaseSessi
             raise HTTPException(404, "Ticket not found")
         if t.travel_state == "completed":
             return {"travel_state": "completed"}
-        if t.state not in ("paid", "exited") or t.travel_state != "boarded" or now < journeys.pickup(j, t.board):
+        if (
+            t.state not in ("paid", "exited")
+            or t.travel_state != "boarded"
+            or now < journeys.pickup(j, t.board)
+        ):
             raise HTTPException(409, "Boarding required before completion")
         if t.state != "exited" and now < journeys.pickup(j, t.alight):
             raise HTTPException(409, "Trip cannot finish before the planned drop-off")

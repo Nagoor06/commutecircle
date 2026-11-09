@@ -22,7 +22,9 @@ def upgrade():
         sa.Column("state", sa.String(24), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
-    op.create_index("ix_safety_reports_owner", "safety_reports", ["issuer", "subject", "created_at"])
+    op.create_index(
+        "ix_safety_reports_owner", "safety_reports", ["issuer", "subject", "created_at"]
+    )
     op.create_table(
         "safety_case_events",
         sa.Column("id", sa.String(36), primary_key=True),
@@ -32,7 +34,9 @@ def upgrade():
         sa.Column("note", sa.String(1000), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
-    op.create_index("ix_safety_case_events_report", "safety_case_events", ["report_id", "created_at"])
+    op.create_index(
+        "ix_safety_case_events_report", "safety_case_events", ["report_id", "created_at"]
+    )
 
 
 def downgrade():

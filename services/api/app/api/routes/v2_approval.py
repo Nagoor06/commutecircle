@@ -1,11 +1,10 @@
 """Driver-approved seat requests use Journey/Ticket as the only seat inventory."""
 
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.routes.bookings import DatabaseSession
@@ -28,7 +27,15 @@ class SeatRequest(BaseModel):
 
 
 def request_receipt(t):
-    return {"id": t.id, "journey_id": t.journey_id, "state": t.state, "board": t.board, "alight": t.alight, "fare_paise": t.fare, "expires": t.expires}
+    return {
+        "id": t.id,
+        "journey_id": t.journey_id,
+        "state": t.state,
+        "board": t.board,
+        "alight": t.alight,
+        "fare_paise": t.fare,
+        "expires": t.expires,
+    }
 
 
 @router.post("/{jid}/requests", status_code=201)
@@ -41,21 +48,40 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
         now = datetime.now(UTC)
         previous = session.get(Ticket, str(data.request_id))
         if previous:
-            if not journeys.is_rider(previous, principal) or previous.journey_id != j.id or (previous.board, previous.alight) != (data.board, data.alight):
+            if (
+                not journeys.is_rider(previous, principal)
+                or previous.journey_id != j.id
+                or (previous.board, previous.alight) != (data.board, data.alight)
+            ):
                 raise HTTPException(409, "Request ID conflict")
             return request_receipt(previous)
         q = journeys.quote(j, journeys.tickets(session, j), data, now)
         if not q["seats_available"]:
             raise HTTPException(409, "Seat unavailable")
         for t in journeys.tickets(session, j):
-            if journeys.is_rider(t, principal) and t.board < data.alight and data.board < t.alight and t.state in ("requested", "held", "paid"):
+            if (
+                journeys.is_rider(t, principal)
+                and t.board < data.alight
+                and data.board < t.alight
+                and t.state in ("requested", "held", "paid")
+            ):
                 raise HTTPException(409, "An overlapping request already exists")
         t = Ticket(
-            id=str(data.request_id), journey_id=j.id, issuer=principal.issuer,
-            rider=principal.subject, board=data.board, alight=data.alight,
-            state="requested", expires=q["pickup_at"], fare=q["fare_paise"], travel_state="awaiting_boarding",
-            requested_at=now, consent_at=now, consent_version=data.consent_version,
-            consent_fare_paise=q["fare_paise"], consent_pickup_at=q["pickup_at"],
+            id=str(data.request_id),
+            journey_id=j.id,
+            issuer=principal.issuer,
+            rider=principal.subject,
+            board=data.board,
+            alight=data.alight,
+            state="requested",
+            expires=q["pickup_at"],
+            fare=q["fare_paise"],
+            travel_state="awaiting_boarding",
+            requested_at=now,
+            consent_at=now,
+            consent_version=data.consent_version,
+            consent_fare_paise=q["fare_paise"],
+            consent_pickup_at=q["pickup_at"],
         )
         session.add(t)
         session.flush()
@@ -85,8 +111,15 @@ def decision(session, jid, tid, principal, approved):
             raise HTTPException(409, "Request is no longer pending")
         if approved:
             from app.schemas.journey import Segment
-            q = journeys.quote(j, journeys.tickets(session, j), Segment(board=t.board, alight=t.alight), now)
-            if not q["seats_available"] or q["fare_paise"] != t.consent_fare_paise or q["pickup_at"] != journeys.utc(t.consent_pickup_at):
+
+            q = journeys.quote(
+                j, journeys.tickets(session, j), Segment(board=t.board, alight=t.alight), now
+            )
+            if (
+                not q["seats_available"]
+                or q["fare_paise"] != t.consent_fare_paise
+                or q["pickup_at"] != journeys.utc(t.consent_pickup_at)
+            ):
                 raise HTTPException(409, "Seats or consent terms changed")
             t.state = "held"
             t.expires = min(now + timedelta(minutes=15), q["pickup_at"])

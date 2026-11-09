@@ -32,14 +32,20 @@ def upgrade():
     op.create_index("ix_recurring_rides_driver", "recurring_rides", ["issuer", "driver"])
     op.create_table(
         "recurring_exceptions",
-        sa.Column("template_id", sa.String(36), sa.ForeignKey("recurring_rides.id"), primary_key=True),
+        sa.Column(
+            "template_id", sa.String(36), sa.ForeignKey("recurring_rides.id"), primary_key=True
+        ),
         sa.Column("service_date", sa.Date(), primary_key=True),
         sa.Column("reason", sa.String(120), nullable=False),
     )
     with op.batch_alter_table("journeys") as batch:
-        batch.add_column(sa.Column("recurring_template_id", sa.String(36), sa.ForeignKey("recurring_rides.id")))
+        batch.add_column(
+            sa.Column("recurring_template_id", sa.String(36), sa.ForeignKey("recurring_rides.id"))
+        )
         batch.add_column(sa.Column("recurring_date", sa.Date()))
-        batch.create_unique_constraint("uq_recurring_occurrence", ["recurring_template_id", "recurring_date"])
+        batch.create_unique_constraint(
+            "uq_recurring_occurrence", ["recurring_template_id", "recurring_date"]
+        )
 
 
 def downgrade():
