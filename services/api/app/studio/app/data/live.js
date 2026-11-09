@@ -68,6 +68,7 @@ export function liveClient(token, origin) {
     skipRecurring: (id,date,reason) => call('/v1/recurring-rides/'+encodeURIComponent(id)+'/exceptions/'+encodeURIComponent(date),'PUT',{reason}),
     circles: signal => call('/v1/circles','GET',null,{signal}),
     circle: (id,signal) => call('/v1/circles/'+encodeURIComponent(id),'GET',null,{signal}),
+    circleJourneys: (id,signal) => call('/v1/circles/'+encodeURIComponent(id)+'/journeys','GET',null,{signal}),
     createCircle: name => call('/v1/circles','POST',{name}),
     inviteCircle: id => call('/v1/circles/'+encodeURIComponent(id)+'/invitations','POST'),
     joinCircle: token => call('/v1/circle-invitations/redeem','POST',{token}),
