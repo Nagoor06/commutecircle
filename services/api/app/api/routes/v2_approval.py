@@ -9,9 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
-from app.models.journey import Ticket
+from app.models.journey import Journey, Ticket
+from app.models.v2 import DriverVerification, VerifiedVehicle
 from app.services import journeys
-from app.services.v2_common import verify_access
+from app.services.v2_common import eligible_driver, verify_access
 
 router = APIRouter(prefix="/v1/journeys", tags=["V2 booking approvals"])
 POLICY = "cc-v2-1"
@@ -30,7 +31,7 @@ def request_receipt(t):
     return {
         "id": t.id,
         "journey_id": t.journey_id,
-        "state": t.state,
+        "state": journeys.status(t, datetime.now(UTC)),
         "board": t.board,
         "alight": t.alight,
         "fare_paise": t.fare,
@@ -43,6 +44,10 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
     with session.begin():
         j = journeys.locked(session, str(jid))
         verify_access(session, j, principal)
+        driver = session.get(DriverVerification, (j.issuer, j.driver))
+        vehicle = session.get(VerifiedVehicle, j.vehicle_registration_id)
+        if not driver or driver.status != "approved" or not vehicle or vehicle.status != "approved":
+            raise HTTPException(409, "Driver eligibility is under review")
         if j.booking_mode != "approval" or j.cancelled or journeys.is_driver(j, principal):
             raise HTTPException(409, "Driver-approved booking unavailable")
         now = datetime.now(UTC)
@@ -90,10 +95,14 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
 
 @router.get("/{jid}/requests")
 def list_requests(jid: UUID, principal: RideReader, session: DatabaseSession):
-    j = session.get(__import__("app.models.journey", fromlist=["Journey"]).Journey, str(jid))
+    j = session.get(Journey, str(jid))
     if j is None or not journeys.is_driver(j, principal):
         raise HTTPException(404, "Journey not found")
-    return [request_receipt(t) for t in journeys.tickets(session, j) if t.state == "requested"]
+    return [
+        request_receipt(t)
+        for t in journeys.tickets(session, j)
+        if journeys.status(t, datetime.now(UTC)) == "requested"
+    ]
 
 
 def decision(session, jid, tid, principal, approved):
@@ -107,9 +116,10 @@ def decision(session, jid, tid, principal, approved):
         now = datetime.now(UTC)
         if t.state == ("held" if approved else "driver_cancelled"):
             return journeys.receipt(t, now)
-        if t.state != "requested" or j.cancelled or now >= journeys.pickup(j, t.board):
+        if journeys.status(t, now) != "requested" or j.cancelled:
             raise HTTPException(409, "Request is no longer pending")
         if approved:
+            eligible_driver(session, principal, j.vehicle_registration_id, j.capacity)
             from app.schemas.journey import Segment
 
             q = journeys.quote(

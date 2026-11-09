@@ -4,6 +4,7 @@ Only the owner materializes. Occurrences use existing Journey/Ticket seats and l
 """
 
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -13,10 +14,10 @@ from sqlalchemy import select
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
-from app.models.journey import Journey
+from app.models.journey import Journey, Ticket
 from app.models.v2 import CircleMember, RecurringException, RecurringRide
 from app.schemas.journey import Stop
-from app.services.v2_common import eligible_driver, required_verification
+from app.services.v2_common import eligible_driver
 
 router = APIRouter(prefix="/v1/recurring-rides", tags=["V2 recurring rides"])
 
@@ -32,7 +33,7 @@ class RecurringInput(BaseModel):
     price_paise: int = Field(ge=100, le=10000000)
     capacity: int = Field(ge=1, le=8)
     vehicle_id: UUID | None = None
-    booking_mode: str = Field(pattern="^(approval|instant)$")
+    booking_mode: Literal["approval"] = "approval"
     circle_id: UUID | None = None
 
     @model_validator(mode="after")
@@ -80,10 +81,10 @@ def view(row):
 @router.post("", status_code=201)
 def create(data: RecurringInput, principal: RideWriter, session: DatabaseSession):
     with session.begin():
-        if data.booking_mode == "approval" or required_verification():
-            eligible_driver(
-                session, principal, str(data.vehicle_id) if data.vehicle_id else None, data.capacity
-            )
+        eligible_driver(
+            session, principal, str(data.vehicle_id) if data.vehicle_id else None,
+            data.capacity,
+        )
         if data.circle_id:
             member = session.get(
                 CircleMember, (str(data.circle_id), principal.issuer, principal.subject)
@@ -134,7 +135,9 @@ def exception(
     session: DatabaseSession,
 ):
     with session.begin():
-        row = session.get(RecurringRide, str(rid))
+        row = session.scalar(
+            select(RecurringRide).where(RecurringRide.id == str(rid)).with_for_update()
+        )
         if not own(row, principal):
             raise HTTPException(404, "Recurring ride not found")
         if not row.starts_on <= service_date <= row.ends_on:
@@ -158,11 +161,7 @@ def exception(
         if journey and not journey.cancelled:
             # Preserve driver-refund semantics; never cancel paid tickets silently.
             if session.scalar(
-                select(__import__("app.models.journey", fromlist=["Ticket"]).Ticket.id)
-                .where(
-                    __import__("app.models.journey", fromlist=["Ticket"]).Ticket.journey_id
-                    == journey.id
-                )
+                select(Ticket.id).where(Ticket.journey_id == journey.id)
                 .limit(1)
             ):
                 raise HTTPException(
@@ -183,8 +182,7 @@ def materialize(rid: UUID, principal: RideWriter, session: DatabaseSession):
             raise HTTPException(404, "Recurring ride not found")
         if not row.active:
             raise HTTPException(409, "Template is inactive")
-        if row.booking_mode == "approval" or required_verification():
-            eligible_driver(session, principal, row.vehicle_id, row.capacity)
+        eligible_driver(session, principal, row.vehicle_id, row.capacity)
         today = datetime.now(ZoneInfo(row.timezone)).date()
         start = max(row.starts_on, today)
         end = min(row.ends_on, today + timedelta(days=13))

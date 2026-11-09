@@ -24,15 +24,15 @@ class Journey(Base):
     capacity: Mapped[int]
     cancelled: Mapped[bool] = mapped_column(default=False)
     vehicle_registration_id: Mapped[str | None] = mapped_column(
-        ForeignKey("verified_vehicles.id"), nullable=True
+        ForeignKey("verified_vehicles.id", name="fk_journeys_v2_vehicle"), nullable=True
     )
     booking_mode: Mapped[str] = mapped_column(String(16), default="instant")
     recurring_template_id: Mapped[str | None] = mapped_column(
-        ForeignKey("recurring_rides.id"), nullable=True
+        ForeignKey("recurring_rides.id", name="fk_journeys_v2_recurring"), nullable=True
     )
     recurring_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     circle_id: Mapped[str | None] = mapped_column(
-        ForeignKey("commute_circles.id"), nullable=True, index=True
+        ForeignKey("commute_circles.id", name="fk_journeys_v2_circle"), nullable=True, index=True
     )
 
 

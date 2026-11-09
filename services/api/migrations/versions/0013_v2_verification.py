@@ -55,13 +55,14 @@ def upgrade():
     with op.batch_alter_table("journeys") as batch:
         batch.add_column(
             sa.Column(
-                "vehicle_registration_id", sa.String(36), sa.ForeignKey("verified_vehicles.id")
+                "vehicle_registration_id", sa.String(36), sa.ForeignKey("verified_vehicles.id", name="fk_journeys_v2_vehicle")
             )
         )
 
 
 def downgrade():
     with op.batch_alter_table("journeys") as batch:
+        batch.drop_constraint("fk_journeys_v2_vehicle", type_="foreignkey")
         batch.drop_column("vehicle_registration_id")
     op.drop_table("verified_vehicles")
     op.drop_table("driver_verifications")

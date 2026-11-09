@@ -56,7 +56,7 @@ def tickets(session, j):
 
 
 def status(t, now):
-    return "expired" if t.state == "held" and utc(t.expires) <= now else t.state
+    return "expired" if t.state in ("held", "requested") and utc(t.expires) <= now else t.state
 
 
 def inventory(j, rows, now):

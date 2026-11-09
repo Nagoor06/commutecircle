@@ -112,6 +112,8 @@ def browse_circle(cid: UUID, principal: RideReader, session: DatabaseSession, re
     return [
         {"journey": view, "board": 0, "alight": len(view["stops"]) - 1, "match": {}}
         for view in journey_catalog.views(session, rows, principal)
+        if view["booking_mode"] != "approval"
+        or (view["driver_verified"] and view["vehicle_verified"])
     ]
 
 
@@ -122,6 +124,18 @@ def invite(cid: UUID, principal: RideWriter, session: DatabaseSession):
         member = membership(session, str(cid), principal)
         if not circle or not member or member.role != "owner":
             raise HTTPException(404, "Circle not found")
+        active_invites = session.scalar(
+            select(CircleInvitation.id)
+            .where(
+                CircleInvitation.circle_id == circle.id,
+                CircleInvitation.accepted_at.is_(None),
+                CircleInvitation.expires_at > datetime.now(UTC),
+            )
+            .offset(9)
+            .limit(1)
+        )
+        if active_invites:
+            raise HTTPException(429, "Too many active invitations")
         token = secrets.token_urlsafe(32)
         session.add(
             CircleInvitation(

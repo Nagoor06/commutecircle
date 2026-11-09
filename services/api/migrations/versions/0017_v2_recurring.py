@@ -40,7 +40,7 @@ def upgrade():
     )
     with op.batch_alter_table("journeys") as batch:
         batch.add_column(
-            sa.Column("recurring_template_id", sa.String(36), sa.ForeignKey("recurring_rides.id"))
+            sa.Column("recurring_template_id", sa.String(36), sa.ForeignKey("recurring_rides.id", name="fk_journeys_v2_recurring"))
         )
         batch.add_column(sa.Column("recurring_date", sa.Date()))
         batch.create_unique_constraint(
@@ -52,6 +52,7 @@ def downgrade():
     with op.batch_alter_table("journeys") as batch:
         batch.drop_constraint("uq_recurring_occurrence", type_="unique")
         batch.drop_column("recurring_date")
+        batch.drop_constraint("fk_journeys_v2_recurring", type_="foreignkey")
         batch.drop_column("recurring_template_id")
     op.drop_table("recurring_exceptions")
     op.drop_table("recurring_rides")

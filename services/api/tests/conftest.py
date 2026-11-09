@@ -10,6 +10,18 @@ from sqlalchemy.orm import Session
 from app.main import create_app
 from app.models import (
     Booking,
+    BoardingChallenge,
+    CircleInvitation,
+    CircleMember,
+    CommuteCircle,
+    CommuterProfile,
+    DriverVerification,
+    RecurringException,
+    RecurringRide,
+    SafetyCaseEvent,
+    SafetyReport,
+    TripEvent,
+    VerifiedVehicle,
     ChatBlock,
     ChatRead,
     Commute,
@@ -34,6 +46,15 @@ def client(tmp_path, monkeypatch):
     command.upgrade(Config("alembic.ini"), "head")
     app = create_app(url)
     with Session(app.state.engine) as session:
+        # The integration database is reused between tests; clear V2 dependents
+        # before V1 journeys so tests cannot inherit previously verified users.
+        session.execute(delete(SafetyCaseEvent))
+        session.execute(delete(SafetyReport))
+        session.execute(delete(BoardingChallenge))
+        session.execute(delete(TripEvent))
+        session.execute(delete(RecurringException))
+        session.execute(delete(CircleInvitation))
+        session.execute(delete(CircleMember))
         session.execute(delete(Notification))
         session.execute(delete(NotificationPreference))
         session.execute(delete(VerificationLimit))
@@ -46,6 +67,11 @@ def client(tmp_path, monkeypatch):
         session.execute(delete(Commute))
         session.execute(delete(Ticket))
         session.execute(delete(Journey))
+        session.execute(delete(RecurringRide))
+        session.execute(delete(CommuteCircle))
+        session.execute(delete(VerifiedVehicle))
+        session.execute(delete(DriverVerification))
+        session.execute(delete(CommuterProfile))
         session.execute(delete(Booking))
         session.execute(delete(Ride))
         session.execute(delete(PickupPoint))

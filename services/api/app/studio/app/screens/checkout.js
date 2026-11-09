@@ -67,7 +67,7 @@ export async function mount(ctx) {
       ${t.charged_paise?`<a class="btn secondary wide" href="#/chat/${jid}/${tid}">Message driver</a>`:''}
       ${state==='paid'?`<a class="btn secondary wide" href="#/track-driver/${jid}/${tid}">Track vehicle</a><a class="btn secondary wide" href="#/share/${jid}?ticket=${tid}">Share my trip</a>`:''}
       ${state==='driver_cancelled'?'<button class="btn primary wide" data-alternatives>Find another ride</button>':''}
-      ${state==='paid'&&t.travel_state!=='completed'?'<button type="button" data-pin class="btn secondary wide">Show boarding PIN</button><div data-pin-output role="status"></div>':''}
+      ${state==='paid'&&t.travel_state!=='boarded'&&t.travel_state!=='completed'?'<button type="button" data-pin class="btn secondary wide">Show boarding PIN</button><div data-pin-output role="status"></div>':''}
       ${state==='paid'&&t.travel_state==='boarded'?'<button type="button" class="btn secondary wide" data-complete>Confirm trip complete</button>':''}
       ${['paid','exited'].includes(state)?'<a class="text-btn" href="#/safety?journey='+encodeURIComponent(jid)+'">Report a safety concern</a>':''}
       ${!held?'<a class="text-btn" href="#/trips">View my trips →</a>':''}

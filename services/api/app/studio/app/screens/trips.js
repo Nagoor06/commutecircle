@@ -105,8 +105,11 @@ export async function mount(ctx) {
           'Cancel ride', async () => {
             if (await cancelJourney(api, j)) await refresh()
           }, true);
-        if (t && ['exited', 'paid'].includes(t.state) && (t.state === 'exited' || pickupAt(j, t.alight) <=
-            Date.now())) {
+        if (t && (
+          t.travel_state === 'completed' ||
+          (!t.travel_state && ['exited', 'paid'].includes(t.state) &&
+           (t.state === 'exited' || pickupAt(j, t.alight) <= Date.now()))
+        )) {
           const row = document.createElement('div');
           row.className = 'review-row';
           row.innerHTML =
@@ -153,7 +156,7 @@ export async function mount(ctx) {
               row, 'Cancel and refund', async () => {
                 if (await cancelTicket(api, j, ticket)) await refresh()
               }, true);
-            if (ticket.state === 'paid' && ticket.alight - ticket.board > 1 && pickupAt(j, ticket
+            if (ticket.state === 'paid' && ticket.alight - ticket.board > 1 && ticket.travel_state !== 'completed' && pickupAt(j, ticket
               .board) <= Date.now() && pickupAt(j, ticket.alight) > Date.now()) {
               const label = document.createElement('label');
               label.className = 'field';

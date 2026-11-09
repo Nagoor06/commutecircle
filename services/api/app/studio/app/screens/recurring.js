@@ -32,12 +32,13 @@ export async function mount(ctx){
     if(!offer)throw Error('Select an existing published route.');
     const days=[...form.querySelectorAll('[name=day]:checked')].map(el=>Number(el.value));
     if(!days.length)throw Error('Choose at least one day.');
-    await api.saveRecurring({
+    const created=await api.saveRecurring({
       stops:offer.stops,local_time:form.elements.time.value+':00',timezone:'Asia/Kolkata',
       weekdays:days,starts_on:form.elements.start.value,ends_on:form.elements.end.value,
       price_paise:offer.price_paise,capacity:offer.capacity,vehicle_id:form.elements.vehicle.value,
       booking_mode:'approval',...(form.elements.circle.value?{circle_id:form.elements.circle.value}:{})
     });
+    await api.materializeRecurring(created.id);
     if(!signal.aborted)ctx.render();
   },m=>notice(root,m,'error'));};
   root.querySelectorAll('[data-generate]').forEach(b=>b.onclick=()=>pending(b,async()=>{const result=await api.materializeRecurring(b.dataset.generate);notice(root,result.count+' upcoming journeys created.','info');},m=>notice(root,m,'error')));
