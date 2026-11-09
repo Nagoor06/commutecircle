@@ -16,3 +16,5 @@ __all__ += ["TripShare", "TrustedContact"]
 __all__ += ["ChatRead"]
 
 __all__ += ["Notification", "NotificationPreference", "VerificationLimit"]
+
+from app.models.v2 import (BoardingChallenge, CircleInvitation, CircleMember, CommuteCircle, CommuterProfile, DriverVerification, RecurringException, RecurringRide, SafetyCaseEvent, SafetyReport, TripEvent, VerifiedVehicle)
