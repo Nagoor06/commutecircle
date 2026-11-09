@@ -14,6 +14,7 @@ from app.auth.dependencies import RideWriter
 from app.models.journey import Ticket
 from app.models.v2 import BoardingChallenge, TripEvent
 from app.services import journeys
+from app.services.journeys import revoke_location
 
 router = APIRouter(prefix="/v1/journeys", tags=["V2 boarding"])
 
@@ -42,7 +43,7 @@ def create_pin(jid: UUID, tid: UUID, principal: RideWriter, session: DatabaseSes
             raise HTTPException(409, "Boarding window is closed")
         pin = f"{secrets.randbelow(1_000_000):06d}"
         salt = secrets.token_hex(16)
-        digest = hashlib.sha256((salt + pin).encode()).hexdigest()
+        digest = hashlib.pbkdf2_hmac("sha256", pin.encode(), bytes.fromhex(salt), 200_000).hex()
         challenge = session.get(BoardingChallenge, t.id)
         if challenge is None:
             challenge = BoardingChallenge(ticket_id=t.id, salt=salt, digest=digest, expires_at=now + timedelta(minutes=5), attempts=0)
@@ -71,7 +72,7 @@ def board(jid: UUID, tid: UUID, data: Pin, principal: RideWriter, session: Datab
         if challenge.attempts >= 5:
             raise HTTPException(429, "Too many attempts")
         challenge.attempts += 1
-        digest = hashlib.sha256((challenge.salt + data.pin).encode()).hexdigest()
+        digest = hashlib.pbkdf2_hmac("sha256", data.pin.encode(), bytes.fromhex(challenge.salt), 200_000).hex()
         if not hmac.compare_digest(digest, challenge.digest):
             error = 429 if challenge.attempts >= 5 else 422
         else:
@@ -95,6 +96,9 @@ def complete(jid: UUID, tid: UUID, principal: RideWriter, session: DatabaseSessi
             return {"travel_state": "completed"}
         if t.state not in ("paid", "exited") or t.travel_state != "boarded" or now < journeys.pickup(j, t.board):
             raise HTTPException(409, "Boarding required before completion")
+        if t.state != "exited" and now < journeys.pickup(j, t.alight):
+            raise HTTPException(409, "Trip cannot finish before the planned drop-off")
         t.travel_state, t.completed_at = "completed", now
+        revoke_location(session, j.id, t.id)
         event(session, j, t, principal, "completed", now)
     return {"travel_state": "completed"}
