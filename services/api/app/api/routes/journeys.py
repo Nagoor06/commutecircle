@@ -55,7 +55,7 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
             if data.departure <= datetime.now(UTC):
                 raise HTTPException(422, "Departure must be in the future")
             if data.booking_mode == "approval" or required_verification():
-                eligible_driver(session, principal, str(data.vehicle_id) if data.vehicle_id else None)
+                eligible_driver(session, principal, str(data.vehicle_id) if data.vehicle_id else None, data.capacity)
             if data.circle_id:
                 member = session.get(CircleMember, (str(data.circle_id), principal.issuer, principal.subject))
                 if not member or member.role != "owner":
