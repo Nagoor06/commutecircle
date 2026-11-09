@@ -4,10 +4,10 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
+from test_v2 import create_approval_journey, request, staff, verify_driver
 
 from app.models.journey import Ticket
 from app.models.v2 import BoardingChallenge
-from test_v2 import create_approval_journey, request, staff, verify_driver
 
 
 def test_profile_and_driver_application_cannot_self_approve(client, authenticated):

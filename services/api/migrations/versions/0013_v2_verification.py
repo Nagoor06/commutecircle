@@ -55,7 +55,9 @@ def upgrade():
     with op.batch_alter_table("journeys") as batch:
         batch.add_column(
             sa.Column(
-                "vehicle_registration_id", sa.String(36), sa.ForeignKey("verified_vehicles.id", name="fk_journeys_v2_vehicle")
+                "vehicle_registration_id",
+                sa.String(36),
+                sa.ForeignKey("verified_vehicles.id", name="fk_journeys_v2_vehicle"),
             )
         )
 

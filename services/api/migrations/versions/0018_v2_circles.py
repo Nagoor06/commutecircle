@@ -39,7 +39,13 @@ def upgrade():
     )
     op.create_index("ix_circle_invitations_circle", "circle_invitations", ["circle_id"])
     with op.batch_alter_table("journeys") as batch:
-        batch.add_column(sa.Column("circle_id", sa.String(36), sa.ForeignKey("commute_circles.id", name="fk_journeys_v2_circle")))
+        batch.add_column(
+            sa.Column(
+                "circle_id",
+                sa.String(36),
+                sa.ForeignKey("commute_circles.id", name="fk_journeys_v2_circle"),
+            )
+        )
         batch.create_index("ix_journeys_circle_id", ["circle_id"])
 
 

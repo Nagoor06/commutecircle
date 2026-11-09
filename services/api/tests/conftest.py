@@ -9,35 +9,34 @@ from sqlalchemy.orm import Session
 
 from app.main import create_app
 from app.models import (
-    Booking,
     BoardingChallenge,
+    Booking,
+    ChatBlock,
+    ChatRead,
     CircleInvitation,
     CircleMember,
+    Commute,
     CommuteCircle,
     CommuterProfile,
     DriverVerification,
-    RecurringException,
-    RecurringRide,
-    SafetyCaseEvent,
-    SafetyReport,
-    TripEvent,
-    VerifiedVehicle,
-    ChatBlock,
-    ChatRead,
-    Commute,
     Journey,
     Message,
     Notification,
     NotificationPreference,
     PaymentEntry,
     PickupPoint,
+    RecurringException,
+    RecurringRide,
     Ride,
+    SafetyCaseEvent,
+    SafetyReport,
     Ticket,
+    TripEvent,
     TripShare,
     TrustedContact,
     VerificationLimit,
+    VerifiedVehicle,
 )
-
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):

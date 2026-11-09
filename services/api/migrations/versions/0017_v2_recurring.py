@@ -40,7 +40,11 @@ def upgrade():
     )
     with op.batch_alter_table("journeys") as batch:
         batch.add_column(
-            sa.Column("recurring_template_id", sa.String(36), sa.ForeignKey("recurring_rides.id", name="fk_journeys_v2_recurring"))
+            sa.Column(
+                "recurring_template_id",
+                sa.String(36),
+                sa.ForeignKey("recurring_rides.id", name="fk_journeys_v2_recurring"),
+            )
         )
         batch.add_column(sa.Column("recurring_date", sa.Date()))
         batch.create_unique_constraint(
