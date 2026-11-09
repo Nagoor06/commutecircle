@@ -38,6 +38,7 @@ from app.models import (
     VerifiedVehicle,
 )
 
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     url = os.getenv("TEST_DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")

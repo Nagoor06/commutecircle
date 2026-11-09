@@ -21,7 +21,8 @@ def test_profile_and_driver_application_cannot_self_approve(client, authenticate
     assert client.get("/v1/me/profile", headers=outsider).json()["display_name"] is None
     for _ in range(2):
         result = client.post(
-            "/v1/me/driver-verification", headers=owner,
+            "/v1/me/driver-verification",
+            headers=owner,
             json={"evidence_reference": "manual-approval-case"},
         )
         assert result.status_code == 202
@@ -36,7 +37,8 @@ def test_verified_driver_can_be_suspended(client, authenticated):
     vid = verify_driver(client, authenticated)
     assert client.post(
         "/v1/staff/driver-verifications/driver-a/decision",
-        headers=staff(authenticated), json={"decision": "suspended"},
+        headers=staff(authenticated),
+        json={"decision": "suspended"},
     ).is_success
     result = client.get("/v1/me/driver-eligibility", headers=authenticated())
     assert result.json()["can_offer"] is False
@@ -46,8 +48,10 @@ def test_verified_driver_can_be_suspended(client, authenticated):
             {"name": "B", "metres": 20000, "minutes": 30},
         ],
         "departure": (datetime.now(UTC) + timedelta(hours=4)).isoformat(),
-        "price_paise": 15000, "capacity": 1,
-        "vehicle_id": vid, "booking_mode": "approval",
+        "price_paise": 15000,
+        "capacity": 1,
+        "vehicle_id": vid,
+        "booking_mode": "approval",
     }
     assert client.post("/v1/journeys", headers=authenticated(), json=payload).status_code == 403
 
@@ -58,20 +62,29 @@ def test_request_idempotence_cancellation_and_expiry(client, authenticated):
     rider = authenticated(subject="rider-one")
     key = str(uuid4())
     payload = {
-        "request_id": key, "board": 0, "alight": 1,
-        "consent": True, "consent_version": "cc-v2-1",
+        "request_id": key,
+        "board": 0,
+        "alight": 1,
+        "consent": True,
+        "consent_version": "cc-v2-1",
     }
     endpoint = f"/v1/journeys/{jid}"
     a = client.post(endpoint + "/requests", headers=rider, json=payload)
     b = client.post(endpoint + "/requests", headers=rider, json=payload)
     assert a.status_code == b.status_code == 201
     assert a.json()["id"] == b.json()["id"]
-    assert client.post(
-        endpoint + "/requests", headers=authenticated(subject="wrong-rider"), json=payload
-    ).status_code == 409
-    assert client.post(
-        endpoint + f"/tickets/{key}/cancel", headers=rider, json={"max_fee_paise": 0}
-    ).json()["state"] == "rider_cancelled"
+    assert (
+        client.post(
+            endpoint + "/requests", headers=authenticated(subject="wrong-rider"), json=payload
+        ).status_code
+        == 409
+    )
+    assert (
+        client.post(
+            endpoint + f"/tickets/{key}/cancel", headers=rider, json={"max_fee_paise": 0}
+        ).json()["state"]
+        == "rider_cancelled"
+    )
     new = request(client, authenticated, jid, "rider-one")
     assert new.status_code == 201
     tid = new.json()["id"]
@@ -85,17 +98,18 @@ def test_request_idempotence_cancellation_and_expiry(client, authenticated):
 
 def test_circle_invites_require_owner_and_cannot_be_reused(client, authenticated):
     owner = authenticated()
-    circle = client.post(
-        "/v1/circles", headers=owner, json={"name": "Morning commuters"}
-    ).json()
+    circle = client.post("/v1/circles", headers=owner, json={"name": "Morning commuters"}).json()
     cid = circle["id"]
     outsider = authenticated(subject="outsider")
     assert client.get("/v1/circles", headers=outsider).json() == []
     assert client.get(f"/v1/circles/{cid}", headers=outsider).status_code == 404
     assert client.post(f"/v1/circles/{cid}/invitations", headers=outsider).status_code == 404
-    assert client.post(
-        "/v1/circle-invitations/redeem", headers=outsider, json={"token": "x"*43}
-    ).status_code == 410
+    assert (
+        client.post(
+            "/v1/circle-invitations/redeem", headers=outsider, json={"token": "x" * 43}
+        ).status_code
+        == 410
+    )
     invite = client.post(f"/v1/circles/{cid}/invitations", headers=owner).json()
     assert len(invite["token"]) > 32
     assert client.post(
@@ -103,10 +117,14 @@ def test_circle_invites_require_owner_and_cannot_be_reused(client, authenticated
     ).is_success
     assert client.get(f"/v1/circles/{cid}", headers=outsider).json()["members"] == 2
     assert client.post(f"/v1/circles/{cid}/invitations", headers=outsider).status_code == 404
-    assert client.post(
-        "/v1/circle-invitations/redeem",
-        headers=authenticated(subject="another"), json={"token": invite["token"]},
-    ).status_code == 410
+    assert (
+        client.post(
+            "/v1/circle-invitations/redeem",
+            headers=authenticated(subject="another"),
+            json={"token": invite["token"]},
+        ).status_code
+        == 410
+    )
 
 
 def test_boarding_pin_rate_limit_persists_attempts(client, authenticated):
@@ -124,9 +142,9 @@ def test_boarding_pin_rate_limit_persists_attempts(client, authenticated):
         for _ in range(5)
     ]
     assert statuses == [422, 422, 422, 422, 429]
-    assert client.post(
-        base + "/board", headers=authenticated(), json={"pin": pin}
-    ).status_code == 429
+    assert (
+        client.post(base + "/board", headers=authenticated(), json={"pin": pin}).status_code == 429
+    )
     with Session(client.app.state.engine) as session:
         challenge = session.get(BoardingChallenge, tid)
         assert challenge.attempts == 5
@@ -140,47 +158,62 @@ def test_recurring_ride_requires_verified_approval_mode(client, authenticated):
             {"name": "A", "metres": 0, "minutes": 0},
             {"name": "B", "metres": 10000, "minutes": 30},
         ],
-        "local_time": "08:30:00", "timezone": "Asia/Kolkata",
+        "local_time": "08:30:00",
+        "timezone": "Asia/Kolkata",
         "weekdays": [0, 1, 2, 3, 4],
         "starts_on": (datetime.now(UTC).date() + timedelta(days=1)).isoformat(),
         "ends_on": (datetime.now(UTC).date() + timedelta(days=30)).isoformat(),
-        "price_paise": 12000, "capacity": 2, "vehicle_id": vid,
+        "price_paise": 12000,
+        "capacity": 2,
+        "vehicle_id": vid,
         "booking_mode": "instant",
     }
-    assert client.post(
-        "/v1/recurring-rides", headers=authenticated(), json=payload
-    ).status_code == 422
-    assert client.post(
-        "/v1/recurring-rides", headers=authenticated(subject="outsider"),
-        json=payload | {"booking_mode": "approval"},
-    ).status_code == 403
-    assert client.post(
-        "/v1/recurring-rides", headers=authenticated(),
-        json=payload | {"booking_mode": "approval", "capacity": 4},
-    ).status_code == 422
+    assert (
+        client.post("/v1/recurring-rides", headers=authenticated(), json=payload).status_code == 422
+    )
+    assert (
+        client.post(
+            "/v1/recurring-rides",
+            headers=authenticated(subject="outsider"),
+            json=payload | {"booking_mode": "approval"},
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/v1/recurring-rides",
+            headers=authenticated(),
+            json=payload | {"booking_mode": "approval", "capacity": 4},
+        ).status_code
+        == 422
+    )
 
 
 def test_staff_only_safety_review_events(client, authenticated):
     vid = verify_driver(client, authenticated)
     jid = create_approval_journey(client, authenticated, vid)
     report = client.post(
-        "/v1/safety-reports", headers=authenticated(),
-        json={"journey_id": jid, "category": "pickup_issue",
-              "description": "We could not find the agreed public pickup point."},
+        "/v1/safety-reports",
+        headers=authenticated(),
+        json={
+            "journey_id": jid,
+            "category": "pickup_issue",
+            "description": "We could not find the agreed public pickup point.",
+        },
     ).json()
     reporter = authenticated()
     outsider = authenticated(subject="outsider")
-    assert client.get(
-        f"/v1/staff/safety-reports/{report['id']}/events", headers=outsider
-    ).status_code == 403
+    assert (
+        client.get(f"/v1/staff/safety-reports/{report['id']}/events", headers=outsider).status_code
+        == 403
+    )
     reviewer = staff(authenticated)
     assert client.post(
-        f"/v1/staff/safety-reports/{report['id']}/review", headers=reviewer,
+        f"/v1/staff/safety-reports/{report['id']}/review",
+        headers=reviewer,
         json={"state": "reviewing", "note": "Assigned to the trust and safety reviewer"},
     ).is_success
-    events = client.get(
-        f"/v1/staff/safety-reports/{report['id']}/events", headers=reviewer
-    ).json()
+    events = client.get(f"/v1/staff/safety-reports/{report['id']}/events", headers=reviewer).json()
     assert len(events) == 1 and events[0]["state"] == "reviewing"
     assert client.get("/v1/me/safety-reports", headers=outsider).json() == []
     assert len(client.get("/v1/me/safety-reports", headers=reporter).json()) == 1

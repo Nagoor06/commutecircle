@@ -82,7 +82,9 @@ def view(row):
 def create(data: RecurringInput, principal: RideWriter, session: DatabaseSession):
     with session.begin():
         eligible_driver(
-            session, principal, str(data.vehicle_id) if data.vehicle_id else None,
+            session,
+            principal,
+            str(data.vehicle_id) if data.vehicle_id else None,
             data.capacity,
         )
         if data.circle_id:
@@ -160,10 +162,7 @@ def exception(
         )
         if journey and not journey.cancelled:
             # Preserve driver-refund semantics; never cancel paid tickets silently.
-            if session.scalar(
-                select(Ticket.id).where(Ticket.journey_id == journey.id)
-                .limit(1)
-            ):
+            if session.scalar(select(Ticket.id).where(Ticket.journey_id == journey.id).limit(1)):
                 raise HTTPException(
                     409, "Existing bookings require explicit driver cancellation first"
                 )

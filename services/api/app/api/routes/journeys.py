@@ -109,10 +109,12 @@ def discover(principal: PublicReader, session: DatabaseSession, offset: int = Qu
     )
     visible = catalog.views(session, rows, principal)
     return [
-        row for row in visible
+        row
+        for row in visible
         if row["booking_mode"] != "approval"
         or (row["driver_verified"] and row["vehicle_verified"])
-        or row["owner"] or row["tickets"]
+        or row["owner"]
+        or row["tickets"]
     ]
 
 
@@ -145,8 +147,7 @@ def detail(jid: UUID, principal: PublicReader, session: DatabaseSession):
     verify_access(session, j, principal, allow_ticket=True)
     row = catalog.views(session, [j], principal)[0]
     if j.booking_mode == "approval" and not (
-        (row["driver_verified"] and row["vehicle_verified"])
-        or row["owner"] or row["tickets"]
+        (row["driver_verified"] and row["vehicle_verified"]) or row["owner"] or row["tickets"]
     ):
         raise HTTPException(404, "Journey not found")
     if (j.cancelled or service.utc(j.last_stop_at) <= datetime.now(UTC)) and not (
