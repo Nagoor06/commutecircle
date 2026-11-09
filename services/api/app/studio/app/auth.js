@@ -105,7 +105,7 @@ export async function signIn(session, mode = 'login') {
     response_type: 'code',
     redirect_uri: callback(),
     audience: config.audience,
-    scope: 'openid rides:read rides:write',
+    scope: 'openid email rides:read rides:write',
     state,
     code_challenge: base64url(new Uint8Array(digest)),
     code_challenge_method: 'S256'

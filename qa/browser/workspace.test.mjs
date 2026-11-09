@@ -197,6 +197,10 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     });
     await rider.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Profile',exact:true}).click();
     await rider.getByRole('heading',{name:'My profile',exact:true}).waitFor();
+    await rider.getByRole('button',{name:'Save alert preferences',exact:true}).click();
+    await rider.getByText('Booking alert preferences saved.',{exact:true}).waitFor();
+    assert.equal(await rider.getByRole('checkbox',{name:'Email me booking updates',exact:true}).isEnabled(),false);
+    await rider.screenshot({path:'evidence/mobile-alert-preferences.png',fullPage:true});
     await rider.getByLabel('Contact name',{exact:true}).fill('Trusted person');
     await rider.getByRole('button',{name:'Save favourite',exact:true}).click();
     await rider.locator('.contact-row').getByText('Trusted person',{exact:true}).waitFor();
@@ -417,10 +421,14 @@ test('guest navigation never invents rides; stop hints work when external lookup
     await page.getByRole('combobox', {
       name: /pickup/i
     }).fill('Hyder');
-    await page.getByRole('button',{name:'Search farther away',exact:true}).waitFor();
-    assert.equal(await page.getByRole('option',{name:/Hyderabad Deccan/i}).count(),0);
-    await page.getByRole('button',{name:'Search farther away',exact:true}).click();
+    assert.equal(await page.getByRole('button',{name:'Search farther away',exact:true}).count(),0);
     await page.getByRole('option',{name:/Hyderabad Deccan/i}).waitFor();
+    const popup=page.locator('.suggestions:visible'),field=page.locator('.place-field.is-searching');
+    const [popRect,fieldRect,gpsRect]=await Promise.all([popup.boundingBox(),field.boundingBox(),page.getByRole('button',{name:'Find public stops near me',exact:true}).boundingBox()]);
+    assert.ok(Math.abs(popRect.x-fieldRect.x)<=2 && Math.abs(popRect.width-fieldRect.width)<=2,'dropdown follows the input width');
+    assert.ok(gpsRect.y+gpsRect.height<=720,'location action stays above mobile navigation');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'search must not overflow horizontally');
+    await page.screenshot({path:'evidence/mobile-automatic-search.png',fullPage:true});
     await page.getByRole('combobox', {
       name: /pickup/i
     }).press('Escape');

@@ -48,6 +48,12 @@ export function liveClient(token, origin) {
   const ticket = (id, tid) => path(id) + '/tickets/' + encodeURIComponent(tid);
   return {
     mode: 'live',
+    alerts: signal => call('/v1/me/notifications','GET',null,{signal}),
+    saveAlerts: data => call('/v1/me/notifications','PUT',data),
+    connectAlertEmail: () => call('/v1/me/notifications/email','POST'),
+    requestPhoneCode: data => call('/v1/me/notifications/phone/code','POST',data),
+    verifyPhone: data => call('/v1/me/notifications/phone/verify','POST',data),
+    ticketAlerts: (id,tid,signal) => call(ticket(id,tid)+'/notifications','GET',null,{signal}),
     contacts: signal => call('/v1/me/trusted-contacts', 'GET', null, {signal}),
     saveContact: (slot, data) => call('/v1/me/trusted-contacts/' + slot, 'PUT', data),
     deleteContact: slot => call('/v1/me/trusted-contacts/' + slot, 'DELETE'),

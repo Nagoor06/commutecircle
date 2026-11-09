@@ -9,7 +9,10 @@ from app.models.booking import Booking
 from app.models.chat import ChatBlock, ChatRead, Message
 from app.models.commute import Commute
 from app.models.journey import Journey, PaymentEntry, Ticket
+from app.models.notification import Notification, NotificationPreference, VerificationLimit
 
 __all__ += ["Journey", "Ticket", "PaymentEntry", "Commute", "ChatBlock", "Message"]
 __all__ += ["TripShare", "TrustedContact"]
 __all__ += ["ChatRead"]
+
+__all__ += ["Notification", "NotificationPreference", "VerificationLimit"]

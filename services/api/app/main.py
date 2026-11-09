@@ -13,7 +13,7 @@ from app.auth.tokens import TokenVerifier
 from app.core.config import Settings
 from app.db.session import build_engine
 from app.middleware.request_logging import request_context
-from app.services import location_retention
+from app.services import location_retention, notification_outbox
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
@@ -23,12 +23,21 @@ def create_app(database_url: str | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         cleanup = asyncio.create_task(location_retention.run(engine))
+        alerts = (
+            asyncio.create_task(notification_outbox.run(engine))
+            if os.getenv("NOTIFICATION_WORKER_ENABLED", "true") == "true"
+            else None
+        )
         try:
             yield
         finally:
             cleanup.cancel()
             with suppress(asyncio.CancelledError):
                 await cleanup
+            if alerts:
+                alerts.cancel()
+                with suppress(asyncio.CancelledError):
+                    await alerts
             engine.dispose()
 
     app = FastAPI(title="CommuteCircle API", version="0.1.0", lifespan=lifespan)

@@ -44,7 +44,7 @@ export async function mount({
   let filters = {...(state.query || {}), prefer_commute: auth.signed};
   delete filters.origin; delete filters.destination; delete filters.after; delete filters.before; delete filters.offset;
   root.innerHTML = head('Passenger / Plan a trip', 'Book a ride',
-      'Pick your stops. See who’s going your way.') +
+      'Join a journey someone already plans to make.') +
     `<div class="find-layout"><section class="planner-card"><div class="section-index"><span class="index-dot"></span> Journey planner</div>
       <div class="form-title"><h2>Where are you headed?</h2></div>
       <div class="stop-stack">${fieldMarkup(0,points[0])}<button class="swap-btn" data-swap aria-label="Swap pickup and drop-off">${icon('swap',16)}</button>${fieldMarkup(1,points[1])}</div>

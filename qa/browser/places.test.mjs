@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setTimeout as pause} from 'node:timers/promises';
-import {rankPlaces,suggest,immediateMatches} from '../../services/api/app/studio/app/data/geocoder.js';
+import {rankPlaces,suggest,immediateMatches,automaticMatches} from '../../services/api/app/studio/app/data/geocoder.js';
 import {reversePlace,pinResolver} from '../../services/api/app/studio/app/data/reverse-geocoder.js';
 
 const anchor={name:'Source',lat:16.25,lon:80.64};
@@ -20,7 +20,7 @@ test('search sends the selected stop bias and never reuses a different anchor ca
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);urls.push(u);
     if(u.protocol==='file:')return {ok:true,json:async()=>[]};
-    return {ok:true,json:async()=>({features:[feature('Central Station',Number(u.searchParams.get('lat'))+.01,Number(u.searchParams.get('lon')))]})};
+    return {ok:true,json:async()=>({features:[feature('Central',Number(u.searchParams.get('lat'))+.01,Number(u.searchParams.get('lon')))]})};
   });
   const settings={signal:new AbortController().signal,geocoder:'https://place.test/api/',anchor};
   const first=await suggest('Central',settings);
@@ -73,7 +73,7 @@ test('rapid pin moves, independent pins and manual replacements reject stale rep
   assert.notEqual(points[0].name,'After leaving');
 });
 
-test('50 km default applies in both directions, including provider results and offline stations',async t=>{
+test('nearby ambiguous suggestions stay local; a typed distant stop expands automatically',async t=>{
   const near={lat:16.3,lon:80.65}, far={lat:17.4,lon:78.47},urls=[];
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);urls.push(u);
@@ -83,8 +83,10 @@ test('50 km default applies in both directions, including provider results and o
   const settings={signal:new AbortController().signal,geocoder:'https://radius.test/api/',anchor};
   const nearby=(await suggest('Bus Station',settings)).items.map(p=>p.name);
   assert.ok(nearby.includes('Bus Station Local'));assert.ok(!nearby.includes('Bus Station Far'));
-  assert.deepEqual((await suggest('Bus Station',{...settings,anchor:far})).items.map(p=>p.name),[],'the other endpoint itself is not a destination');
-  assert.ok((await suggest('Bus Station',{...settings,radius:Infinity})).items.some(p=>p.name==='Bus Station Far'));
+  const reverse=(await suggest('Bus Station',{...settings,anchor:far}));
+  assert.equal(reverse.expanded,true);assert.ok(reverse.items.some(p=>p.name==='Bus Station Local'));
+  assert.ok(!reverse.items.some(p=>p.name==='Bus Station Far'),'the anchor itself is excluded');
+  assert.ok((await suggest('Bus Station Far',settings)).items.some(p=>p.name==='Bus Station Far'));
   assert.equal(urls.filter(u=>u.protocol==='https:').at(-1).searchParams.has('bbox'),false);
   assert.ok(!(await suggest('Bus Station',{...settings,geocoder:null})).items.some(p=>p.name==='Bus Station Far'),'offline catalogue also honours 50 km');
   assert.equal((await suggest('17.4,78.47',settings)).items[0].lat,17.4,'an intentionally entered distant pin is allowed');
@@ -99,4 +101,34 @@ test('50 km filtering works across the international date line without an invali
   const result=await suggest('Island',{signal:new AbortController().signal,geocoder:'https://date.test/api/',anchor:{lat:0,lon:179.9}});
   assert.equal(result.items.length,1);assert.equal(result.items[0].name,'Island Landing');
   assert.equal(request.searchParams.has('bbox'),false);
+});
+
+
+test('a distant named city outranks local businesses containing the city name',()=>{
+  const business={name:'Hyderabad Biryani',lat:16.3,lon:80.65};
+  const city={name:'Hyderabad',locality:true,lat:17.4,lon:78.47};
+  const result=automaticMatches([business,city],'Hyderabad',anchor);
+  assert.equal(result.items[0],city);assert.equal(result.expanded,true);
+  assert.equal(automaticMatches([business,city],'Hyd',anchor).items[0],city);
+  assert.equal(automaticMatches([business,city],'',anchor).expanded,false);
+});
+
+test('search automatically widens the provider query and retains nearby results on failure',async t=>{
+  const urls=[];
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};urls.push(u);
+    if(u.searchParams.has('bbox'))return {ok:true,json:async()=>({features:[feature('Hyderabad Kitchen',16.3,80.65)]})};
+    return {ok:true,json:async()=>({features:[feature('Hyderabad',17.4,78.47,{osm_key:'place',osm_value:'city'})]})};
+  });
+  const settings={signal:new AbortController().signal,geocoder:'https://automatic.test/api/',anchor};
+  const result=await suggest('Hyderabad',settings);
+  assert.equal(urls.length,2);assert.equal(urls[1].searchParams.has('bbox'),false);
+  assert.equal(result.items[0].name,'Hyderabad');assert.equal(result.expanded,true);
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};
+    if(!u.searchParams.has('bbox'))throw Error('offline');
+    return {ok:true,json:async()=>({features:[feature('Airport Road',16.3,80.65)]})};
+  });
+  const failed=await suggest('Airport',{...settings,geocoder:'https://partial.test/api/'});
+  assert.equal(failed.items[0].name,'Airport Road');assert.equal(failed.offline,true);
 });

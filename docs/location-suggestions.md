@@ -1,22 +1,25 @@
-# Nearby location suggestions
+# Automatic location suggestions
 
-Both pickup and drop-off use the selected opposite endpoint as their anchor.
-Suggestions default to a 50 km straight-line radius, including the local station
-catalogue, offline fallback and online Photon results. Empty input suggests
-nearby public stops. Photon receives a bounding box and geographic bias; the
-client also checks exact great-circle distance so square-box corners cannot
-leak outside the radius. Date-line searches omit the incompatible bounding box
-and retain the exact distance filter.
+Both fields use the opposite selected stop as their anchor. Empty input suggests
+public stops within 50 km (straight line). Typing is debounced by 360 ms; obsolete
+requests are aborted and generation checks reject replies from older queries.
 
-**Search farther away** removes the suggestion radius. Users can then select
-distant cities and return with **Back to within 50 km**. Changing the anchor
-resets the field to nearby suggestions. Intentional coordinate entry or map
-pinning can always select farther away. This is a suggestion filter, not a
-maximum journey distance or the smaller ride-matching radius. Search results
-remain debounced; obsolete requests and responses cannot replace a newer query.
+Search first asks Photon for nearby matches with geographic bias and a bounding
+box. If there is no exact nearby match, it automatically asks for wider matches.
+An exact distant name, or a matching city/town prefix, can outrank nearby businesses
+that contain that place name. Ambiguous equally relevant matches stay nearby.
+With no nearby match, search expands automatically, including offline railway
+stations. There is no range button. Coordinates and map pins have no 50 km limit.
 
-Device GPS used by **Find public stops near me** still stays in the browser and
-uses a separate 5 km public-stop lookup. Private live trip location never enters
-autocomplete, route search, RAG or model prompts.
+The cache includes query, provider and anchor. Date-line searches omit the invalid
+bounding box and retain exact great-circle distance checks. An unavailable wider
+lookup preserves existing local results and reports partial availability.
 
-Reference: [Photon API](https://github.com/komoot/photon/blob/master/docs/api-v1.md).
+The dropdown aligns to its field, keeps its action below the scrolling list,
+wraps long addresses and scrolls keyboard-selected options into view. The active
+field has its own stacking order so a later field cannot cover its suggestions.
+
+Device GPS in **Find public stops near me** remains a separate browser-local
+5 km lookup. Private live GPS is never sent to autocomplete, RAG or model prompts.
+
+Reference: https://github.com/komoot/photon/blob/master/docs/api-v1.md
