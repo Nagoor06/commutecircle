@@ -18,7 +18,7 @@ export async function mount(ctx) {
     ${fieldMarkup('node', saved?.pickup || {name:''}, {label:'Public pickup point',badge:'A'})}
     ${fieldMarkup('work', saved?.workplace || {name:''}, {label:'Office-area meeting point',badge:'B'})}
     <label class="checkline"><input type="checkbox" name="public" required ${saved?'checked':''}> These are public meeting points, not my home or a private entrance.</label>
-    <button class="btn primary" type="submit">Save my commute</button><button class="text-btn" type="button" data-forget>Delete saved commute</button>
+    <div class="profile-actions"><button class="btn primary" type="submit">Save my commute</button><button class="text-btn" type="button" data-forget>Delete saved commute</button></div>
     <div data-notice role="status" hidden></div></form>
     <aside class="stack"><section class="panel accent-panel"><div class="panel-cap">${icon('shield')} Circle pickup</div><h2>Your pickup is a public place.</h2>
     <p>Drivers see the booked meeting points. Your employer label and saved preferences stay in your account.</p><p>“Find public stops near me” compares device location with our station catalogue in your browser. It sends no device coordinates to the server.</p>
