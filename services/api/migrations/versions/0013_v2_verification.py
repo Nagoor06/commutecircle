@@ -37,11 +37,13 @@ def upgrade():
         sa.Column("model", sa.String(60), nullable=False),
         sa.Column("color", sa.String(40), nullable=False),
         sa.Column("registration", sa.String(24), nullable=False),
+        sa.Column("seat_capacity", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(16), nullable=False),
         sa.Column("submitted_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("reviewed_at", sa.DateTime(timezone=True)),
         sa.Column("reviewer", sa.String(255)),
         sa.CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_vehicle_verification"),
+        sa.CheckConstraint("seat_capacity BETWEEN 1 AND 8", name="valid_vehicle_capacity"),
     )
     op.create_index("ix_verified_vehicles_owner", "verified_vehicles", ["issuer", "subject"])
     with op.batch_alter_table("journeys") as batch:
