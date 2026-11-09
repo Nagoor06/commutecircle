@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, String
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -9,6 +9,9 @@ from app.db.base import Base
 
 class Journey(Base):
     __tablename__ = "journeys"
+    __table_args__ = (
+        UniqueConstraint("recurring_template_id", "recurring_date", name="uq_recurring_occurrence"),
+    )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     issuer: Mapped[str] = mapped_column(String(512))
     driver: Mapped[str] = mapped_column(String(255))
@@ -24,7 +27,7 @@ class Journey(Base):
     booking_mode: Mapped[str] = mapped_column(String(16), default="instant")
     recurring_template_id: Mapped[str | None] = mapped_column(ForeignKey("recurring_rides.id"), nullable=True)
     recurring_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    circle_id: Mapped[str | None] = mapped_column(ForeignKey("commute_circles.id"), nullable=True)
+    circle_id: Mapped[str | None] = mapped_column(ForeignKey("commute_circles.id"), nullable=True, index=True)
 
 
 class Ticket(Base):
@@ -42,7 +45,7 @@ class Ticket(Base):
     rider: Mapped[str] = mapped_column(String(255))
     board: Mapped[int]
     alight: Mapped[int]
-    state: Mapped[str] = mapped_column(String(24))
+    state: Mapped[str] = mapped_column(String(24), index=True)
     expires: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     fare: Mapped[int]
     charged: Mapped[int] = mapped_column(default=0)
