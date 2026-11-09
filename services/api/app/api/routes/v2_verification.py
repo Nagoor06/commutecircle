@@ -32,6 +32,7 @@ class VehicleData(BaseModel):
     model: str = Field(min_length=1, max_length=60)
     color: str = Field(min_length=1, max_length=40)
     registration: str = Field(min_length=5, max_length=24)
+    seat_capacity: int = Field(ge=1, le=8)
 
 
 class Decision(BaseModel):
@@ -40,7 +41,7 @@ class Decision(BaseModel):
 
 
 def visible_vehicle(row, owner_view=False):
-    result = {"id": row.id, "make": row.make, "model": row.model, "color": row.color, "status": row.status}
+    result = {"id": row.id, "make": row.make, "model": row.model, "color": row.color, "seat_capacity": row.seat_capacity, "status": row.status}
     if owner_view:
         result["registration"] = row.registration
     return result
@@ -81,7 +82,7 @@ def apply(data: DriverApplication, principal: RideWriter, session: DatabaseSessi
 @router.post("/me/vehicles", status_code=201)
 def submit_vehicle(data: VehicleData, principal: RideWriter, session: DatabaseSession):
     with session.begin():
-        row = VerifiedVehicle(issuer=principal.issuer, subject=principal.subject, make=data.make, model=data.model, color=data.color, registration=data.registration.upper(), status="pending", submitted_at=datetime.now(UTC))
+        row = VerifiedVehicle(issuer=principal.issuer, subject=principal.subject, make=data.make, model=data.model, color=data.color, registration=data.registration.upper(), seat_capacity=data.seat_capacity, status="pending", submitted_at=datetime.now(UTC))
         session.add(row)
         session.flush()
         result = visible_vehicle(row, True)
