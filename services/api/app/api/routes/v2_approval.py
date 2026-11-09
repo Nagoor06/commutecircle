@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.routes.bookings import DatabaseSession
@@ -21,7 +23,7 @@ class SeatRequest(BaseModel):
     request_id: UUID
     board: int = Field(ge=0)
     alight: int = Field(gt=0)
-    consent: bool = True
+    consent: Literal[True]
     consent_version: str = Field(pattern="^cc-v2-1$")
 
 
@@ -31,29 +33,27 @@ def request_receipt(t):
 
 @router.post("/{jid}/requests", status_code=201)
 def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: DatabaseSession):
-    if not data.consent:
-        raise HTTPException(422, "Explicit consent required")
     with session.begin():
         j = journeys.locked(session, str(jid))
         verify_access(session, j, principal)
         if j.booking_mode != "approval" or j.cancelled or journeys.is_driver(j, principal):
             raise HTTPException(409, "Driver-approved booking unavailable")
         now = datetime.now(UTC)
-        q = journeys.quote(j, journeys.tickets(session, j), data, now)
-        if not q["seats_available"]:
-            raise HTTPException(409, "Seat unavailable")
         previous = session.get(Ticket, str(data.request_id))
         if previous:
             if not journeys.is_rider(previous, principal) or previous.journey_id != j.id or (previous.board, previous.alight) != (data.board, data.alight):
                 raise HTTPException(409, "Request ID conflict")
             return request_receipt(previous)
+        q = journeys.quote(j, journeys.tickets(session, j), data, now)
+        if not q["seats_available"]:
+            raise HTTPException(409, "Seat unavailable")
         for t in journeys.tickets(session, j):
             if journeys.is_rider(t, principal) and t.board < data.alight and data.board < t.alight and t.state in ("requested", "held", "paid"):
                 raise HTTPException(409, "An overlapping request already exists")
         t = Ticket(
             id=str(data.request_id), journey_id=j.id, issuer=principal.issuer,
             rider=principal.subject, board=data.board, alight=data.alight,
-            state="requested", expires=q["pickup_at"], fare=q["fare_paise"],
+            state="requested", expires=q["pickup_at"], fare=q["fare_paise"], travel_state="awaiting_boarding",
             requested_at=now, consent_at=now, consent_version=data.consent_version,
             consent_fare_paise=q["fare_paise"], consent_pickup_at=q["pickup_at"],
         )
