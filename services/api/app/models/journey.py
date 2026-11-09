@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -20,6 +20,11 @@ class Journey(Base):
     price_paise: Mapped[int]
     capacity: Mapped[int]
     cancelled: Mapped[bool] = mapped_column(default=False)
+    vehicle_registration_id: Mapped[str | None] = mapped_column(ForeignKey("verified_vehicles.id"), nullable=True)
+    booking_mode: Mapped[str] = mapped_column(String(16), default="instant")
+    recurring_template_id: Mapped[str | None] = mapped_column(ForeignKey("recurring_rides.id"), nullable=True)
+    recurring_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    circle_id: Mapped[str | None] = mapped_column(ForeignKey("commute_circles.id"), nullable=True)
 
 
 class Ticket(Base):
@@ -41,6 +46,14 @@ class Ticket(Base):
     expires: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     fare: Mapped[int]
     charged: Mapped[int] = mapped_column(default=0)
+    requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consent_version: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    consent_fare_paise: Mapped[int | None] = mapped_column(nullable=True)
+    consent_pickup_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    travel_state: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    boarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     stars: Mapped[int | None]
     refund: Mapped[int] = mapped_column(default=0)
 
