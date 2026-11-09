@@ -15,12 +15,15 @@ from app.models import (
     Commute,
     Journey,
     Message,
+    Notification,
+    NotificationPreference,
     PaymentEntry,
     PickupPoint,
     Ride,
     Ticket,
     TripShare,
     TrustedContact,
+    VerificationLimit,
 )
 
 
@@ -31,6 +34,9 @@ def client(tmp_path, monkeypatch):
     command.upgrade(Config("alembic.ini"), "head")
     app = create_app(url)
     with Session(app.state.engine) as session:
+        session.execute(delete(Notification))
+        session.execute(delete(NotificationPreference))
+        session.execute(delete(VerificationLimit))
         session.execute(delete(TripShare))
         session.execute(delete(TrustedContact))
         session.execute(delete(Message))
@@ -66,6 +72,7 @@ def client(tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clear_oidc_environment(monkeypatch):
+    monkeypatch.setenv("NOTIFICATION_WORKER_ENABLED", "false")
     for name in ("OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL", "DOCS_OAUTH_CLIENT_ID"):
         monkeypatch.delenv(name, raising=False)
 

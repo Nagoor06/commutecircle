@@ -57,6 +57,21 @@ movement is predicted after the last received fix. Cancelling or exiting a ticke
 removes its tracking access; driver cancellation ends sharing for everyone.
 
 Pickup and drop-off suggestions default to within 50 km of the opposite stop,
-measured in a straight line. Choose Search farther away to find distant places.
+measured in a straight line. Typed searches automatically include stronger distant
+place matches, or expand when no nearby place matches. There is no range button.
 This suggestion radius does not limit the trip distance. No private live GPS
 coordinates, share tokens or trusted-contact details belong in the AI helper.
+
+## Booking alerts
+
+Your receipt is always in My trips. In Profile, enable email to your verified
+sign-in address and optionally choose WhatsApp or SMS after verifying your phone.
+Phone verification uses an SMS code; booking phone updates are optional and use
+only the selected channel. No marketing messages are included.
+
+Alerts are queued after a successful booking, never just a seat hold. Cancellations
+and confirmed early exits also create updates. Delivery needs a configured provider.
+A provider acceptance is not a delivery receipt. Queued, unavailable, failed and
+uncertain states appear on your booking receipt. No real money is taken in sandbox.
+Turning alerts off suppresses queued work; an already submitted message cannot be
+recalled. No precise live location, employer label or contact list is in the alerts.

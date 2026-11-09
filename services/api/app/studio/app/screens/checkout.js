@@ -1,3 +1,4 @@
+import {refreshAlerts} from '../components/booking-alerts.js';
 import {stopFromPlace} from '../data/places.js';
 import {
   meetingMarkup,
@@ -66,7 +67,8 @@ export async function mount(ctx) {
       ${state==='paid'?`<a class="btn secondary wide" href="#/track-driver/${jid}/${tid}">Track vehicle</a><a class="btn secondary wide" href="#/share/${jid}?ticket=${tid}">Share my trip</a>`:''}
       ${state==='driver_cancelled'?'<button class="btn primary wide" data-alternatives>Find another ride</button>':''}
       ${!held?'<a class="text-btn" href="#/trips">View my trips →</a>':''}
-      ${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
+      ${held?'<p class="fine">Choose email or phone confirmations in <a href="#/profile">My profile</a> before booking.</p>':'<section class="receipt-alerts" data-booking-alerts aria-live="polite"></section>'}${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
+    refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
     const alternatives = root.querySelector('[data-alternatives]');
     if (alternatives) alternatives.onclick = () => { ctx.state.query={origin:stopFromPlace(j.stops[t.board]),destination:stopFromPlace(j.stops[t.alight])}; ctx.go('results'); };
     const meeting = root.querySelector('.meeting');
@@ -114,6 +116,7 @@ export async function mount(ctx) {
     if(reading||document.hidden||signal.aborted)return;
     reading=true;const current=generation;
     try{
+      refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
       const fresh=await api.detail(jid,signal), next=fresh.tickets.find(t=>t.id===tid);
       if(!signal.aborted&&current===generation&&next&&JSON.stringify(next)!==JSON.stringify(ticket)){
         ticket=next;paint();

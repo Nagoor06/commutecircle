@@ -397,16 +397,6 @@
   font-size: 13px
 }
 
-.lookup-actions small {
-  padding: 5px 7px;
-  white-space: normal;
-  flex: 1
-}
-
-.lookup-actions [data-gps] {
-  white-space: nowrap
-}
-
 .access .btn+.btn {
   margin-left: 5px
 }

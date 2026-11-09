@@ -10,7 +10,6 @@ import {
 } from '../data/places.js';
 import {
   immediateMatches,
-  NEARBY_RADIUS,
   describeMatches,
   suggest
 } from '../data/geocoder.js';
@@ -23,7 +22,7 @@ export function fieldMarkup(i, p, options = {}) {
   return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${badge==='A'?'':'orange'}">${esc(badge)}</span>${esc(label)}</label>
     <div class="place-entry"><input id="${id}" aria-label="${esc(label)}" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list" value="${esc(p.name)}"><button type="button" class="icon-only" aria-label="Edit ${esc(label)}">${icon('pin',17)}</button></div>
     <small class="place-sub">${esc(p.area||'Public meeting place')}</small>
-    <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-range type="button" aria-pressed="false" hidden>Search farther away</button><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>
+    <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>
   </div>`;
 }
 export function attachField(node, {
@@ -39,8 +38,7 @@ export function attachField(node, {
     sub = node.querySelector('.place-sub'),
     popup = node.querySelector('.suggestions'),
     list = node.querySelector('[role=listbox]'),
-    hint = node.querySelector('[data-hint]'), range = node.querySelector('[data-range]');
-  let farther = false, anchorKey = '', lastEdited = false;
+    hint = node.querySelector('[data-hint]');
   let selected = initial,
     results = [],
     active = -1,
@@ -56,6 +54,7 @@ export function attachField(node, {
   function close() {
     invalidate();
     popup.hidden = true;
+    node.classList.remove('is-searching');
     input.setAttribute('aria-expanded', 'false');
     input.removeAttribute('aria-activedescendant');
     active = -1
@@ -70,6 +69,16 @@ export function attachField(node, {
 
   function choose(p) {
     if (update(p) !== false) set(p)
+  }
+
+  function fitPopup() {
+    if(popup.hidden)return;
+    const rect=node.getBoundingClientRect(), viewport=window.visualViewport;
+    const top=viewport?.offsetTop || 0, bottom=top+(viewport?.height || window.innerHeight);
+    const above=rect.top-top-12, below=bottom-rect.bottom-(window.innerWidth<=720?80:12);
+    const upward=below<220 && above>below;
+    popup.classList.toggle('is-above',upward);
+    popup.style.maxHeight=Math.max(120,Math.min(420,upward?above:below))+'px';
   }
 
   function show(items, message = '') {
@@ -91,20 +100,15 @@ export function attachField(node, {
     }
     hint.textContent = message;
     popup.hidden = false;
+    node.classList.add('is-searching');
+    fitPopup();
     input.setAttribute('aria-expanded', 'true');
   }
 
   function search(edited) {
     invalidate();
-    lastEdited = edited;
     let q = input.value.trim();
     const focusPoint = anchor();
-    const nextKey = finitePlace(focusPoint) ? focusPoint.lat+','+focusPoint.lon : '';
-    if(nextKey !== anchorKey){farther=false;anchorKey=nextKey;}
-    const radius = farther ? Infinity : NEARBY_RADIUS;
-    range.hidden = !nextKey;
-    range.textContent = farther ? 'Back to within 50 km' : 'Search farther away';
-    range.setAttribute('aria-pressed',String(farther));
     if (edited) {
       sub.textContent = 'Choose a matching place to update the pin';
       onDraft()
@@ -122,11 +126,11 @@ export function attachField(node, {
       return
     }
     if (q && q.length < 2) {
-      show(describeMatches(immediateMatches(q,focusPoint,radius),focusPoint), 'Type at least 2 letters');
+      show(describeMatches(immediateMatches(q,focusPoint),focusPoint), 'Type at least 2 letters');
       return
     }
     const id = generation;
-    show(describeMatches(immediateMatches(q,focusPoint,radius),focusPoint), q ? 'Looking for places…' : 'Finding public stops near your other stop…');
+    show(describeMatches(immediateMatches(q,focusPoint),focusPoint), q ? 'Looking for places…' : 'Finding public stops near your other stop…');
     timer = setTimeout(async () => {
       const req = new AbortController();
       request = req;
@@ -139,14 +143,13 @@ export function attachField(node, {
           signal: req.signal,
           onLocal: local,
           geocoder,
-          anchor: focusPoint,
-          radius
+          anchor: focusPoint
         });
         if (id !== generation || signal.aborted) return;
         show(q ? describeMatches(result.items,focusPoint) : result.items, result.offline ?
           'Online lookup unavailable. Use a station, coordinates or a pin.' : result.items.length ?
-          (finitePlace(focusPoint) ? (farther ? 'All distances. Type a city or landmark.' : 'Within 50 km of your other stop · straight line') : 'Matching places') :
-          (finitePlace(focusPoint)&&!farther ? 'No match within 50 km. Choose Search farther away, or drag the pin.' : 'No matching place. Try a different name or drag the pin.'));
+          (result.expanded ? 'Also showing matches farther away.' : finitePlace(focusPoint) ? 'Nearby matches · within 50 km of your other stop' : 'Matching places') :
+          'No matching place. Try a city, landmark or map pin.');
       } catch (e) {
         if (id === generation && !signal.aborted) show([], e.message)
       }
@@ -157,7 +160,6 @@ export function attachField(node, {
     search(false)
   };
   input.oninput = () => search(true);
-  range.onclick = () => {farther=!farther;search(lastEdited);};
   node.querySelector('.icon-only').onclick = () => {
     input.focus();
     input.select();
@@ -176,6 +178,7 @@ export function attachField(node, {
       active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length;
       [...list.children].forEach((n, i) => n.setAttribute('aria-selected', String(i === active)));
       input.setAttribute('aria-activedescendant', input.id + '-opt-' + active);
+      list.children[active]?.scrollIntoView({block:'nearest'});
     }
     if (e.key === 'Enter' && !popup.hidden) {
       e.preventDefault();
@@ -230,6 +233,9 @@ export function attachField(node, {
   signal.addEventListener('abort', invalidate, {
     once: true
   });
+  window.addEventListener('resize',fitPopup,{signal});
+  window.addEventListener('scroll',fitPopup,{signal,passive:true});
+  window.visualViewport?.addEventListener('resize',fitPopup,{signal});
 
   function value() {
     const typed = input.value.trim();

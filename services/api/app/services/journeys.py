@@ -7,6 +7,7 @@ from sqlalchemy import select, update
 
 from app.models.journey import Journey, PaymentEntry, Ticket
 from app.models.trip_share import TripShare
+from app.services.notification_outbox import enqueue
 
 
 def utc(t):
@@ -200,6 +201,7 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             if state == "rider_cancelled" and is_driver(j, p):
                 refund_to(session, t, t.charged, "driver_refund", now)
                 t.state = "driver_cancelled"
+                enqueue(session, j, t, now)
                 return receipt(t, now)
             if state in ("driver_cancelled", "rider_cancelled", "expired"):
                 return receipt(t, now)
@@ -233,6 +235,7 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             revoke_location(session, jid, tid)
             t.alight = stop
             refund_to(session, t, t.charged - fare(j, t.board, stop), "exit_refund", now)
+        enqueue(session, j, t, now)
         return receipt(t, now)
 
 
@@ -251,6 +254,7 @@ def cancel_all(session, jid, p):
                     # including when the two cancellation requests race.
                     refund_to(session, t, t.charged, "driver_refund", now)
                     t.state = "driver_cancelled"
+                    enqueue(session, j, t, now)
             j.cancelled = True
             revoke_location(session, jid)
     return {"cancelled": True}

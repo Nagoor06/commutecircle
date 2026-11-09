@@ -32,11 +32,14 @@
 
 .place-field {
   position: relative;
+  min-width: 0;
   border: 1px solid #ccd7ca;
   border-radius: 12px;
   padding: 11px 13px 9px;
   background: linear-gradient(130deg, #f3f7ef, #fffefa)
 }
+
+.place-field.is-searching { z-index: 21 }
 
 .place-field:focus-within {
   border-color: #639575;
@@ -175,21 +178,33 @@
   left: -1px;
   right: -1px;
   top: calc(100% + 3px);
-  max-height: min(320px, 48vh);
-  overflow: auto
+  display: flex;
+  flex-direction: column;
+  max-height: min(420px, 55vh);
+  max-height: min(420px, 55dvh);
+  overflow: hidden
 }
+
+.suggestions[hidden] { display: none }
+.suggestions.is-above { top: auto; bottom: calc(100% + 3px) }
+.place-entry input:focus-visible { outline: none }
+.suggestions [role=listbox] { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable }
 
 .suggestions [role=option] {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   width: 100%;
   text-align: left;
   color: var(--ink);
-  padding: 9px 12px;
+  padding: 12px 14px;
   border: 0;
-  background: transparent
+  background: transparent;
+  font: inherit;
+  line-height: 1.4;
+  border-radius: 0
 }
+.suggestions [role=option]>.icon { flex: 0 0 16px; margin-top: 3px }
 
 .suggestions [role=option]:hover,
 .suggestions [aria-selected=true] {
@@ -197,7 +212,9 @@
 }
 
 .suggestions [role=option]>span {
-  min-width: 0
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere
 }
 
 .suggestions [role=option] b,
@@ -219,12 +236,15 @@
 }
 
 .lookup-actions {
-  display: flex;
-  gap: 2px;
-  justify-content: space-between;
+  display: grid;
+  flex: 0 0 auto;
+  gap: 5px;
   border-top: 1px solid var(--edge);
-  padding: 5px
+  padding: 10px 12px;
+  background: #f4f7ef
 }
+.lookup-actions [data-hint] { padding: 0; white-space: normal; line-height: 1.4 }
+.lookup-actions [data-hint]:empty { display: none }
 
 .lookup-actions button {
   border: 0;
@@ -232,10 +252,13 @@
   color: var(--green);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-size: 12px;
-  padding: 6px
+  padding: 8px 0;
+  text-align: left;
+  width: 100%
 }
+.lookup-actions button>.icon { flex: 0 0 14px }
 
 .atlas {
   position: relative;
