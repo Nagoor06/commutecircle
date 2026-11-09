@@ -41,3 +41,7 @@ This document describes the **draft** V2 implementation on `feat/commutecircle-v
 - Keep schema changes additive. Rolling back the application should not destructively roll back production tables; preserve booking/payment and verification evidence.
 - Launch only on a narrow invitation-controlled corridor; manually test real devices, booking consent, vehicle mismatches, missed pickups and reporting.
 - Do not enable real payments until signed gateway webhooks, reconciliation, refunds, commercial compliance and dispute handling are implemented.
+
+## Staff review screen
+
+The hidden `#/staff` web route is available only to accounts whose API tokens contain the `v2:staff` scope. It lists pending driver and vehicle applications and open safety cases, with explicit reviewer decisions and case notes. The server independently enforces staff authorization on every API request. The route does not imply emergency dispatch or independent proof verification.

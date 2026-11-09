@@ -19,7 +19,8 @@ const routes = {
   verification: () => import('./screens/verification.js'),
   recurring: () => import('./screens/recurring.js'),
   circles: () => import('./screens/circles.js'),
-  safety: () => import('./screens/safety.js')
+  safety: () => import('./screens/safety.js'),
+  staff: () => import('./screens/staff.js')
 };
 const groups = {
   results: 'find',
@@ -52,7 +53,8 @@ const titles = {
   verification: 'Verification',
   recurring: 'Recurring rides',
   circles: 'My circles',
-  safety: 'Safety reports'
+  safety: 'Safety reports',
+  staff: 'Staff review'
 };
 export const go = route => {
   location.hash = '/' + route

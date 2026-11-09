@@ -48,6 +48,12 @@ export function liveClient(token, origin) {
   const ticket = (id, tid) => path(id) + '/tickets/' + encodeURIComponent(tid);
   return {
     mode: 'live',
+    staffDrivers: signal => call('/v1/staff/driver-verifications','GET',null,{signal}),
+    staffVehicles: signal => call('/v1/staff/vehicles','GET',null,{signal}),
+    staffReports: signal => call('/v1/staff/safety-reports','GET',null,{signal}),
+    staffDriverDecision: (id,decision) => call('/v1/staff/driver-verifications/'+encodeURIComponent(id)+'/decision','POST',{decision}),
+    staffVehicleDecision: (id,decision) => call('/v1/staff/vehicles/'+encodeURIComponent(id)+'/decision','POST',{decision}),
+    staffReviewCase: (id,data) => call('/v1/staff/safety-reports/'+encodeURIComponent(id)+'/review','POST',data),
     profile: signal => call('/v1/me/profile','GET',null,{signal}),
     saveProfile: data => call('/v1/me/profile','PUT',data),
     driverEligibility: signal => call('/v1/me/driver-eligibility','GET',null,{signal}),
