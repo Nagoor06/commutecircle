@@ -65,6 +65,29 @@ def mine(principal: RideReader, session: DatabaseSession, response: Response):
     return [summary(row) for row in rows]
 
 
+@router.get("/staff/safety-reports")
+def review_queue(principal: RideReader, session: DatabaseSession, response: Response):
+    staff(principal)
+    response.headers["Cache-Control"] = "no-store"
+    rows = session.scalars(
+        select(SafetyReport).where(SafetyReport.state.in_(("open", "reviewing")))
+        .order_by(SafetyReport.created_at).limit(50)
+    )
+    return [summary(row) for row in rows]
+
+
+@router.get("/staff/safety-reports/{report_id}/events")
+def case_history(report_id: UUID, principal: RideReader, session: DatabaseSession, response: Response):
+    staff(principal)
+    response.headers["Cache-Control"] = "no-store"
+    if not session.get(SafetyReport, str(report_id)):
+        raise HTTPException(404, "Report not found")
+    rows = session.scalars(select(SafetyCaseEvent).where(SafetyCaseEvent.report_id == str(report_id))
+                           .order_by(SafetyCaseEvent.created_at).limit(100))
+    return [{"state": e.state, "note": e.note, "reviewer": e.reviewer,
+             "created_at": e.created_at} for e in rows]
+
+
 @router.post("/staff/safety-reports/{report_id}/review")
 def review(report_id: UUID, data: CaseUpdate, principal: RideWriter, session: DatabaseSession):
     staff(principal)
