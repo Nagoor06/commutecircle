@@ -15,7 +15,11 @@ const routes = {
   share: () => import('./screens/share.js'),
   'track-driver': () => import('./screens/track-driver.js'),
   track: () => import('./screens/track.js'),
-  help: () => import('./screens/help.js')
+  help: () => import('./screens/help.js'),
+  verification: () => import('./screens/verification.js'),
+  recurring: () => import('./screens/recurring.js'),
+  circles: () => import('./screens/circles.js'),
+  safety: () => import('./screens/safety.js')
 };
 const groups = {
   results: 'find',
@@ -24,7 +28,11 @@ const groups = {
   share: 'trips',
   'track-driver': 'trips',
   chat: 'messages',
-  book: 'find'
+  book: 'find',
+  verification: 'profile',
+  recurring: 'trips',
+  circles: 'circles',
+  safety: 'trips'
 };
 const titles = {
   find: 'Book a ride',
@@ -40,7 +48,11 @@ const titles = {
   share: 'Share my trip',
   track: 'Follow a trip',
   'track-driver': 'Live vehicle location',
-  help: 'Help'
+  help: 'Help',
+  verification: 'Verification',
+  recurring: 'Recurring rides',
+  circles: 'My circles',
+  safety: 'Safety reports'
 };
 export const go = route => {
   location.hash = '/' + route
