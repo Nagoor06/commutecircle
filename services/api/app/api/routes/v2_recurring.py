@@ -70,7 +70,7 @@ def view(row):
 def create(data: RecurringInput, principal: RideWriter, session: DatabaseSession):
     with session.begin():
         if data.booking_mode == "approval" or required_verification():
-            eligible_driver(session, principal, str(data.vehicle_id) if data.vehicle_id else None)
+            eligible_driver(session, principal, str(data.vehicle_id) if data.vehicle_id else None, data.capacity)
         if data.circle_id:
             member = session.get(CircleMember, (str(data.circle_id), principal.issuer, principal.subject))
             if not member or member.role != "owner":
@@ -122,7 +122,7 @@ def materialize(rid: UUID, principal: RideWriter, session: DatabaseSession):
         if not row.active:
             raise HTTPException(409, "Template is inactive")
         if row.booking_mode == "approval" or required_verification():
-            eligible_driver(session, principal, row.vehicle_id)
+            eligible_driver(session, principal, row.vehicle_id, row.capacity)
         today = datetime.now(ZoneInfo(row.timezone)).date()
         start = max(row.starts_on, today)
         end = min(row.ends_on, today + timedelta(days=13))
