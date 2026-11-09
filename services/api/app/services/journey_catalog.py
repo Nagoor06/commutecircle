@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from sqlalchemy import func, select
 
 from app.models import Booking, Commute, Journey, Ride, Ticket
+from app.models.v2 import CircleMember
 from app.schemas.journey import Place
 from app.services import journeys
 from app.services.locations import distance_m
@@ -63,6 +64,9 @@ def views(session, candidates, principal, now=None):
                 capacity=j.capacity,
                 departure=journeys.utc(j.departure),
                 cancelled=j.cancelled,
+                booking_mode=j.booking_mode,
+                vehicle_id=j.vehicle_registration_id,
+                circle_id=j.circle_id if driver or (principal and session.get(CircleMember, (j.circle_id, principal.issuer, principal.subject))) else None,
                 owner=driver,
                 free=journeys.inventory(j, tickets, now),
                 tickets=[
@@ -126,7 +130,7 @@ def segment(row, query, start, end, commute=None):
 def search(session, principal, query):
     now = datetime.now(UTC)
     start = max(now, query.after or now)
-    stmt = select(Journey).where(Journey.cancelled.is_(False), Journey.last_stop_at > start)
+    stmt = select(Journey).where(Journey.cancelled.is_(False), Journey.circle_id.is_(None), Journey.last_stop_at > start)
     if query.before:
         stmt = stmt.where(Journey.departure < query.before)
     saved = (
