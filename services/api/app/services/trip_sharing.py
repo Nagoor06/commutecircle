@@ -25,7 +25,7 @@ def eligible(session, journey, ticket_id, principal=None):
             or (principal and not journeys.is_rider(ticket, principal))
         ):
             raise HTTPException(404, "Reservation not found")
-        if ticket.state != "paid" or journey.cancelled:
+        if ticket.state != "paid" or ticket.travel_state == "completed" or journey.cancelled:
             raise HTTPException(410, "This trip-sharing link has ended.")
         return ticket.board, ticket.alight
     if principal and not journeys.is_driver(journey, principal):
