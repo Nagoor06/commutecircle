@@ -44,13 +44,13 @@ def upgrade():
         sa.CheckConstraint("status IN ('pending','approved','rejected','suspended')", name="valid_vehicle_verification"),
     )
     op.create_index("ix_verified_vehicles_owner", "verified_vehicles", ["issuer", "subject"])
-    op.add_column("journeys", sa.Column("vehicle_registration_id", sa.String(36)))
-    op.create_foreign_key("fk_journeys_v2_vehicle", "journeys", "verified_vehicles", ["vehicle_registration_id"], ["id"])
+    with op.batch_alter_table("journeys") as batch:
+        batch.add_column(sa.Column("vehicle_registration_id", sa.String(36), sa.ForeignKey("verified_vehicles.id")))
 
 
 def downgrade():
-    op.drop_constraint("fk_journeys_v2_vehicle", "journeys", type_="foreignkey")
-    op.drop_column("journeys", "vehicle_registration_id")
+    with op.batch_alter_table("journeys") as batch:
+        batch.drop_column("vehicle_registration_id")
     op.drop_table("verified_vehicles")
     op.drop_table("driver_verifications")
     op.drop_table("commuter_profiles")
