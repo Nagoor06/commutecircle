@@ -61,14 +61,30 @@ export async function mount(ctx) {
       <section class="panel checkout-pay"><div class="panel-cap">${icon('wallet')} Sandbox payment</div><div class="fare-line"><span>Segment fare</span><b>${money(t.fare_paise)}</b></div>
       <div class="ledger"><span>Charged</span><b>${money(t.charged_paise)}</b><span>Refunded</span><b>${money(t.refund_paise)}</b></div>
       ${held?`<p class="hold-clock">${icon('clock')} Seat held for <b data-clock></b></p><button data-pay class="btn primary wide">Pay ${money(t.fare_paise)} in sandbox ${icon('arrow')}</button>`:''}
+      ${state==='requested'?'<p>Waiting for driver approval. Refresh this receipt to see whether a checkout hold is available.</p>':''}
       ${state==='expired'?`<p>Your hold expired. No payment was taken.</p><a class="btn secondary wide" href="${esc(rideHref(jid,t.board,t.alight))}">Check availability</a>`:''}
-      ${['held','paid'].includes(state)&&+pickupAt(j,t.board)>Date.now()?'<button data-cancel class="text-btn cancel">Cancel reservation</button>':''}
+      ${['requested','held','paid'].includes(state)&&+pickupAt(j,t.board)>Date.now()?'<button data-cancel class="text-btn cancel">Cancel reservation</button>':''}
       ${t.charged_paise?`<a class="btn secondary wide" href="#/chat/${jid}/${tid}">Message driver</a>`:''}
       ${state==='paid'?`<a class="btn secondary wide" href="#/track-driver/${jid}/${tid}">Track vehicle</a><a class="btn secondary wide" href="#/share/${jid}?ticket=${tid}">Share my trip</a>`:''}
       ${state==='driver_cancelled'?'<button class="btn primary wide" data-alternatives>Find another ride</button>':''}
+      ${state==='paid'&&t.travel_state!=='completed'?'<button type="button" data-pin class="btn secondary wide">Show boarding PIN</button><div data-pin-output role="status"></div>':''}
+      ${state==='paid'&&t.travel_state==='boarded'?'<button type="button" class="btn secondary wide" data-complete>Confirm trip complete</button>':''}
+      ${['paid','exited'].includes(state)?'<a class="text-btn" href="#/safety?journey='+encodeURIComponent(jid)+'">Report a safety concern</a>':''}
       ${!held?'<a class="text-btn" href="#/trips">View my trips →</a>':''}
       ${held?'<p class="fine">Choose email or phone confirmations in <a href="#/profile">My profile</a> before booking.</p>':'<section class="receipt-alerts" data-booking-alerts aria-live="polite"></section>'}${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
     refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
+    const pinButton=root.querySelector('[data-pin]');
+    if(pinButton)pinButton.onclick=()=>pending(pinButton,async()=>{
+      const result=await api.boardingPin(jid,tid);
+      const output=root.querySelector('[data-pin-output]');
+      if(output)output.textContent='Show this one-time PIN to the driver: '+result.pin+'. Expires '+new Date(result.expires_at).toLocaleTimeString()+'.';
+    },e=>notice(root,e,'error'));
+    const completeButton=root.querySelector('[data-complete]');
+    if(completeButton)completeButton.onclick=()=>pending(completeButton,async()=>{
+      await api.complete(jid,tid);
+      const fresh=await api.detail(jid,signal);
+      if(!signal.aborted){ticket=fresh.tickets.find(x=>x.id===tid);paint();}
+    },e=>notice(root,e,'error'));
     const alternatives = root.querySelector('[data-alternatives]');
     if (alternatives) alternatives.onclick = () => { ctx.state.query={origin:stopFromPlace(j.stops[t.board]),destination:stopFromPlace(j.stops[t.alight])}; ctx.go('results'); };
     const meeting = root.querySelector('.meeting');
