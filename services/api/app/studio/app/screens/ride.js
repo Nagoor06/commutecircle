@@ -54,7 +54,7 @@ export async function mount(ctx) {
     <aside class="panel booking-summary"><div class="section-index"><span class="index-dot"></span> Your segment</div><h2>Reserve a seat</h2>
     <label class="field">Board at<select data-from>${options(j.stops.slice(0,-1))}</select></label>
     <label class="field">Leave at<select data-to>${options(j.stops)}</select></label>
-    <div data-fare></div>${policy()}<button data-book class="btn primary wide"></button>
+    <div data-fare></div>${policy()}${j.booking_mode==='approval'?'<label class="checkline"><input type="checkbox" data-consent> I agree to the shown fare, pickup details and driver approval process.</label>':''}<button data-book class="btn primary wide"></button>
     <small class="fine">Sandbox checkout · No real money is collected.</small>
     <div data-notice role="status" hidden></div></aside></div>`;
   const from = root.querySelector('[data-from]'),
@@ -62,7 +62,7 @@ export async function mount(ctx) {
     book = root.querySelector('[data-book]');
 
   function active(t) {
-    return ['paid', 'held'].includes(t.state) && (t.state !== 'held' || Date.parse(t.expires) > Date.now())
+    return ['paid', 'held', 'requested'].includes(t.state) && (t.state !== 'held' || Date.parse(t.expires) > Date.now())
   }
 
   function render() {
@@ -77,7 +77,8 @@ export async function mount(ctx) {
     root.querySelector('[data-fare]').innerHTML =
       `<div class="fare-line"><span>Segment fare</span><b>${money(fare(j,a,b))}</b></div><p class="meta">${(j.stops[b].metres-j.stops[a].metres)/1000} km · ${esc(clock(pickupAt(j,a)))} pickup · ${n} seats</p>`;
     book.textContent = j.owner ? 'Manage your offer' : prior ? (prior.state === 'paid' ? 'Open receipt' :
-      'Continue checkout') : closed ? 'Booking closed' : n ? (auth.signed ? 'Hold one seat' : 'Sign in to book') : 'Segment is full';
+      prior.state === 'requested' ? 'View request' : 'Continue checkout') : closed ? 'Booking closed' : n ?
+      (auth.signed ? j.booking_mode==='approval'?'Request driver approval':'Hold one seat' : 'Sign in to book') : 'Segment is full';
     book.disabled = !j.owner && !prior && (closed || n < 1);
     book.onclick = () => pending(book, async () => {
       if (j.owner) {
@@ -91,7 +92,12 @@ export async function mount(ctx) {
       if (!auth.signed) { auth.login(); return; }
       const key = j.id + ':' + a + ':' + b;
       if (!state.checkoutKeys.has(key)) state.checkoutKeys.set(key, requestId());
-      const ticket = await api.hold(j.id, a, b, state.checkoutKeys.get(key));
+      if(j.booking_mode==='approval'&&!root.querySelector('[data-consent]')?.checked){
+        throw Error('Confirm the fare, pickup and approval policy before requesting.');
+      }
+      const ticket = j.booking_mode==='approval'
+        ? await api.requestSeat(j.id,a,b,state.checkoutKeys.get(key))
+        : await api.hold(j.id, a, b, state.checkoutKeys.get(key));
       if (['expired', 'rider_cancelled', 'driver_cancelled'].includes(ticket.state)) {
         state.checkoutKeys.delete(key);
         throw Error('The earlier reservation closed. Try again for a new hold.');
