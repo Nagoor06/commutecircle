@@ -36,13 +36,15 @@ def upgrade():
         sa.Column("accepted_at", sa.DateTime(timezone=True)),
     )
     op.create_index("ix_circle_invitations_circle", "circle_invitations", ["circle_id"])
-    op.add_column("journeys", sa.Column("circle_id", sa.String(36), sa.ForeignKey("commute_circles.id")))
-    op.create_index("ix_journeys_circle_id", "journeys", ["circle_id"])
+    with op.batch_alter_table("journeys") as batch:
+        batch.add_column(sa.Column("circle_id", sa.String(36), sa.ForeignKey("commute_circles.id")))
+        batch.create_index("ix_journeys_circle_id", ["circle_id"])
 
 
 def downgrade():
-    op.drop_index("ix_journeys_circle_id", "journeys")
-    op.drop_column("journeys", "circle_id")
+    with op.batch_alter_table("journeys") as batch:
+        batch.drop_index("ix_journeys_circle_id")
+        batch.drop_column("circle_id")
     op.drop_table("circle_invitations")
     op.drop_table("circle_members")
     op.drop_table("commute_circles")
