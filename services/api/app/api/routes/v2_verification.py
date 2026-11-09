@@ -97,6 +97,24 @@ def eligibility(principal: RideReader, session: DatabaseSession, response: Respo
     return {"driver_status": row.status if row else "unverified", "vehicles": [visible_vehicle(v, True) for v in vehicles], "can_offer": bool(row and row.status == "approved" and any(v.status == "approved" for v in vehicles))}
 
 
+@router.get("/staff/driver-verifications")
+def pending_drivers(principal: RideReader, session: DatabaseSession, response: Response):
+    staff(principal)
+    response.headers["Cache-Control"] = "no-store"
+    rows = session.scalars(select(DriverVerification).where(DriverVerification.status == "pending").limit(50))
+    return [{"issuer": r.issuer, "subject": r.subject,
+             "status": r.status, "evidence_reference": r.evidence_reference} for r in rows]
+
+
+@router.get("/staff/vehicles")
+def pending_vehicles(principal: RideReader, session: DatabaseSession, response: Response):
+    staff(principal)
+    response.headers["Cache-Control"] = "no-store"
+    rows = session.scalars(select(VerifiedVehicle).where(VerifiedVehicle.status == "pending").limit(50))
+    return [{"id": r.id, "issuer": r.issuer, "subject": r.subject,
+             **visible_vehicle(r, True)} for r in rows]
+
+
 @router.post("/staff/driver-verifications/{subject}/decision")
 def decide_driver(subject: str, data: Decision, principal: RideWriter, session: DatabaseSession):
     staff(principal)
