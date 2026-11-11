@@ -45,3 +45,18 @@ This document describes the **draft** V2 implementation on `feat/commutecircle-v
 ## Staff review screen
 
 The hidden `#/staff` web route is available only to accounts whose API tokens contain the `v2:staff` scope. It lists pending driver and vehicle applications and open safety cases, with explicit reviewer decisions and case notes. The server independently enforces staff authorization on every API request. The route does not imply emergency dispatch or independent proof verification.
+
+## Local setup, version and compatibility
+
+The API metadata version is `0.2.0`; URL paths remain `/v1` for backward
+compatibility. Old Ride/Booking endpoints are marked deprecated in Swagger
+only, not removed. Run `./scripts/configure-local-auth.ps1` (PowerShell) to
+fill missing **public** Auth0 settings in a local `.env`, then
+`docker compose up -d --build`. Register the Auth0 allowed callbacks and
+user-delegated API grants manually in the Auth0 Dashboard; this repository
+cannot configure an external tenant or secret store. `V2_REQUIRE_DRIVER_VERIFICATION`
+defaults to `false` while legacy instant journeys remain compatible.
+
+Manual approval now prevents a staff identity from approving its own driver
+or vehicle application. Staff scopes, access to evidence and real-world
+verification still require operational controls before a public pilot.

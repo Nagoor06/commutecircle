@@ -217,3 +217,38 @@ def test_staff_only_safety_review_events(client, authenticated):
     assert len(events) == 1 and events[0]["state"] == "reviewing"
     assert client.get("/v1/me/safety-reports", headers=outsider).json() == []
     assert len(client.get("/v1/me/safety-reports", headers=reporter).json()) == 1
+
+
+def test_staff_reviewers_cannot_approve_their_own_verifications(client, authenticated):
+    driver = authenticated()
+    self_reviewer = authenticated(scope="rides:read rides:write v2:staff")
+    assert client.post(
+        "/v1/me/driver-verification", headers=driver,
+        json={"evidence_reference": "manual-identity-review-12345"},
+    ).status_code == 202
+    vehicle = client.post(
+        "/v1/me/vehicles", headers=driver,
+        json={
+            "make": "Maruti", "model": "Brezza", "color": "Blue",
+            "registration": "AP01AB1234", "seat_capacity": 3,
+        },
+    )
+    assert vehicle.status_code == 201
+    vid = vehicle.json()["id"]
+    assert client.post(
+        "/v1/staff/driver-verifications/driver-a/decision",
+        headers=self_reviewer, json={"decision": "approved"},
+    ).status_code == 403
+    assert client.post(
+        f"/v1/staff/vehicles/{vid}/decision", headers=self_reviewer,
+        json={"decision": "approved"},
+    ).status_code == 403
+    reviewer = staff(authenticated)
+    assert client.post(
+        "/v1/staff/driver-verifications/driver-a/decision",
+        headers=reviewer, json={"decision": "approved"},
+    ).status_code == 200
+    assert client.post(
+        f"/v1/staff/vehicles/{vid}/decision", headers=reviewer,
+        json={"decision": "approved"},
+    ).status_code == 200

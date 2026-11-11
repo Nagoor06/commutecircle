@@ -183,6 +183,8 @@ def decide_driver(subject: str, data: Decision, principal: RideWriter, session: 
         row = session.get(DriverVerification, (principal.issuer, subject))
         if not row:
             raise HTTPException(404, "Application not found")
+        if (row.issuer, row.subject) == (principal.issuer, principal.subject):
+            raise HTTPException(403, "Self-review is prohibited")
         row.status = data.decision
         row.reviewer, row.reviewed_at = principal.subject, datetime.now(UTC)
     return {"status": row.status}
@@ -197,6 +199,8 @@ def decide_vehicle(
         row = session.get(VerifiedVehicle, str(vehicle_id))
         if not row:
             raise HTTPException(404, "Vehicle not found")
+        if (row.issuer, row.subject) == (principal.issuer, principal.subject):
+            raise HTTPException(403, "Self-review is prohibited")
         row.status = data.decision
         row.reviewer, row.reviewed_at = principal.subject, datetime.now(UTC)
     return {"status": row.status}

@@ -6,6 +6,29 @@ A carpool app for planning a route, publishing offers, reserving a ride segment 
 
 Shared rides and reservations use FastAPI, PostgreSQL and Auth0. Payment accounting remains in sandbox mode. A static deployment without a configured API still provides location planning and explicitly disables shared bookings.
 
+## V2 local setup (Windows PowerShell)
+
+With Docker Desktop running, check out `main` and run the public Auth0
+configuration helper from the project root:
+
+```powershell
+.\scripts\configure-local-auth.ps1
+docker compose up -d --build
+docker compose ps
+```
+
+Open http://localhost:8000/studio/ and http://localhost:8000/docs.
+The helper creates `.env` when missing and fills only blank *public*
+Auth0 settings; it never overwrites passwords or existing provider settings.
+**You must still register the local callbacks and grant API permissions in Auth0.**
+See [Local Auth0 login](docs/local-login.md).
+
+V2 pilot features: driver/vehicle approval, consented seat requests, boarding PIN,
+private safety reports, repeating templates and invite-only commute circles.
+The hidden `#/staff` console requires an independently authorized staff token.
+No real payments, automatic KYC, emergency dispatch or 24/7 staffing are provided.
+See the [V2 release notes](docs/commutecircle-v2.md).
+
 ## Run locally
 
 Requires Docker Engine with Compose:

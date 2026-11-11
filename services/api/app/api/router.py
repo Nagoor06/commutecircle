@@ -25,9 +25,9 @@ from app.api.routes import (
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(pickup_points.router)
-api_router.include_router(rides.router)
-api_router.include_router(bookings.router)
-api_router.include_router(ride_details.router)
+api_router.include_router(rides.router, deprecated=True)
+api_router.include_router(bookings.router, deprecated=True)
+api_router.include_router(ride_details.router, deprecated=True)
 
 api_router.include_router(meeting_notes.router)
 
