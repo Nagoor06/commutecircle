@@ -219,7 +219,6 @@ def test_staff_only_safety_review_events(client, authenticated):
     assert len(client.get("/v1/me/safety-reports", headers=reporter).json()) == 1
 
 
-
 def test_staff_reviewers_cannot_approve_their_own_verifications(client, authenticated):
     driver = authenticated()
     same_account_staff = authenticated(scope="rides:read rides:write v2:staff")
@@ -247,11 +246,7 @@ def test_staff_reviewers_cannot_approve_their_own_verifications(client, authenti
         f"/v1/staff/vehicles/{vehicle_id}/decision",
     )
     for url in paths:
-        denied = client.post(
-            url, headers=same_account_staff, json={"decision": "approved"}
-        )
+        denied = client.post(url, headers=same_account_staff, json={"decision": "approved"})
         assert denied.status_code == 403
-        approved = client.post(
-            url, headers=staff(authenticated), json={"decision": "approved"}
-        )
+        approved = client.post(url, headers=staff(authenticated), json={"decision": "approved"})
         assert approved.status_code == 200
