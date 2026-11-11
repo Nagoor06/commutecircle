@@ -5,26 +5,22 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import IntegrityError
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.models.journey import Journey, Ticket
-from app.models.v2 import DriverVerification, VerifiedVehicle
+from app.schemas.journey import Segment
 from app.services import journeys
-from app.services.v2_common import eligible_driver, verify_access
+from app.services.v2_common import check_booking_eligibility, verify_access
 
 router = APIRouter(prefix="/v1/journeys", tags=["V2 booking approvals"])
-POLICY = "cc-v2-1"
 
 
-class SeatRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class SeatRequest(Segment):
     request_id: UUID
-    board: int = Field(ge=0)
-    alight: int = Field(gt=0)
     consent: Literal[True]
-    consent_version: str = Field(pattern="^cc-v2-1$")
+    consent_version: Literal["cc-v2-1"]
 
 
 def request_receipt(t):
@@ -35,7 +31,7 @@ def request_receipt(t):
         "board": t.board,
         "alight": t.alight,
         "fare_paise": t.fare,
-        "expires": t.expires,
+        "expires": journeys.utc(t.expires),
     }
 
 
@@ -44,33 +40,34 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
     with session.begin():
         j = journeys.locked(session, str(jid))
         verify_access(session, j, principal)
-        driver = session.get(DriverVerification, (j.issuer, j.driver))
-        vehicle = session.get(VerifiedVehicle, j.vehicle_registration_id)
-        if not driver or driver.status != "approved" or not vehicle or vehicle.status != "approved":
-            raise HTTPException(409, "Driver eligibility is under review")
-        if j.booking_mode != "approval" or j.cancelled or journeys.is_driver(j, principal):
-            raise HTTPException(409, "Driver-approved booking unavailable")
         now = datetime.now(UTC)
         previous = session.get(Ticket, str(data.request_id))
         if previous:
             if (
-                not journeys.is_rider(previous, principal)
+                previous.consent_at is None
+                or not journeys.is_rider(previous, principal)
                 or previous.journey_id != j.id
                 or (previous.board, previous.alight) != (data.board, data.alight)
             ):
                 raise HTTPException(409, "Request ID conflict")
             return request_receipt(previous)
-        q = journeys.quote(j, journeys.tickets(session, j), data, now)
-        if not q["seats_available"]:
-            raise HTTPException(409, "Seat unavailable")
-        for t in journeys.tickets(session, j):
+        if j.booking_mode != "approval" or j.cancelled or journeys.is_driver(j, principal):
+            raise HTTPException(409, "Driver-approved booking unavailable")
+        check_booking_eligibility(session, j)
+        rows = journeys.tickets(session, j)
+        q = journeys.quote(j, rows, data, now)
+        for t in rows:
             if (
                 journeys.is_rider(t, principal)
                 and t.board < data.alight
                 and data.board < t.alight
-                and t.state in ("requested", "held", "paid")
+                and journeys.status(t, now) in ("requested", "held", "paid")
             ):
+                if (t.board, t.alight) == (data.board, data.alight):
+                    return request_receipt(t)
                 raise HTTPException(409, "An overlapping request already exists")
+        if not q["seats_available"]:
+            raise HTTPException(409, "Seat unavailable")
         t = Ticket(
             id=str(data.request_id),
             journey_id=j.id,
@@ -89,7 +86,10 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
             consent_pickup_at=q["pickup_at"],
         )
         session.add(t)
-        session.flush()
+        try:
+            session.flush()
+        except IntegrityError as exc:
+            raise HTTPException(409, "Request ID conflict") from exc
         return request_receipt(t)
 
 
@@ -111,17 +111,17 @@ def decision(session, jid, tid, principal, approved):
         if not journeys.is_driver(j, principal):
             raise HTTPException(404, "Journey not found")
         t = session.get(Ticket, tid)
-        if not t or t.journey_id != j.id:
+        if not t or t.journey_id != j.id or t.consent_at is None:
             raise HTTPException(404, "Request not found")
         now = datetime.now(UTC)
-        if t.state == ("held" if approved else "driver_cancelled"):
+        if (approved and t.consent_at and t.state in ("held", "paid", "exited")) or (
+            not approved and t.state == "driver_cancelled"
+        ):
             return journeys.receipt(t, now)
-        if journeys.status(t, now) != "requested" or j.cancelled:
+        if j.booking_mode != "approval" or journeys.status(t, now) != "requested" or j.cancelled:
             raise HTTPException(409, "Request is no longer pending")
         if approved:
-            eligible_driver(session, principal, j.vehicle_registration_id, j.capacity)
-            from app.schemas.journey import Segment
-
+            check_booking_eligibility(session, j)
             q = journeys.quote(
                 j, journeys.tickets(session, j), Segment(board=t.board, alight=t.alight), now
             )

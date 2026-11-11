@@ -5,7 +5,7 @@ Only the owner materializes. Occurrences use existing Journey/Ticket seats and l
 
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Response
@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
+from app.db.session import insert_for
 from app.models.journey import Journey, Ticket
 from app.models.v2 import CircleMember, RecurringException, RecurringRide
 from app.schemas.journey import Stop
@@ -25,6 +26,7 @@ router = APIRouter(prefix="/v1/recurring-rides", tags=["V2 recurring rides"])
 class RecurringInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     stops: list[Stop] = Field(min_length=2, max_length=16)
+    template_id: UUID | None = None
     local_time: time
     timezone: str = "Asia/Kolkata"
     weekdays: set[int] = Field(min_length=1, max_length=7)
@@ -40,9 +42,15 @@ class RecurringInput(BaseModel):
     def valid(self):
         if self.timezone != "Asia/Kolkata":
             raise ValueError("Pilot schedules currently support Asia/Kolkata only")
+        if (
+            self.local_time.tzinfo is not None
+            or self.local_time.second
+            or self.local_time.microsecond
+        ):
+            raise ValueError("Enter a local departure time to the nearest minute")
         if any(d < 0 or d > 6 for d in self.weekdays):
             raise ValueError("Weekdays must be 0 Monday through 6 Sunday")
-        if self.starts_on > self.ends_on or (self.ends_on - self.starts_on).days > 90:
+        if self.starts_on > self.ends_on or (self.ends_on - self.starts_on).days >= 90:
             raise ValueError("Schedule dates must cover at most 90 days")
         if self.stops[0].metres or self.stops[0].minutes:
             raise ValueError("First stop must have zero time and distance")
@@ -81,6 +89,8 @@ def view(row):
 @router.post("", status_code=201)
 def create(data: RecurringInput, principal: RideWriter, session: DatabaseSession):
     with session.begin():
+        if data.ends_on < datetime.now(ZoneInfo(data.timezone)).date():
+            raise HTTPException(422, "Schedule has already ended")
         eligible_driver(
             session,
             principal,
@@ -93,7 +103,7 @@ def create(data: RecurringInput, principal: RideWriter, session: DatabaseSession
             )
             if not member or member.role != "owner":
                 raise HTTPException(404, "Circle not found")
-        row = RecurringRide(
+        values = dict(
             issuer=principal.issuer,
             driver=principal.subject,
             stops=[s.model_dump(exclude_none=True) for s in data.stops],
@@ -104,14 +114,18 @@ def create(data: RecurringInput, principal: RideWriter, session: DatabaseSession
             ends_on=data.ends_on,
             price_paise=data.price_paise,
             capacity=data.capacity,
-            vehicle_id=str(data.vehicle_id) if data.vehicle_id else None,
+            vehicle_id=str(data.vehicle_id),
             booking_mode=data.booking_mode,
             circle_id=str(data.circle_id) if data.circle_id else None,
-            active=True,
-            created_at=datetime.now(UTC),
         )
-        session.add(row)
-        session.flush()
+        rid = str(data.template_id or uuid4())
+        stmt = insert_for(session, RecurringRide).values(
+            id=rid, **values, active=True, created_at=datetime.now(UTC)
+        )
+        session.execute(stmt.on_conflict_do_nothing(index_elements=["id"]))
+        row = session.get(RecurringRide, rid)
+        if any(getattr(row, key) != value for key, value in values.items()):
+            raise HTTPException(409, "Template ID already used for a different schedule")
         result = view(row)
     return result
 
@@ -144,6 +158,13 @@ def exception(
             raise HTTPException(404, "Recurring ride not found")
         if not row.starts_on <= service_date <= row.ends_on:
             raise HTTPException(422, "Date is outside the template")
+        if service_date.weekday() not in row.weekdays:
+            raise HTTPException(422, "The template does not run on this weekday")
+        departure = datetime.combine(
+            service_date, time.fromisoformat(row.local_time), ZoneInfo(row.timezone)
+        )
+        if departure <= datetime.now(UTC):
+            raise HTTPException(409, "This departure has already passed")
         exc = session.get(RecurringException, (str(rid), service_date))
         if exc:
             exc.reason = data.reason

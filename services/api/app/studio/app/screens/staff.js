@@ -18,7 +18,9 @@ export async function mount(ctx) {
       root.innerHTML=head('Trust / Restricted','Staff access required',
         'Verification and incident records are only visible to authorized reviewers.')+
         '<p class="fine">Ask a system administrator to authorize the required staff scope. '+
-        'No account can approve its own verification.</p>';
+        'No account can approve its own verification.</p>' +
+        '<button class="btn secondary" data-staff-signin>Sign in with a reviewer account</button>';
+      root.querySelector('[data-staff-signin]').onclick = () => auth.begin('staff');
       return;
     }
     throw error;

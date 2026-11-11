@@ -97,6 +97,12 @@ export function startRouter(app) {
           'Find a ride');
         return
       }
+      if (app.auth.signed && !app.auth.approvals && ['verification','circles','recurring','safety','staff'].includes(name)) {
+        root.innerHTML = empty('This feature needs the V2 service',
+          'The connected API still supports instant rides. Driver approvals, circles and safety reports need a matching V2 deployment.',
+          '#/trips', 'Open My trips');
+        return;
+      }
       const screen = await routes[name]();
       if (signal.aborted) return;
       await screen.mount({

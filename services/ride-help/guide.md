@@ -1,7 +1,7 @@
 # CommuteCircle rider guide
 
 ## Last seat
-For priced journeys, a hold reserves the selected legs for up to three minutes, ending at boarding time if sooner. When two riders compete for the last overlapping seat, only one hold succeeds. The losing request cannot pay. Repeated payment requests for the same ticket create one sandbox charge. Expired holds cannot be paid. Earlier driver-approved offers use a separate pending-request flow: only an accepted request reserves a seat.
+On an instant ride, a hold reserves the selected legs for up to three minutes. On a driver-approved ride, first accept the fare and pickup details. The driver decides the request in My trips → Driving. Approval holds the seat for up to 15 minutes so the rider can complete sandbox checkout. Both holds end by pickup time. When two riders compete for the last overlapping seat, only one hold succeeds. The losing request cannot pay. Repeated payment requests for the same ticket create one sandbox charge. Expired holds cannot be paid. Earlier driver-approved offers use a separate pending-request flow: only an accepted request reserves a seat.
 
 ## Driver cancellation
 When the driver cancels an upcoming priced journey, active tickets are cancelled together and the ride disappears from search. Paid tickets get a full sandbox refund, including a passenger cancellation fee already recorded on that journey. Unpaid tickets have no charge. Open the receipt and choose Find another ride to search the same public stops. Replacement availability is not guaranteed. Cancelling one passenger ticket affects that ticket; cancelling the journey closes all its tickets.
@@ -34,7 +34,7 @@ After a confirmed priced booking, the passenger and driver can use Booking chat 
 Pickup and drop-off share a street map with independently draggable pins. Search by place name, use coordinates for a public meeting point, or select a nearby public stop. The meeting card can combine the selected public pickup with a landmark you enter. Do not put a residence, phone number or private entrance in the note.
 
 ## Driver reviews
-A passenger with a paid priced segment can rate the driver after its scheduled drop-off, or after a driver-confirmed early exit. Updating the review replaces the earlier score. A driver without reviews is shown as unrated. Ratings do not certify identity or safety.
+For an instant booking, a passenger can rate the driver after scheduled drop-off or a driver-confirmed early exit. For an approval booking, the rider opens a boarding PIN near pickup, the driver confirms it, and the rider confirms completion in the receipt after drop-off or early exit. The review then opens in My trips. Updating the review replaces the earlier score. A driver without reviews is shown as unrated. Ratings do not certify identity or safety.
 
 ## Vehicle condition
 The vehicle card can show make, model, colour, purchase date and driver-reported condition. Quiet ride and air conditioning preferences are driver-reported. Purchase date is when the driver bought the car and does not certify mechanical condition.

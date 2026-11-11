@@ -24,7 +24,7 @@ LABELS = {
 
 
 def enqueue(session, journey, ticket, now):
-    if not ticket.charged:
+    if not ticket.charged and ticket.confirmed_at is None:
         return  # A seat hold is never a successful booking/payment confirmation.
     owner = owner_key(ticket.issuer, ticket.rider)
     pref = session.get(NotificationPreference, owner)
@@ -42,7 +42,8 @@ def enqueue(session, journey, ticket, now):
     origin, destination = journey.stops[ticket.board]["name"], journey.stops[ticket.alight]["name"]
     amount = f"INR {(ticket.charged - ticket.refund) / 100:.2f}"
     refund = f"INR {ticket.refund / 100:.2f}"
-    link = "https://nagoor06.github.io/commutecircle/#/checkout/" + journey.id + "/" + ticket.id
+    studio = os.getenv("PUBLIC_STUDIO_URL") or "http://localhost:8000/studio/"
+    link = f"{studio.rstrip('/')}/#/checkout/{journey.id}/{ticket.id}"
     text = (
         f"CommuteCircle — {label}\nReference: {reference}\n{origin} → {destination}\n"
         f"Pickup: {when}\nSandbox net fare: {amount}; sandbox refund: {refund}.\n"

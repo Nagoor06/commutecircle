@@ -1,16 +1,12 @@
 """Shared V2 permission checks. The JWT issuer + subject is the account identity."""
 
 import os
-from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import select
 
+from app.models.journey import Journey
 from app.models.v2 import CircleMember, DriverVerification, VerifiedVehicle
-
-
-def now():
-    return datetime.now(UTC)
 
 
 def owner(row, p, subject_field="subject"):
@@ -36,6 +32,57 @@ def eligible_driver(session, principal, vehicle_id, capacity=None):
     if capacity is not None and capacity > vehicle.seat_capacity:
         raise HTTPException(422, "More passengers than approved vehicle capacity")
     return vehicle
+
+
+def public_vehicle(journey, registration):
+    if not journey.vehicle_registration_id:
+        return journey.vehicle
+    if not registration or (
+        registration.status != "approved"
+        or (registration.issuer, registration.subject) != (journey.issuer, journey.driver)
+        or journey.capacity > registration.seat_capacity
+    ):
+        return None
+    return {
+        "make": registration.make,
+        "model": registration.model,
+        "color": registration.color,
+        "verified": True,
+    }
+
+
+def bookable_journeys():
+    """SQL predicate shared by discovery, quoting and reservation transitions."""
+    driver = (
+        select(DriverVerification.subject)
+        .where(
+            DriverVerification.issuer == Journey.issuer,
+            DriverVerification.subject == Journey.driver,
+            DriverVerification.status == "approved",
+        )
+        .exists()
+    )
+    vehicle = (
+        select(VerifiedVehicle.id)
+        .where(
+            VerifiedVehicle.id == Journey.vehicle_registration_id,
+            VerifiedVehicle.issuer == Journey.issuer,
+            VerifiedVehicle.subject == Journey.driver,
+            VerifiedVehicle.status == "approved",
+            VerifiedVehicle.seat_capacity >= Journey.capacity,
+        )
+        .exists()
+    )
+    return ((Journey.booking_mode == "instant") & Journey.vehicle_registration_id.is_(None)) | (
+        driver & vehicle
+    )
+
+
+def check_booking_eligibility(session, journey):
+    if journey.booking_mode == "instant" and journey.vehicle_registration_id is None:
+        return
+    if not session.scalar(select(Journey.id).where(Journey.id == journey.id, bookable_journeys())):
+        raise HTTPException(409, "Driver or vehicle eligibility is under review")
 
 
 def verify_access(session, journey, principal, allow_ticket=False):

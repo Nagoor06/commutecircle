@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Response
 from sqlalchemy import delete
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
+from app.db.session import insert_for
 from app.models.commute import Commute
 from app.schemas.commute import CommutePreferences
 
@@ -31,9 +30,8 @@ def save(data: CommutePreferences, principal: RideWriter, session: DatabaseSessi
         workplace=data.workplace.model_dump(exclude_none=True),
         employer=data.employer,
     )
-    insert = pg_insert if session.bind.dialect.name == "postgresql" else sqlite_insert
     with session.begin():
-        stmt = insert(Commute).values(**values)
+        stmt = insert_for(session, Commute).values(**values)
         session.execute(
             stmt.on_conflict_do_update(
                 index_elements=[Commute.issuer, Commute.subject],

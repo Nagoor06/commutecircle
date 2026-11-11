@@ -55,6 +55,7 @@ class Ticket(Base):
     expires: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     fare: Mapped[int]
     charged: Mapped[int] = mapped_column(default=0)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consent_version: Mapped[str | None] = mapped_column(String(24), nullable=True)

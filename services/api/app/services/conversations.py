@@ -49,7 +49,7 @@ def inbox(session, principal, limit=20, offset=0, unread_only=False):
         .join(Journey, Ticket.journey_id == Journey.id)
         .outerjoin(latest, and_(latest.c.ticket_id == Ticket.id, latest.c.position == 1))
         .outerjoin(ChatRead, and_(ChatRead.ticket_id == Ticket.id, ChatRead.role == role))
-        .where(Ticket.charged > 0, or_(driver, rider))
+        .where(or_(Ticket.confirmed_at.is_not(None), Ticket.charged > 0), or_(driver, rider))
     )
     if unread_only:
         query = query.where(unread > 0)

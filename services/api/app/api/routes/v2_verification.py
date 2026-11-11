@@ -9,8 +9,9 @@ from sqlalchemy import select
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
+from app.db.session import insert_for
 from app.models.v2 import CommuterProfile, DriverVerification, VerifiedVehicle
-from app.services.v2_common import staff
+from app.services.v2_common import required_verification, staff
 
 router = APIRouter(prefix="/v1", tags=["V2 verification"])
 
@@ -64,40 +65,43 @@ def profile(principal: RideReader, session: DatabaseSession, response: Response)
 @router.put("/me/profile")
 def save_profile(data: ProfileData, principal: RideWriter, session: DatabaseSession):
     with session.begin():
-        row = session.get(CommuterProfile, (principal.issuer, principal.subject))
-        if row:
-            row.display_name = data.display_name
-        else:
-            session.add(
-                CommuterProfile(
-                    issuer=principal.issuer,
-                    subject=principal.subject,
-                    display_name=data.display_name,
-                    created_at=datetime.now(UTC),
-                )
+        stmt = insert_for(session, CommuterProfile).values(
+            issuer=principal.issuer,
+            subject=principal.subject,
+            display_name=data.display_name,
+            created_at=datetime.now(UTC),
+        )
+        session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["issuer", "subject"], set_={"display_name": data.display_name}
             )
+        )
     return {"display_name": data.display_name}
 
 
 @router.post("/me/driver-verification", status_code=202)
 def apply(data: DriverApplication, principal: RideWriter, session: DatabaseSession):
     with session.begin():
-        row = session.get(DriverVerification, (principal.issuer, principal.subject))
-        if row and row.status in ("approved", "suspended"):
+        submitted = datetime.now(UTC)
+        values = dict(
+            status="pending",
+            evidence_reference=data.evidence_reference,
+            submitted_at=submitted,
+            reviewed_at=None,
+            reviewer=None,
+        )
+        stmt = insert_for(session, DriverVerification).values(
+            issuer=principal.issuer, subject=principal.subject, **values
+        )
+        result = session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["issuer", "subject"],
+                set_=values,
+                where=DriverVerification.status.in_(("pending", "rejected")),
+            ).returning(DriverVerification.status)
+        )
+        if result.scalar_one_or_none() is None:
             raise HTTPException(409, "Existing verification requires staff review")
-        if row:
-            row.status, row.evidence_reference = "pending", data.evidence_reference
-            row.submitted_at, row.reviewed_at, row.reviewer = datetime.now(UTC), None, None
-        else:
-            session.add(
-                DriverVerification(
-                    issuer=principal.issuer,
-                    subject=principal.subject,
-                    status="pending",
-                    evidence_reference=data.evidence_reference,
-                    submitted_at=datetime.now(UTC),
-                )
-            )
     return {"status": "pending", "message": "Application recorded; not verified until reviewed"}
 
 
@@ -132,12 +136,17 @@ def eligibility(principal: RideReader, session: DatabaseSession, response: Respo
                 VerifiedVehicle.issuer == principal.issuer,
                 VerifiedVehicle.subject == principal.subject,
             )
-            .order_by(VerifiedVehicle.submitted_at.desc())
+            .order_by(
+                (VerifiedVehicle.status == "approved").desc(),
+                VerifiedVehicle.submitted_at.desc(),
+                VerifiedVehicle.id,
+            )
             .limit(25)
         )
     )
     return {
         "driver_status": row.status if row else "unverified",
+        "instant_requires_verification": required_verification(),
         "vehicles": [visible_vehicle(v, True) for v in vehicles],
         "can_offer": bool(
             row and row.status == "approved" and any(v.status == "approved" for v in vehicles)

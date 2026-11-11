@@ -5,8 +5,10 @@ export async function mount(ctx){
   const {root,api,auth,signal,query}=ctx;
   if(!api||!auth.signed)return access(ctx,'Safety reports','Sign in to report a problem on a ride you joined or offered.');
   root.innerHTML='<p class="loading">Loading confidential reports…</p>';
-  const [trips,reports]=await Promise.all([api.mine(0,signal),api.safetyReports(signal)]);
+  const [trips,reports]=await Promise.all([api.allMine(signal),api.safetyReports(signal)]);
   if(signal.aborted)return;
+  const selected = query.get('journey');
+  if (selected && !trips.some(j=>j.id===selected)) throw Error('This journey is unavailable for your account.');
   const routes=trips.map(j=>'<option value="'+esc(j.id)+'" '+(query.get('journey')===j.id?'selected':'')+'>'+esc(j.stops[0].name)+' → '+esc(j.stops.at(-1).name)+' · '+esc(j.departure.slice(0,10))+'</option>').join('');
   const history=reports.map(r=>'<article class="passenger-row"><b>'+esc(r.category.replaceAll('_',' '))+'</b><small>'+esc(r.state)+' · '+esc(r.created_at.slice(0,10))+'</small><p>'+esc(r.description)+'</p></article>').join('');
   root.innerHTML=head('Safety / Report','Safety reports','For immediate danger, call local emergency services. This form is not an emergency response service.')+

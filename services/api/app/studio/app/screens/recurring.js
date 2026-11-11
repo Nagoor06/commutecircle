@@ -1,3 +1,4 @@
+import {requestId} from '../data/id.js';
 import {access} from '../components/access.js';
 import {head,esc,notice,pending} from '../ui.js';
 
@@ -9,7 +10,7 @@ export async function mount(ctx){
   const {root,api,auth,signal}=ctx;
   if(!api||!auth.signed)return access(ctx,'Recurring rides','Sign in to manage weekly commutes.');
   root.innerHTML='<p class="loading">Opening recurring schedules…</p>';
-  const [templates,offers,circles,eligibility]=await Promise.all([api.recurringRides(signal),api.mine(0,signal),api.circles(signal),api.driverEligibility(signal)]);
+  const [templates,offers,circles,eligibility]=await Promise.all([api.recurringRides(signal),api.allMine(signal),api.circles(signal),api.driverEligibility(signal)]);
   if(signal.aborted)return;
   const owned=offers.filter(j=>j.owner&&!j.cancelled&&Date.parse(j.departure)>Date.now());
   const vehicles=eligibility.vehicles.filter(v=>v.status==='approved');
@@ -25,20 +26,42 @@ export async function mount(ctx){
     '<label class="field">Visibility<select name="circle"><option value="">Public</option>'+circles.filter(c=>c.role==='owner').map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+' (members only)</option>').join('')+'</select></label>'+
     '<p class="fine">A verified driver and an approved vehicle are required for recurring approval-mode journeys.</p>'+
     '<button class="btn primary" type="submit" '+(!owned.length||!vehicles.length||eligibility.driver_status!=='approved'?'disabled':'')+'>Save recurring template</button>'+
-    (!vehicles.length?'<p><a href="#/verification">Complete verification first →</a></p>':'')+'</form></div><div data-notice role="status" hidden></div>';
+    (!owned.length?'<p><a href="#/offer">Publish a route to use for your schedule</a></p>':'')+
+    (!vehicles.length||eligibility.driver_status!=='approved'?'<p><a href="#/verification">Complete verification first →</a></p>':'')+'</form></div><div data-notice role="status" hidden></div>';
   const form=root.querySelector('[data-create]');
+  function selectRoute() {
+    const route=owned.find(j=>j.id===form.elements.journey.value);
+    if(!route)return;
+    form.elements.time.value=localTime(route.departure);
+    if(route.circle_id && ![...form.elements.circle.options].some(o=>o.value===route.circle_id)) {
+      form.elements.circle.add(new Option('Same private circle as this route',route.circle_id));
+    }
+    form.elements.circle.value=route.circle_id || '';
+    if(route.vehicle_id && vehicles.some(v=>v.id===route.vehicle_id)) form.elements.vehicle.value=route.vehicle_id;
+  }
+  form.elements.journey.onchange=selectRoute;
+  selectRoute();
+  if(ctx.state.recurringNotice){
+    notice(root,ctx.state.recurringNotice,'info');
+    delete ctx.state.recurringNotice;
+  }
+  const templateId=requestId();
   form.onsubmit=e=>{e.preventDefault();pending(e.submitter,async()=>{
     const offer=owned.find(j=>j.id===form.elements.journey.value);
     if(!offer)throw Error('Select an existing published route.');
     const days=[...form.querySelectorAll('[name=day]:checked')].map(el=>Number(el.value));
     if(!days.length)throw Error('Choose at least one day.');
     const created=await api.saveRecurring({
-      stops:offer.stops,local_time:form.elements.time.value+':00',timezone:'Asia/Kolkata',
+      template_id:templateId,stops:offer.stops,local_time:form.elements.time.value+':00',timezone:'Asia/Kolkata',
       weekdays:days,starts_on:form.elements.start.value,ends_on:form.elements.end.value,
       price_paise:offer.price_paise,capacity:offer.capacity,vehicle_id:form.elements.vehicle.value,
       booking_mode:'approval',...(form.elements.circle.value?{circle_id:form.elements.circle.value}:{})
     });
-    await api.materializeRecurring(created.id);
+    try {
+      await api.materializeRecurring(created.id);
+    } catch(error) {
+      ctx.state.recurringNotice='Template saved. Use “Create next 14 days” to retry scheduling. '+error.message;
+    }
     if(!signal.aborted)ctx.render();
   },m=>notice(root,m,'error'));};
   root.querySelectorAll('[data-generate]').forEach(b=>b.onclick=()=>pending(b,async()=>{const result=await api.materializeRecurring(b.dataset.generate);notice(root,result.count+' upcoming journeys created.','info');},m=>notice(root,m,'error')));

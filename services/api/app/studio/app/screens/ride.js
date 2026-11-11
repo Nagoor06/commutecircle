@@ -73,7 +73,7 @@ export async function mount(ctx) {
     const n = free(j, a, b),
       prior = j.tickets.find(t => t.board === a && t.alight === b && active(t));
     const departed = +pickupAt(j, a) <= Date.now();
-    const closed = j.cancelled || departed;
+    const closed = j.cancelled || departed || j.booking_eligible === false;
     root.querySelector('[data-fare]').innerHTML =
       `<div class="fare-line"><span>Segment fare</span><b>${money(fare(j,a,b))}</b></div><p class="meta">${(j.stops[b].metres-j.stops[a].metres)/1000} km · ${esc(clock(pickupAt(j,a)))} pickup · ${n} seats</p>`;
     book.textContent = j.owner ? 'Manage your offer' : prior ? (prior.state === 'paid' ? 'Open receipt' :
@@ -106,12 +106,15 @@ export async function mount(ctx) {
       if (!signal.aborted) location.hash = checkoutHref(j.id, ticket.id);
     }, e => notice(root, e, 'error'));
   }
+  const consent = root.querySelector('[data-consent]');
   from.onchange = () => {
+    if (consent) consent.checked = false;
     a = +from.value;
     if (b <= a) b = a + 1;
     render()
   };
   to.onchange = () => {
+    if (consent) consent.checked = false;
     b = +to.value;
     render()
   };

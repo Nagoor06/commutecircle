@@ -21,8 +21,12 @@ def ready(request: Request):
             connection.execute(select(PickupPoint.id).limit(1))
             connection.execute(select(Ride.seats_capacity).limit(1))
             connection.execute(select(Booking.id).limit(1))
-            connection.execute(select(Journey.vehicle).limit(0))
-            connection.execute(select(Ticket.stars).limit(0))
+            connection.execute(
+                select(Journey.vehicle, Journey.booking_mode, Journey.circle_id).limit(0)
+            )
+            connection.execute(
+                select(Ticket.stars, Ticket.travel_state, Ticket.confirmed_at).limit(0)
+            )
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content={"status": "unavailable"})
     return {"status": "ready"}

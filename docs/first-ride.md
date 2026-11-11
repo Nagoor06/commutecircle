@@ -1,24 +1,18 @@
-# Create your first local demo ride
+# Book your first local ride
 
-Prerequisite: real Auth0 sign-in works in /docs and GET /v1/rides/mine returns 200.
+Start the stack from the repository root with `docker compose up -d --build`. Open [Studio](http://localhost:8000/studio/). Use two separate browser profiles or a private window so the driver and passenger can stay signed in to different accounts.
 
-1. Pull main in GitHub Desktop and run `docker compose up -d --build` from the repository root.
-2. Run this only against your local demo database:
+1. As the driver, open **Offer a ride**. Choose two public meeting points, a future departure, one seat and a full-route fare. Calculate the times or enter increasing distances and minutes manually. Choose **Instant sandbox checkout**, review the offer and publish.
+2. Open **My trips → Driving** and select **View itinerary**. Copy that ride URL into the passenger window, or use **Book a ride** with the same date and stops.
+3. As the passenger, choose the boarding and exit stops, select **Hold one seat**, then pay the displayed fare in sandbox. The receipt shows the amount charged. **My trips → Riding** opens the same receipt.
+4. Refresh the driver's **Driving** tab and expand **Passenger reservations**. To test a refund, cancel the ride before pickup. The passenger receipt should then show **Driver cancelled**, a full sandbox refund and a link to find another ride.
 
-```powershell
-docker compose exec api python -m app.cli.seed_demo --confirm-demo
-```
+## Try a driver-approved ride
 
-The command inserts two synthetic points in **DemoCity**, explicitly named **DEMO ONLY - Pickup A/B**. Their coordinates are fictional and not intended for travel. It prints the actual allocated database IDs and an `example_ride` JSON object with departure two hours ahead. Do not assume IDs are 1 and 2. Copy only the contents of `example_ride` for the POST body.
+As the driver, submit your case reference and vehicle under **Profile → Driver & vehicle verification**. An independently authorized reviewer signs in at [staff review](http://localhost:8000/studio/#/staff) and reviews both submissions. Publish a new ride using **Driver-approved requests** and the approved vehicle. The passenger selects the segment and accepts the displayed fare and pickup. The driver approves in **My trips → Driving**, then the passenger pays from the receipt. The boarding PIN opens 30 minutes before pickup. After the driver confirms boarding, the passenger can confirm completion after drop-off or a driver-confirmed early exit.
 
-Repeat runs reuse the same points and do not overwrite other rows. Conflicting demo names/coordinates abort the transaction. Run one seed process at a time; this is a local setup command, not a concurrent importer. The command performs no HTTP write and requires database access. It never runs automatically at startup or in migrations. Do not run it against production.
+## Check the same data in Swagger
 
-3. Open http://localhost:8000/docs and Authorize again if needed.
-4. Execute GET /v1/pickup-points with city `DemoCity`; expect the two points.
-5. Execute POST /v1/rides with the printed `example_ride` body; expect 201 and a ride ID. The timestamp must still be future. Re-run the seed command for a fresh example if needed. Do not repeatedly POST the same example: offer creation is not idempotent yet.
-6. Execute GET /v1/rides/mine; expect your new offer in the list.
-7. Execute GET /v1/rides with the actual origin_id and destination_id. Leave after/before blank to search the next 24 hours; expect the newly created ride (while its departure remains in the future).
+Use `POST /v1/journeys` to publish and `POST /v1/journeys/search` to find a Studio journey. Sign in as the relevant account and use `GET /v1/journeys/mine` to inspect its tickets. The itinerary URL contains the journey ID.
 
-Report only status codes and response bodies. Do not share Swagger's generated curl command containing its Authorization header. A created offer does not reserve a seat: requests/approval/cancellation are the next milestone.
-
-Before a real pilot, choose a city and curate verified public meeting points. The demo fixtures are not that dataset.
+The older `/v1/rides` endpoints use pickup-point IDs and their own booking records. Existing records appear under **Earlier driver-approved offers** or **Earlier seat requests** in My trips. For a local legacy API test, `docker compose exec api python -m app.cli.seed_demo --confirm-demo` prints two synthetic points and an example request. Studio journeys require no seed command.

@@ -23,7 +23,7 @@ export async function mount(ctx) {
     <aside class="stack"><section class="panel accent-panel"><div class="panel-cap">${icon('shield')} Circle pickup</div><h2>Your pickup is a public place.</h2>
     <p>Drivers see the booked meeting points. Your employer label and saved preferences stay in your account.</p><p>“Find public stops near me” compares device location with our station catalogue in your browser. It sends no device coordinates to the server.</p>
     <p class="fine">Public points are suggestions, not verified safe places. Check access, lighting and the actual meeting spot.</p></section>
-    <a class="btn secondary" href="#/trips">My bookings & offers ${icon('arrow')}</a><a class="btn secondary" href="#/verification">Driver &amp; vehicle verification</a><a class="btn secondary" href="#/recurring">Recurring rides</a><a class="btn secondary" href="#/circles">My private circles</a></aside></div>` + alertsMarkup() + contactsMarkup();
+    <a class="btn secondary" href="#/trips">My bookings & offers ${icon('arrow')}</a>${auth.approvals?`<a class="btn secondary" href="#/verification">Driver &amp; vehicle verification</a><a class="btn secondary" href="#/recurring">Recurring rides</a><a class="btn secondary" href="#/circles">My private circles</a>`:''}</aside></div>` + alertsMarkup() + contactsMarkup();
   const fields = [...root.querySelectorAll('[data-field]')].map((node,i) => attachField(node, {
     initial: (i?saved?.workplace:saved?.pickup) || {name:''}, update:()=>{}, onDraft:()=>{},
     geocoder, signal, info:m=>notice(root,m),

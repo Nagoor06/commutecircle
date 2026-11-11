@@ -13,7 +13,12 @@ from app.schemas.journey import CancelTicket, ExitStop, Hold, Offer, RideSearch,
 from app.schemas.ride_details import Review
 from app.services import journey_catalog as catalog
 from app.services import journeys as service
-from app.services.v2_common import eligible_driver, required_verification, verify_access
+from app.services.v2_common import (
+    bookable_journeys,
+    eligible_driver,
+    required_verification,
+    verify_access,
+)
 
 router = APIRouter(prefix="/v1/journeys", tags=["priced journeys (sandbox)"])
 
@@ -55,7 +60,7 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
                 return replay(existing)
             if data.departure <= datetime.now(UTC):
                 raise HTTPException(422, "Departure must be in the future")
-            if data.booking_mode == "approval" or required_verification():
+            if data.vehicle_id or data.booking_mode == "approval" or required_verification():
                 eligible_driver(
                     session,
                     principal,
@@ -72,7 +77,8 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
                 issuer=principal.issuer,
                 driver=principal.subject,
                 departure=data.departure.astimezone(UTC),
-                last_stop_at=data.departure + timedelta(minutes=data.stops[-1].minutes),
+                last_stop_at=data.departure.astimezone(UTC)
+                + timedelta(minutes=data.stops[-1].minutes),
                 stops=stops,
                 vehicle=vehicle,
                 preferences=preferences,
@@ -101,21 +107,14 @@ def discover(principal: PublicReader, session: DatabaseSession, offset: int = Qu
         .where(
             Journey.cancelled.is_(False),
             Journey.circle_id.is_(None),
+            bookable_journeys(),
             Journey.last_stop_at > datetime.now(UTC),
         )
         .order_by(Journey.departure, Journey.id)
         .offset(offset)
         .limit(50)
     )
-    visible = catalog.views(session, rows, principal)
-    return [
-        row
-        for row in visible
-        if row["booking_mode"] != "approval"
-        or (row["driver_verified"] and row["vehicle_verified"])
-        or row["owner"]
-        or row["tickets"]
-    ]
+    return catalog.views(session, rows, principal)
 
 
 @router.get("/mine")
@@ -146,13 +145,11 @@ def detail(jid: UUID, principal: PublicReader, session: DatabaseSession):
         raise HTTPException(404, "Journey not found")
     verify_access(session, j, principal, allow_ticket=True)
     row = catalog.views(session, [j], principal)[0]
-    if j.booking_mode == "approval" and not (
-        (row["driver_verified"] and row["vehicle_verified"]) or row["owner"] or row["tickets"]
-    ):
-        raise HTTPException(404, "Journey not found")
-    if (j.cancelled or service.utc(j.last_stop_at) <= datetime.now(UTC)) and not (
-        row["owner"] or row["tickets"]
-    ):
+    if (
+        not row["booking_eligible"]
+        or j.cancelled
+        or service.utc(j.last_stop_at) <= datetime.now(UTC)
+    ) and not (row["owner"] or row["tickets"]):
         raise HTTPException(404, "Journey not found")
     row["driver_rating"] = catalog.driver_reviews(session, j.issuer, j.driver)
     return row
@@ -180,8 +177,17 @@ def quote(jid: UUID, data: Segment, principal: PublicReader, session: DatabaseSe
     j = session.get(Journey, str(jid))
     if not j:
         raise HTTPException(404, "Journey not found")
-    verify_access(session, j, principal)
-    return service.quote(j, service.tickets(session, j), data, datetime.now(UTC))
+    verify_access(session, j, principal, allow_ticket=True)
+    rows = service.tickets(session, j)
+    available = session.scalar(select(Journey.id).where(Journey.id == j.id, bookable_journeys()))
+    if (not available or j.cancelled or service.utc(j.last_stop_at) <= datetime.now(UTC)) and not (
+        service.is_driver(j, principal) or any(service.is_rider(t, principal) for t in rows)
+    ):
+        raise HTTPException(404, "Journey not found")
+    result = service.quote(j, rows, data, datetime.now(UTC))
+    if not available:
+        result["seats_available"] = 0
+    return result
 
 
 @router.post("/{jid}/holds")

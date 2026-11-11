@@ -19,7 +19,7 @@ const items = [
     'Set a pickup and drop-off on Find. Results match the stops in travel order, check seats on every leg and exclude boarding times that have passed.'
   ],
   ['What happens to the last seat?',
-    'Only one overlapping reservation can hold it. You have up to three minutes, ending at boarding time if that is sooner. An expired hold cannot be paid.'
+    'Instant checkout holds a seat for up to three minutes. On a driver-approved ride, send a seat request first. Approval starts a hold of up to 15 minutes. Both holds end by pickup time.'
   ],
   ['Will I be charged real money?',
     'Checkout uses sandbox money. A booking is stored against your signed-in account.'
@@ -34,7 +34,7 @@ const items = [
     'Cancel in your receipt. At least 24 hours before pickup is free. From 2 to under 24 hours the fee is 10%, and within 2 hours before pickup it is 25% of your segment fare.'
   ],
   ['What makes someone eligible to review?',
-    'A passenger with a paid segment can review after the scheduled drop-off, or after a driver-confirmed early exit. Updating the review replaces that rating.'
+    'For an instant booking, review the driver after drop-off or early exit. For an approval booking, show the driver your boarding PIN near pickup and confirm completion in your receipt after drop-off or early exit.'
   ]
 ];
 export function mount({

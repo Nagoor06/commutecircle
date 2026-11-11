@@ -42,7 +42,7 @@ determine passenger charges; the confirmed offer's leg distances do.
 Configure OIDC as in [local login](local-login.md). Preserve the Swagger callback
 and add the studio's exact callback, including its trailing slash, to Allowed
 Callback URLs. For a SPA client, add the frontend origin to Allowed Web Origins when that field is exposed. The existing Native client uses full-page PKCE redirects; it does not use silent-auth web-message flows. Run
-`docker compose up --build -d` to apply migration 0007 and start the same-origin
+`docker compose up --build -d` to apply all pending migrations and start the same-origin
 app at http://localhost:8000/studio/. A physical device requires a reachable
 HTTPS deployment and a registered callback.
 
@@ -70,11 +70,17 @@ to the Auth0 application. Free staging databases expire after 30 days.
 `python scripts/package_web.py --out /path/to/new-output --api-origin https://YOUR-ACTUAL-API-ORIGIN`
 generates an index and immutable asset directory. Omit the origin for a planning-only
 deployment. The same buildless modules ship in the API image. CI packages the
-Pages artifact and runs two isolated Chromium sessions against PostgreSQL and
+Pages artifact using the staging origin (overridable via the repository variable `STUDIO_API_ORIGIN`) and runs isolated Chromium sessions against PostgreSQL and
 the real API. Only the identity provider's transport is local to the test;
 signature, scope, ownership, inventory and receipt logic still execute.
 
 The public client has no generated inventory. Disconnected deployments allow
 route planning and offer preparation, and explain why booking/publishing is
 unavailable. All payment endpoints in this release use sandbox accounting.
-There is no live payment provider or automatic passenger notification.
+The API can deliver opted-in booking notifications when the respective provider is configured.
+
+## Check that a hosted frontend and API match
+
+Open the API's `/studio/` to use the frontend shipped with that API. For a separately published Pages build, check the `apiOrigin` in its public `app-settings.json`. At that origin, `/health/ready` checks the database schema, `/openapi.json` identifies the release, and `/v1/studio-config` reports `journey_approvals: true` when the V2 screens are available. A healthy V1 server can still answer its own readiness check. Its OpenAPI routes and configuration distinguish it from V2.
+
+CI packages the web client from this repository. The public Pages copy lives under `commutecircle/` in `Nagoor06/nagoor06.github.io`. When promoting a release, deploy the API from the tested commit, check its version and capability, then publish the Pages artifact from the same commit. Set `PUBLIC_STUDIO_URL` to the receipt destination for that environment.

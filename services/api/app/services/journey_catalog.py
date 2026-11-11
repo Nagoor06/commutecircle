@@ -6,13 +6,14 @@ from heapq import nsmallest
 from itertools import islice
 from types import SimpleNamespace
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, false, func, select
 
 from app.models import Booking, Commute, Journey, Ride, Ticket
 from app.models.v2 import CircleMember, CommuterProfile, DriverVerification, VerifiedVehicle
 from app.schemas.journey import Place
 from app.services import journeys
 from app.services.locations import distance_m
+from app.services.v2_common import bookable_journeys, public_vehicle
 
 PAGE = 20
 PICKUP_RADIUS_M = 2000
@@ -51,33 +52,50 @@ def views(session, candidates, principal, now=None):
     ):
         by_trip[ticket.journey_id].append(ticket)
     result = []
-    identities = {}
-    for j in rows:
-        key = (j.issuer, j.driver)
-        if key not in identities:
-            profile = session.get(CommuterProfile, key)
-            verified = session.get(DriverVerification, key)
-            identities[key] = (
-                profile.display_name if profile else None,
-                bool(verified and verified.status == "approved"),
+    member = (
+        and_(
+            CircleMember.circle_id == Journey.circle_id,
+            CircleMember.issuer == principal.issuer,
+            CircleMember.subject == principal.subject,
+        )
+        if principal
+        else false()
+    )
+    details = {
+        jid: (name, status, vehicle, role)
+        for jid, name, status, vehicle, role in session.execute(
+            select(
+                Journey.id,
+                CommuterProfile.display_name,
+                DriverVerification.status,
+                VerifiedVehicle,
+                CircleMember.role,
             )
-        name, driver_verified = identities[key]
-        verified_car = (
-            session.get(VerifiedVehicle, j.vehicle_registration_id)
-            if j.vehicle_registration_id
-            else None
+            .select_from(Journey)
+            .outerjoin(
+                CommuterProfile,
+                and_(
+                    CommuterProfile.issuer == Journey.issuer,
+                    CommuterProfile.subject == Journey.driver,
+                ),
+            )
+            .outerjoin(
+                DriverVerification,
+                and_(
+                    DriverVerification.issuer == Journey.issuer,
+                    DriverVerification.subject == Journey.driver,
+                ),
+            )
+            .outerjoin(VerifiedVehicle, VerifiedVehicle.id == Journey.vehicle_registration_id)
+            .outerjoin(CircleMember, member)
+            .where(Journey.id.in_([j.id for j in rows]))
         )
-        car_verified = bool(verified_car and verified_car.status == "approved")
-        vehicle = (
-            {
-                "make": verified_car.make,
-                "model": verified_car.model,
-                "color": verified_car.color,
-                "verified": True,
-            }
-            if car_verified
-            else j.vehicle
-        )
+    }
+    for j in rows:
+        name, verification, registered, role = details[j.id]
+        driver_verified = verification == "approved"
+        vehicle = public_vehicle(j, registered)
+        car_verified = bool(vehicle and vehicle.get("verified"))
         driver = journeys.is_driver(j, principal)
         tickets = by_trip[j.id]
         result.append(
@@ -94,19 +112,10 @@ def views(session, candidates, principal, now=None):
                 departure=journeys.utc(j.departure),
                 cancelled=j.cancelled,
                 booking_mode=j.booking_mode,
-                vehicle_id=j.vehicle_registration_id,
-                circle_id=j.circle_id
-                if j.circle_id
-                and (
-                    driver
-                    or (
-                        principal
-                        and session.get(
-                            CircleMember, (j.circle_id, principal.issuer, principal.subject)
-                        )
-                    )
-                )
-                else None,
+                booking_eligible=(j.booking_mode == "instant" and j.vehicle_registration_id is None)
+                or (driver_verified and car_verified),
+                vehicle_id=j.vehicle_registration_id if driver else None,
+                circle_id=j.circle_id if driver or role else None,
                 owner=driver,
                 free=journeys.inventory(j, tickets, now),
                 tickets=[
@@ -169,12 +178,15 @@ def segment(row, query, start, end, commute=None):
 
 def search(session, principal, query):
     now = datetime.now(UTC)
-    start = max(now, query.after or now)
+    start = max(now, query.after.astimezone(UTC) if query.after else now)
     stmt = select(Journey).where(
-        Journey.cancelled.is_(False), Journey.circle_id.is_(None), Journey.last_stop_at > start
+        Journey.cancelled.is_(False),
+        Journey.circle_id.is_(None),
+        Journey.last_stop_at > start,
+        bookable_journeys(),
     )
     if query.before:
-        stmt = stmt.where(Journey.departure < query.before)
+        stmt = stmt.where(Journey.departure < query.before.astimezone(UTC))
     saved = (
         session.get(Commute, (principal.issuer, principal.subject))
         if principal and query.prefer_commute
@@ -192,10 +204,6 @@ def search(session, principal, query):
         while batch := list(islice(candidates, 80)):
             identities = {j.id: (j.issuer, j.driver) for j in batch}
             for row in views(session, batch, principal, now):
-                if row["booking_mode"] == "approval" and not (
-                    row["driver_verified"] and row["vehicle_verified"]
-                ):
-                    continue
                 if any(
                     getattr(query, flag) and not row["preferences"].get(flag)
                     for flag in ("quiet", "air_conditioned")

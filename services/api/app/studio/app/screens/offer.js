@@ -27,13 +27,15 @@ function readOffer(draft){
     if(stops[i].metres<=stops[i-1].metres||stops[i].minutes<=stops[i-1].minutes)throw Error('Distance and time must increase at stop '+(i+1)+'.');
     if(normal(stops[i].name)===normal(stops[i-1].name))throw Error('Adjacent stops need different names.');
   }
-  if(draft.bookingMode==='approval'&&!draft.vehicleId)throw Error('Choose an approved vehicle for driver-approved rides.');
+  if((draft.bookingMode==='approval'||draft.requireVehicle)&&!draft.vehicleId)throw Error('Choose an approved vehicle before publishing this ride.');
+  const approvedVehicle=draft.v2Vehicles.find(v=>v.id===draft.vehicleId);
+  if(approvedVehicle&&Number(draft.seats)>approvedVehicle.seat_capacity)throw Error('This vehicle is approved for '+approvedVehicle.seat_capacity+' passenger seats.');
   if(draft.circleId&&draft.bookingMode!=='approval')throw Error('Private circle offers require driver approval.');
   return {offer_id:draft.key,stops,departure:departure.toISOString(),capacity:Number(draft.seats),
     booking_mode:draft.bookingMode||'instant',
     ...(draft.vehicleId?{vehicle_id:draft.vehicleId}:{}),
     ...(draft.circleId?{circle_id:draft.circleId}:{}),
-    price_paise:Math.round(Number(draft.price)*100),preferences:{quiet:!!draft.quiet,air_conditioned:!!draft.air_conditioned},...(draft.withCar?{vehicle:{...draft.car}}:{})};
+    price_paise:Math.round(Number(draft.price)*100),preferences:{quiet:!!draft.quiet,air_conditioned:!!draft.air_conditioned},...(draft.withCar&&!draft.vehicleId?{vehicle:{...draft.car}}:{})};
 }
 
 function review(ctx,draft){
@@ -54,7 +56,9 @@ function review(ctx,draft){
   }
   publish.onclick=()=>pending(publish,async()=>{
     if(Date.parse(offer.departure)<=Date.now())throw Error('Departure has passed. Edit the time before publishing.');
-    await api.publish(offer);
+    const payload = {...offer};
+    if (!auth.approvals && payload.booking_mode === 'instant') delete payload.booking_mode;
+    await api.publish(payload);
     state.offer=null;
     if(!signal.aborted)go('trips?view=driving');
   },message=>notice(root,message,'error'));
@@ -63,22 +67,33 @@ function review(ctx,draft){
 export async function mount(ctx){
   const {root,state,signal,geocoder,query,go}=ctx;
   const d=state.offer||(state.offer=newDraft(state.route));
-  if(ctx.api&&ctx.auth.signed&&ctx.api.driverEligibility){
+  if(ctx.auth.signed&&!ctx.auth.approvals&&(d.bookingMode==='approval'||d.circleId||d.vehicleId)){
+    root.innerHTML='<section class="panel"><h1>This offer needs the V2 service</h1>'+
+      '<p>The connected API only accepts public instant rides. Your current draft requires approval.</p>'+
+      '<button class="btn secondary" data-new-public>Start a new public offer</button></section>';
+    root.querySelector('[data-new-public]').onclick=()=>{state.offer=null;go('offer');ctx.render();};
+    return;
+  }
+  if(ctx.api&&ctx.auth.signed&&ctx.auth.approvals){
     try{
       const [eligible,circles]=await Promise.all([ctx.api.driverEligibility(signal),ctx.api.circles(signal)]);
       if(signal.aborted)return;
-      d.v2Vehicles=eligible.vehicles.filter(v=>v.status==='approved');
+      d.requireVehicle=eligible.instant_requires_verification;
+      d.v2Vehicles=eligible.driver_status==='approved'?eligible.vehicles.filter(v=>v.status==='approved'):[];
       d.v2Circles=circles;
-    }catch(error){d.v2Vehicles=[];d.v2Circles=[]}
+    }catch(error){if(signal.aborted)return;throw error;}
   }
   if(query.get('step')==='review'&&d.ready){review(ctx,d);return}
-  root.innerHTML=offerForm(d);
+  root.innerHTML=offerForm(d,!ctx.auth.signed||ctx.auth.approvals);
   const form=root.querySelector('[data-offer-form]');
   const rows=root.querySelector('[data-stops]');
   const car=root.querySelector('[data-car]');
   function carFields(){
-    car.hidden=!d.withCar;
-    for(const field of car.querySelectorAll('input,select')){field.disabled=!d.withCar;field.required=d.withCar}
+    const custom=form.elements.withCar;
+    custom.disabled=Boolean(d.vehicleId);
+    const editable=d.withCar&&!custom.disabled;
+    car.hidden=!editable;
+    for(const field of car.querySelectorAll('input,select')){field.disabled=!editable;field.required=editable}
   }
   function summary(){
     root.querySelector('[data-summary]').textContent=(d.stops[0].name||'Pickup')+' → '+(d.stops.at(-1).name||'Drop-off');
@@ -118,6 +133,7 @@ export async function mount(ctx){
       d.car[field.name]=field.value;
     }else if(field.name){
       d[field.name]=field.type==='checkbox'?field.checked:field.value;
+      if(field.name==='vehicleId')carFields();
     }
   };
   root.querySelector('[data-calculate]').onclick=e=>pending(e.currentTarget,async()=>{

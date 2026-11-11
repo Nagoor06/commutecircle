@@ -20,7 +20,7 @@ import {
 } from '../ui.js';
 import {
   pickupAt,
-  ticketLabel
+  ticketProgress
 } from '../data/segments.js';
 import {
   policy,
@@ -43,7 +43,7 @@ export async function mount(ctx) {
   if (signal.aborted) return;
   let ticket = j.tickets.find(t => t.id === tid);
   if (!ticket || j.owner) throw Error('This passenger checkout is unavailable.');
-  let interval, refreshTimer, generation=0, reading=false;
+  let interval, refreshTimer, generation=0, reading=false, displayedProgress;
   signal.addEventListener('abort', () => {clearInterval(interval);clearInterval(refreshTimer)}, {
     once: true
   });
@@ -53,23 +53,25 @@ export async function mount(ctx) {
     const t = ticket;
     const held = t.state === 'held' && Date.parse(t.expires) > Date.now(),
       state = held ? 'held' : t.state === 'held' ? 'expired' : t.state;
+    const progress = ticketProgress(j, {...t, state});
+    displayedProgress = JSON.stringify(progress);
     root.innerHTML = back('#/trips', 'My trips') + head('Passenger / ' + (held ? 'Checkout' : 'Receipt'),
-        held ? 'Review your booking' : ticketLabel[state] || 'Reservation') +
-      `<div class="checkout-layout"><section class="ticket-sheet"><div class="ticket-head"><span class="eyebrow"><i></i> CommuteCircle ticket</span><b class="pill">${esc(ticketLabel[state]||state)}</b></div>
+        held ? 'Review your booking' : progress.label || 'Reservation') +
+      `<div class="checkout-layout"><section class="ticket-sheet"><div class="ticket-head"><span class="eyebrow"><i></i> CommuteCircle ticket</span><b class="pill">${esc(progress.label||state)}</b></div>
       <div class="ticket-route"><span class="point-key">A</span><h2>${esc(j.stops[t.board].name)}</h2><span class="point-key orange">B</span><h2>${esc(j.stops[t.alight].name)}</h2></div>
       <dl class="specs"><div><dt>Pickup</dt><dd>${esc(day(pickupAt(j,t.board)))} · ${esc(clock(pickupAt(j,t.board)))}</dd></div><div><dt>Distance</dt><dd>${(j.stops[t.alight].metres-j.stops[t.board].metres)/1000} km</dd></div><div><dt>Reservation</dt><dd>${esc(t.id.slice(0,8).toUpperCase())}</dd></div></dl></section>
       <section class="panel checkout-pay"><div class="panel-cap">${icon('wallet')} Sandbox payment</div><div class="fare-line"><span>Segment fare</span><b>${money(t.fare_paise)}</b></div>
       <div class="ledger"><span>Charged</span><b>${money(t.charged_paise)}</b><span>Refunded</span><b>${money(t.refund_paise)}</b></div>
       ${held?`<p class="hold-clock">${icon('clock')} Seat held for <b data-clock></b></p><button data-pay class="btn primary wide">Pay ${money(t.fare_paise)} in sandbox ${icon('arrow')}</button>`:''}
-      ${state==='requested'?'<p>Waiting for driver approval. Refresh this receipt to see whether a checkout hold is available.</p>':''}
+      ${state==='requested'?'<p>This receipt updates when the driver decides. An approved request opens checkout for up to 15 minutes.</p>':''}
       ${state==='expired'?`<p>Your hold expired. No payment was taken.</p><a class="btn secondary wide" href="${esc(rideHref(jid,t.board,t.alight))}">Check availability</a>`:''}
-      ${['requested','held','paid'].includes(state)&&+pickupAt(j,t.board)>Date.now()?'<button data-cancel class="text-btn cancel">Cancel reservation</button>':''}
-      ${t.charged_paise?`<a class="btn secondary wide" href="#/chat/${jid}/${tid}">Message driver</a>`:''}
-      ${state==='paid'?`<a class="btn secondary wide" href="#/track-driver/${jid}/${tid}">Track vehicle</a><a class="btn secondary wide" href="#/share/${jid}?ticket=${tid}">Share my trip</a>`:''}
+      ${progress.cancel?'<button data-cancel class="text-btn cancel">Cancel reservation</button>':''}
+      ${progress.chat?`<a class="btn secondary wide" href="#/chat/${jid}/${tid}">Message driver</a>`:''}
+      ${progress.share?`<a class="btn secondary wide" href="#/track-driver/${jid}/${tid}">Track vehicle</a><a class="btn secondary wide" href="#/share/${jid}?ticket=${tid}">Share my trip</a>`:''}
       ${state==='driver_cancelled'?'<button class="btn primary wide" data-alternatives>Find another ride</button>':''}
-      ${state==='paid'&&t.travel_state!=='boarded'&&t.travel_state!=='completed'?'<button type="button" data-pin class="btn secondary wide">Show boarding PIN</button><div data-pin-output role="status"></div>':''}
-      ${state==='paid'&&t.travel_state==='boarded'?'<button type="button" class="btn secondary wide" data-complete>Confirm trip complete</button>':''}
-      ${['paid','exited'].includes(state)?'<a class="text-btn" href="#/safety?journey='+encodeURIComponent(jid)+'">Report a safety concern</a>':''}
+      ${progress.board?'<button type="button" data-pin class="btn secondary wide">Show boarding PIN</button><div data-pin-output role="status"></div>':state==='paid'&&t.travel_state==='awaiting_boarding'&&Date.now()<+pickupAt(j,t.board)?'<p>Your boarding PIN opens 30 minutes before pickup.</p>':''}
+      ${progress.complete?'<button type="button" class="btn secondary wide" data-complete>Confirm trip complete</button>':''}
+      ${ctx.auth.approvals&&['paid','exited'].includes(state)?'<a class="text-btn" href="#/safety?journey='+encodeURIComponent(jid)+'">Report a safety concern</a>':''}
       ${!held?'<a class="text-btn" href="#/trips">View my trips →</a>':''}
       ${held?'<p class="fine">Choose email or phone confirmations in <a href="#/profile">My profile</a> before booking.</p>':'<section class="receipt-alerts" data-booking-alerts aria-live="polite"></section>'}${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
     refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
@@ -134,7 +136,8 @@ export async function mount(ctx) {
     try{
       refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
       const fresh=await api.detail(jid,signal), next=fresh.tickets.find(t=>t.id===tid);
-      if(!signal.aborted&&current===generation&&next&&JSON.stringify(next)!==JSON.stringify(ticket)){
+      if(!signal.aborted&&current===generation&&next&&(JSON.stringify(next)!==JSON.stringify(ticket) ||
+        JSON.stringify(ticketProgress(fresh,next))!==displayedProgress)){
         ticket=next;paint();
       }
     }catch(e){if(!signal.aborted)notice(root,'Could not refresh the reservation. Retry from My trips.','error');}

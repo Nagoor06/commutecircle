@@ -1,4 +1,4 @@
-"""CI-only identity transport for two isolated browsers. The real API validates the signed JWTs."""
+"""CI-only identity transport for isolated browser accounts. The real API validates the signed JWTs."""
 
 import json
 import os
@@ -40,13 +40,13 @@ tokens = {
             sub="ci-" + role,
             iat=now,
             exp=now + timedelta(minutes=15),
-            scope="rides:read rides:write",
+            scope="rides:read rides:write" + (" v2:staff" if role == "reviewer" else ""),
         ),
         key,
         algorithm="RS256",
         headers={"kid": "browser-test"},
     )
-    for role in ("driver", "rider")
+    for role in ("driver", "rider", "approval-driver", "approval-rider", "reviewer")
 }
 # Short-lived, runner-local test tokens. Do not include the file in evidence or artifacts.
 dest = Path(os.environ["CC_BROWSER_IDENTITIES"])
