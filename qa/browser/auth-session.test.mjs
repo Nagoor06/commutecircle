@@ -265,10 +265,13 @@ test('an in-use token can expire without replaying the action that received 401'
     writes++;
     return route.fulfill({status:401, json:{detail:'Expired access token'}});
   });
+  const loadedWithNewToken = page.waitForResponse(response =>
+    response.url() === base + '/v1/circles' && response.request().method() === 'GET' &&
+    response.request().headers().authorization === 'Bearer ' + tokens['session-renewed'] && response.ok());
   await page.getByRole('button', {name:'Create circle', exact:true}).click();
-  await page.waitForFunction(() => document.querySelector('[aria-label="Main navigation"]') &&
-    document.title.startsWith('My circles') && document.querySelector('[data-create] input')?.value === '');
+  await loadedWithNewToken;
   await signed(page);
+  await page.getByLabel('Circle name').waitFor();
   assert.equal(await page.getByLabel('Circle name').inputValue(), '');
   assert.deepEqual(prompts, [null, 'none']);
   assert.equal(writes, 1);
