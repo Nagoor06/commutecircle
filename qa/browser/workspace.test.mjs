@@ -268,8 +268,9 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     assert.equal(await viewer.locator('.vehicle-marker').count(),0,'a rider position must never impersonate the vehicle');
     await rider.locator('#sharing-status').getByRole('button',{name:'Stop sharing',exact:true}).click();
     await rider.locator('main [data-state]').getByText('Sharing is off.',{exact:true}).waitFor();
-    await viewer.getByRole('button',{name:'Refresh location',exact:true}).click();
-    await viewer.getByText('This sharing link has ended. Ask your traveller for a new link.',{exact:true}).waitFor();
+    await viewer.bringToFront();
+    await viewer.getByText('This sharing link has ended. Ask your traveller for a new link.', {exact:true}).waitFor({timeout:15000});
+    assert.equal(await viewer.locator('[data-external]').getAttribute('href'), null);
     await rider.getByRole('button',{name:'Start location sharing',exact:true}).click();
     await rider.locator('main [data-state]').filter({hasText:'Location sharing is on'}).waitFor();
     const secondLink=await rider.getByLabel('Private trip link',{exact:true}).inputValue();
@@ -324,8 +325,9 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       exact: true
     }).click();
     await driver.getByText('No current offers').waitFor();
-    await viewer.getByRole('button',{name:'Refresh location',exact:true}).click();
-    await viewer.getByText('This sharing link has ended. Ask your traveller for a new link.',{exact:true}).waitFor();
+    await viewer.bringToFront();
+    await viewer.getByText('This sharing link has ended. Ask your traveller for a new link.', {exact:true}).waitFor({timeout:15000});
+    assert.equal(await viewer.locator('[data-external]').getAttribute('href'), null);
     await viewerContext.close();
     await rider.getByRole('link', {
       name: 'History',

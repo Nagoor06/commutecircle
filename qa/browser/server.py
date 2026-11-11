@@ -8,14 +8,15 @@ from types import SimpleNamespace
 
 import jwt
 import uvicorn
+from app.main import create_app
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.engine import make_url
 
-from app.main import create_app
-
 url = os.environ["TEST_DATABASE_URL"]
-if not (url == os.environ.get("DATABASE_URL") and make_url(url).database.endswith("_test")):
+if not (
+    url == os.environ.get("DATABASE_URL") and make_url(url).database.endswith("_test")
+):
     raise RuntimeError("Use a disposable test database")
 issuer = "https://identity.test/"
 os.environ.update(
@@ -23,6 +24,7 @@ os.environ.update(
     OIDC_AUDIENCE="cc-ci",
     OIDC_JWKS_URL=issuer + "keys",
     DOCS_OAUTH_CLIENT_ID="cc-browser-ci",
+    WEB_ORIGINS="http://localhost:8765",
 )
 key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 app = create_app(url)
@@ -32,22 +34,37 @@ app.state.token_verifier.jwks = SimpleNamespace(
 )
 app.mount("/commutecircle", StaticFiles(directory="app/studio", html=True))
 now = datetime.now(UTC)
-tokens = {
-    role: jwt.encode(
-        dict(
-            iss=issuer,
-            aud="cc-ci",
-            sub="ci-" + role,
-            iat=now,
-            exp=now + timedelta(minutes=15),
-            scope="rides:read rides:write" + (" v2:staff" if role == "reviewer" else ""),
-        ),
+
+
+def browser_token(role: str, minutes: int = 15) -> str:
+    return jwt.encode(
+        {
+            "iss": issuer,
+            "aud": "cc-ci",
+            "sub": "ci-" + role,
+            "iat": now,
+            "exp": now + timedelta(minutes=minutes),
+            "scope": "rides:read rides:write"
+            + (" v2:staff" if role == "reviewer" else ""),
+        },
         key,
         algorithm="RS256",
         headers={"kid": "browser-test"},
     )
-    for role in ("driver", "rider", "approval-driver", "approval-rider", "reviewer")
+
+
+tokens = {
+    role: browser_token(role)
+    for role in (
+        "driver",
+        "rider",
+        "approval-driver",
+        "approval-rider",
+        "reviewer",
+        "session-rider",
+    )
 }
+tokens["session-renewed"] = browser_token("session-rider", minutes=60)
 # Short-lived, runner-local test tokens. Do not include the file in evidence or artifacts.
 dest = Path(os.environ["CC_BROWSER_IDENTITIES"])
 fd = os.open(dest, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)

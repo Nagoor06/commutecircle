@@ -27,8 +27,7 @@ mounts one screen and cancels work belonging to the previous screen.
 - **Help** contains booking policies and the authenticated local RAG assistant
   when its optional service is enabled.
 
-The browser stores no access tokens in local or session storage. PKCE verifier
-and return route are temporary. A tab keeps its stops, day and filter for up
+Studio keeps you on the same screen when you reload or open a second tab in the same browser profile. Sign out clears the Studio session in those tabs. The browser keeps a random session binding and an account fingerprint in site storage. The API holds the access token in a path-scoped, HttpOnly browser session cookie and verifies it again on recovery. If the cookie is unavailable, Studio makes one top-level PKCE request to the login provider to resume the same account. When the provider requires a login or consent, the sign-in screen keeps your return route. A browser refresh never repeats a booking or payment. The public location viewer opens independently of account recovery. A tab keeps its stops, day and filter for up
 to 30 minutes across a reload or sign-in. Signing out clears this plan. An
 offer awaiting sign-in can also be resumed. The map opens independently of
 the booking API, including while staging is waking up. Search coordinates stay out of document URLs. Tile services receive

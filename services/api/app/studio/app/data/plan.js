@@ -22,5 +22,8 @@ export function rememberPlan({route, date, query}) {
 }
 
 export function forgetPlan() {
-  try { sessionStorage.removeItem(key); } catch {}
+  try {
+    sessionStorage.removeItem(key);
+    sessionStorage.removeItem('cc:offer-signin');
+  } catch {}
 }
