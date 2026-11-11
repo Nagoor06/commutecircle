@@ -69,6 +69,7 @@ export async function mount(ctx) {
             if (past === history) items.push([j, t]);
           }
       }
+      const expanded = new Set([...list.querySelectorAll('.passengers[open]')].map(d=>d.dataset.journey));
       list.replaceChildren();
       if (!items.length) {
         list.innerHTML = empty(driving ? 'No ' + (history ? 'past' : 'current') + ' offers' : 'No ' + (
@@ -130,6 +131,8 @@ export async function mount(ctx) {
         if (driving && j.tickets.length) {
           const detail = document.createElement('details');
           detail.className = 'passengers';
+          detail.dataset.journey = j.id;
+          detail.open = expanded.has(j.id);
           detail.innerHTML = '<summary>Passenger reservations (' + j.tickets.length + ')</summary>';
           for (const ticket of j.tickets) {
             const passenger = ticketProgress(j,ticket);
