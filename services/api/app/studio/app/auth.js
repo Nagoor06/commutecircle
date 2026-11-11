@@ -93,11 +93,14 @@ export async function signIn(session, mode = 'login') {
   const verifier = random(),
     state = random(),
     digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  const route = location.hash.startsWith('#/signin') ?
+    new URLSearchParams(location.hash.split('?')[1]).get('return') || '#/book' : location.hash;
+  const staffLogin = route.split('?')[0] === '#/staff';
   sessionStorage.setItem(savedKey, JSON.stringify({
     verifier,
     state,
     apiOrigin,
-    route: location.hash.startsWith('#/signin') ? new URLSearchParams(location.hash.split('?')[1]).get('return') || '#/book' : location.hash
+    route
   }));
   const url = new URL('authorize', config.issuer);
   url.search = new URLSearchParams({
@@ -105,11 +108,12 @@ export async function signIn(session, mode = 'login') {
     response_type: 'code',
     redirect_uri: callback(),
     audience: config.audience,
-    scope: 'openid email rides:read rides:write',
+    scope: 'openid email rides:read rides:write' + (staffLogin ? ' v2:staff' : ''),
     state,
     code_challenge: base64url(new Uint8Array(digest)),
     code_challenge_method: 'S256'
   });
-  if (mode === 'signup') url.searchParams.set('screen_hint', 'signup');
+  if (mode === 'staff') url.searchParams.set('prompt', 'login');
+  if (mode === 'signup' && !staffLogin) url.searchParams.set('screen_hint', 'signup');
   location.assign(url);
 }

@@ -47,9 +47,11 @@ jobs:
           alembic upgrade head
       - run: pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=85
       - name: Validate browser modules and package the Pages release
+        env:
+          STUDIO_API_ORIGIN: ${{ vars.STUDIO_API_ORIGIN || 'https://commutecircle-staging-api.onrender.com' }}
         run: |
           find app/studio/app -name '*.js' -print0 | xargs -0 -n 1 node --check
-          python ../../scripts/package_web.py --out "$RUNNER_TEMP/cc-pages"
+          python ../../scripts/package_web.py --out "$RUNNER_TEMP/cc-pages" --api-origin "$STUDIO_API_ORIGIN"
       - name: Test mobile and desktop identity, booking and refund flows
         working-directory: .
         env:

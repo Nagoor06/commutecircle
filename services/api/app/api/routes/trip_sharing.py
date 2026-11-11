@@ -3,11 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Path
 from sqlalchemy import delete, select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
+from app.db.session import insert_for
 from app.models import TrustedContact
 from app.schemas.trip_share import ContactInput, LocationUpdate, ShareStart, ShareToken
 from app.services import trip_sharing
@@ -32,9 +31,8 @@ def contacts(principal: RideReader, session: DatabaseSession):
 
 @router.put("/me/trusted-contacts/{slot}")
 def save_contact(slot: Slot, data: ContactInput, principal: RideWriter, session: DatabaseSession):
-    insert = pg_insert if session.bind.dialect.name == "postgresql" else sqlite_insert
     with session.begin():
-        stmt = insert(TrustedContact).values(
+        stmt = insert_for(session, TrustedContact).values(
             issuer=principal.issuer, subject=principal.subject, slot=slot, **data.model_dump()
         )
         session.execute(

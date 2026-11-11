@@ -45,11 +45,14 @@ def create_pin(jid: UUID, tid: UUID, principal: RideWriter, session: DatabaseSes
         now = datetime.now(UTC)
         if not t or t.journey_id != j.id or not journeys.is_rider(t, principal):
             raise HTTPException(404, "Ticket not found")
-        if t.state != "paid" or t.travel_state in ("boarded", "completed") or j.cancelled:
+        if t.state != "paid" or t.travel_state != "awaiting_boarding" or j.cancelled:
             raise HTTPException(409, "Cannot start boarding")
         # Show PIN only shortly before pickup; don't create boarding credentials days early.
         if not -timedelta(minutes=30) <= now - journeys.pickup(j, t.board) <= timedelta(minutes=45):
             raise HTTPException(409, "Boarding window is closed")
+        expires = min(
+            now + timedelta(minutes=5), journeys.pickup(j, t.board) + timedelta(minutes=45)
+        )
         pin = f"{secrets.randbelow(1_000_000):06d}"
         salt = secrets.token_hex(16)
         digest = hashlib.pbkdf2_hmac("sha256", pin.encode(), bytes.fromhex(salt), 200_000).hex()
@@ -59,17 +62,18 @@ def create_pin(jid: UUID, tid: UUID, principal: RideWriter, session: DatabaseSes
                 ticket_id=t.id,
                 salt=salt,
                 digest=digest,
-                expires_at=now + timedelta(minutes=5),
+                expires_at=expires,
                 attempts=0,
             )
             session.add(challenge)
         else:
-            if challenge.attempts >= 5 and challenge.expires_at > now:
+            if challenge.attempts >= 5 and journeys.utc(challenge.expires_at) > now:
                 raise HTTPException(429, "Boarding attempts temporarily locked")
+            attempts = challenge.attempts if journeys.utc(challenge.expires_at) > now else 0
             challenge.salt, challenge.digest = salt, digest
             challenge.expires_at, challenge.attempts, challenge.used_at = (
-                now + timedelta(minutes=5),
-                0,
+                expires,
+                attempts,
                 None,
             )
         return {"pin": pin, "expires_at": challenge.expires_at}
@@ -88,7 +92,7 @@ def board(jid: UUID, tid: UUID, data: Pin, principal: RideWriter, session: Datab
         challenge = session.get(BoardingChallenge, t.id)
         if (
             t.state != "paid"
-            or t.travel_state in ("boarded", "completed")
+            or t.travel_state != "awaiting_boarding"
             or j.cancelled
             or not challenge
             or challenge.used_at

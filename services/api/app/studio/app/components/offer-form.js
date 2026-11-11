@@ -8,7 +8,7 @@ function vehicleFields(car){
   return [['make','Make','Honda',60],['model','Model','City',60],['color','Colour','White',40]].map(([key,label,example,limit])=>
     '<label class="field">'+label+'<input name="'+key+'" maxlength="'+limit+'" placeholder="'+example+'" value="'+esc(car[key])+'"></label>').join('');
 }
-export function offerForm(d){
+export function offerForm(d, approvals = true){
   const seatOptions=options([1,2,3,4,5,6,7,8],d.seats);
   const conditions=options(['excellent','good','fair'],d.car.condition);
   return head('Driver / Create an offer','Offer a ride','Set your stops, departure time and price per seat.')+
@@ -23,11 +23,11 @@ export function offerForm(d){
       <div class="form-grid"><label class="field span-2">Departure · local time<input type="datetime-local" name="time" required value="${esc(d.time)}"></label>
         <label class="field">Full-route fare per seat (₹)<input type="number" min="1" max="100000" step=".01" name="price" required placeholder="200" value="${esc(d.price)}"></label>
         <label class="field">Seats offered<select name="seats">${seatOptions}</select></label></div></section>
-    <section class="panel"><div class="panel-cap">Booking policy</div>
+    ${approvals?`<section class="panel"><div class="panel-cap">Booking policy</div>
       <label class="field">Booking mode<select name="bookingMode"><option value="instant" ${d.bookingMode!=='approval'?'selected':''}>Instant sandbox checkout</option><option value="approval" ${d.bookingMode==='approval'?'selected':''}>Driver-approved requests</option></select></label>
       <label class="field">Approved vehicle<select name="vehicleId"><option value="">Select a verified vehicle</option>${(d.v2Vehicles||[]).map(v=>'<option value="'+esc(v.id)+'" '+(d.vehicleId===v.id?'selected':'')+'>'+esc(v.make+' '+v.model)+'</option>').join('')}</select></label>
       <label class="field">Audience<select name="circleId"><option value="">Public</option>${(d.v2Circles||[]).filter(c=>c.role==='owner').map(c=>'<option value="'+esc(c.id)+'" '+(d.circleId===c.id?'selected':'')+'>'+esc(c.name)+' (private)</option>').join('')}</select></label>
-      <p class="fine">Approval requires staff-verified driver and vehicle. Private circle rides require approval. <a href="#/verification">Manage verification</a>.</p></section>
+      <p class="fine">${d.requireVehicle?'All offers require a verified driver and an approved vehicle.':'Driver-approved rides require a verified driver and an approved vehicle.'} Private circle rides require approval. <a href="#/verification">Manage verification</a>.</p></section>`:'<p class="fine">This service currently supports public instant rides.</p>'}
     <section class="panel"><div class="panel-cap">Ride preferences</div><label class="checkline"><input type="checkbox" name="quiet" ${d.quiet?'checked':''}> ${icon('quiet',18)} <span>Quiet ride · keep calls brief</span></label><label class="checkline"><input type="checkbox" name="air_conditioned" ${d.air_conditioned?'checked':''}> ${icon('snowflake',18)} <span>Air conditioning available</span></label></section>
     <section class="panel"><div class="panel-cap"><span class="step-no">03</span> Vehicle details</div>
       <label class="checkline"><input type="checkbox" name="withCar" ${d.withCar?'checked':''}> Include my vehicle on this offer</label>
@@ -60,5 +60,6 @@ export function offerReview(offer,button){
     <section class="panel"><div class="panel-cap">${icon('car')} Your offer</div>
     <div class="fare-line"><span>Full fare per seat</span><b>${money(offer.price_paise)}</b></div>
     <p>${esc(day(offer.departure))} · ${offer.capacity} seat(s)</p><p class="muted">${esc(car)}</p>
+    <p>Booking: ${offer.booking_mode==='approval'?'Driver approval':'Instant checkout'} · ${offer.circle_id?'Private circle':'Public ride'}</p>
     <button data-publish class="btn primary wide">${esc(button)} ${icon('arrow')}</button><div data-notice role="status" hidden></div></section></div>`;
 }

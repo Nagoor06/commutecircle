@@ -7,7 +7,9 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.models import Journey, Ticket, TripShare
+from app.models.v2 import VerifiedVehicle
 from app.services import journeys
+from app.services.v2_common import public_vehicle
 
 
 def digest(token):
@@ -128,7 +130,7 @@ def view(session, token):
         raise HTTPException(410, "This trip-sharing link has ended.")
     journey = session.get(Journey, share.journey_id)
     a, b = eligible(session, journey, share.ticket_id)
-    return snapshot(share, journey, a, b, now)
+    return snapshot(session, share, journey, a, b, now)
 
 
 def driver_view(session, jid, tid, principal):
@@ -156,21 +158,28 @@ def driver_view(session, jid, tid, principal):
         )
         if not share or expired(share, now):
             return {"state": "off", "position": None}
-        return snapshot(share, journey, a, b, now)
+        return snapshot(session, share, journey, a, b, now)
 
 
-def snapshot(share, journey, a, b, now):
+def snapshot(session, share, journey, a, b, now):
     # A delayed but accepted observation must not look newer than the GPS fix.
     age = (
         (now - min(journeys.utc(share.updated_at), journeys.utc(share.observed_at))).total_seconds()
         if share.updated_at
         else None
     )
+    vehicle = None
+    if not share.ticket_id:
+        registration = (
+            session.get(VerifiedVehicle, journey.vehicle_registration_id)
+            if journey.vehicle_registration_id
+            else None
+        )
+        car = public_vehicle(journey, registration) or {}
+        vehicle = {key: car.get(key) for key in ("make", "model", "color")}
     return {
         "source": "passenger" if share.ticket_id else "driver",
-        "vehicle": None
-        if share.ticket_id
-        else {key: (journey.vehicle or {}).get(key) for key in ("make", "model", "color")},
+        "vehicle": vehicle,
         "stops": [
             {key: stop.get(key) for key in ("name", "lat", "lon")}
             for stop in journey.stops[a : b + 1]

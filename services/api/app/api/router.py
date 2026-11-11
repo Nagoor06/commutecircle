@@ -5,6 +5,7 @@ from app.api.routes import (
     chat,
     commute,
     conversations,
+    earlier_trips,
     health,
     journeys,
     meeting_notes,
@@ -34,6 +35,7 @@ api_router.include_router(meeting_notes.router)
 api_router.include_router(ride_help.router)
 
 api_router.include_router(journeys.router)
+api_router.include_router(earlier_trips.router)
 api_router.include_router(commute.router)
 api_router.include_router(chat.router)
 api_router.include_router(conversations.router)

@@ -1,3 +1,4 @@
+import {bindEarlierTrips} from '../components/earlier-trips.js';
 import {
   access
 } from '../components/access.js';
@@ -14,13 +15,12 @@ import {
   confirmation
 } from '../ui.js';
 import {
-  ticketLabel,
+  ticketProgress,
   pickupAt
 } from '../data/segments.js';
 import {
   rideHref,
-  checkoutHref,
-  vehicleBlock
+  checkoutHref
 } from '../components/ride-summary.js';
 import {
   cancelJourney,
@@ -40,9 +40,9 @@ export async function mount(ctx) {
     `<div class="trip-tools"><div class="tabs"><a href="${path(false,history)}" ${!driving?'aria-current="page"':''}>${icon('ticket',16)} Riding</a><a href="${path(true,history)}" ${driving?'aria-current="page"':''}>${icon('car',16)} Driving</a></div>
     <div class="tabs subtle"><a href="${path(driving,false)}" ${!history?'aria-current="page"':''}>Current</a><a href="${path(driving,true)}" ${history?'aria-current="page"':''}>History</a></div></div>
     <div data-notice role="status" hidden></div><div class="trip-list" aria-live="polite"><p class="loading">Loading trips…</p></div><button data-refresh class="text-btn">${icon('list',15)} Refresh trips</button>
-    ${api.mode==='live'&&driving?'<details class="panel previous"><summary>Earlier driver-approved offers</summary><div data-legacy></div></details>':''}`;
+    ${api.mode==='live'?`<details class="panel previous"><summary>${driving?'Earlier driver-approved offers':'Earlier seat requests'}</summary><div data-legacy></div></details>`:''}`;
   const list = root.querySelector('.trip-list');
-  root.insertAdjacentHTML('beforeend','<p class="fine"><a href="#/recurring">Manage recurring rides</a> · <a href="#/circles">My circles</a> · <a href="#/safety">Safety reports</a></p>');
+  if (ctx.auth.approvals) root.insertAdjacentHTML('beforeend','<p class="fine"><a href="#/recurring">Manage recurring rides</a> · <a href="#/circles">My circles</a> · <a href="#/safety">Safety reports</a></p>');
   let generation = 0;
 
   function button(parent, title, fn, danger = false) {
@@ -55,14 +55,8 @@ export async function mount(ctx) {
   async function refresh() {
     const id = ++generation;
     try {
-      let rows = [],
-        page = [];
-      for (let offset = 0;; offset += 50) {
-        page = await api.mine(offset, signal);
-        if (signal.aborted || id !== generation) return;
-        rows.push(...page);
-        if (page.length < 50) break
-      }
+      const rows = await api.allMine(signal);
+      if (signal.aborted || id !== generation) return;
       const items = [];
       for (const j of rows) {
         if (j.owner !== driving) continue;
@@ -71,9 +65,7 @@ export async function mount(ctx) {
           if (past === history) items.push([j, null]);
         } else
           for (const t of j.tickets) {
-            const past = ['exited', 'expired', 'driver_cancelled', 'rider_cancelled'].includes(t.state) ||
-              t.travel_state==='completed' ||
-              (t.state === 'paid' && !t.travel_state && pickupAt(j, t.alight) <= Date.now());
+            const past = ticketProgress(j,t).past;
             if (past === history) items.push([j, t]);
           }
       }
@@ -88,8 +80,8 @@ export async function mount(ctx) {
       for (const [j, t] of items) {
         const a = t?.board ?? 0,
           b = t?.alight ?? j.stops.length - 1;
-        const status = t ? (t.travel_state === 'completed' || (t.state === 'paid' && !t.travel_state && pickupAt(j, b) <= Date.now()) ? 'Completed' :
-          ticketLabel[t.state]) : j.cancelled ? 'Cancelled' : history ? 'Finished' : 'Listed';
+        const progress = t && ticketProgress(j,t);
+        const status = t ? progress.label : j.cancelled ? 'Cancelled' : history ? 'Finished' : 'Listed';
         const card = document.createElement('article');
         card.className = 'panel trip-card';
         card.innerHTML =
@@ -98,10 +90,10 @@ export async function mount(ctx) {
           <div class="button-row"><a class="btn secondary compact" href="${esc(t?checkoutHref(j.id,t.id):rideHref(j.id))}">${t?(t.state==='held'?'Continue checkout':'View receipt'):'View itinerary'}</a></div>`;
         const actions = card.querySelector('.button-row');
         if(t?.state==='requested') actions.insertAdjacentHTML('beforeend','<p>Awaiting driver approval. No payment has been taken.</p>');
-        if(t?.charged_paise) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/chat/${j.id}/${t.id}">Booking chat</a>`);
-        if(!history && t?.state==='paid') actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/track-driver/${j.id}/${t.id}">Track vehicle</a>`);
-        if(!history && !j.cancelled && (driving || t?.state==='paid')) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/share/${j.id}${t?'?ticket='+t.id:''}">Share my trip</a>`);
-        if (driving && !j.cancelled && Date.parse(j.departure) > Date.now()) button(actions,
+        if(progress?.chat) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/chat/${j.id}/${t.id}">Booking chat</a>`);
+        if(progress?.share) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/track-driver/${j.id}/${t.id}">Track vehicle</a>`);
+        if((driving && !history && !j.cancelled) || progress?.share) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/share/${j.id}${t?'?ticket='+t.id:''}">Share my trip</a>`);
+        if (driving && !j.cancelled && !j.tickets.some(t=>t.travel_state==='boarded') && Date.parse(j.departure) > Date.now()) button(actions,
           'Cancel ride', async () => {
             if (await cancelJourney(api, j)) await refresh()
           }, true);
@@ -140,24 +132,24 @@ export async function mount(ctx) {
           detail.className = 'passengers';
           detail.innerHTML = '<summary>Passenger reservations (' + j.tickets.length + ')</summary>';
           for (const ticket of j.tickets) {
+            const passenger = ticketProgress(j,ticket);
             const row = document.createElement('div');
             row.className = 'passenger-row';
             row.innerHTML =
               `<b>${esc(j.stops[ticket.board].name)} → ${esc(j.stops[ticket.alight].name)}</b>
-              <small>${esc(ticketLabel[ticket.state])} · ${money(ticket.charged_paise)} charged · ${money(ticket.refund_paise)} refunded</small>`;
-            if(ticket.state==='paid' && ticket.travel_state!=='boarded' && ticket.travel_state!=='completed' && pickupAt(j,ticket.board).getTime()-Date.now()<30*60000 && Date.now()-pickupAt(j,ticket.board).getTime()<45*60000){
+              <small>${esc(passenger.label)} · ${money(ticket.charged_paise)} charged · ${money(ticket.refund_paise)} refunded</small>`;
+            if(passenger.board){
               const form=document.createElement('form');
               form.innerHTML='<label class="field">Passenger boarding PIN<input name="pin" pattern="[0-9]{6}" minlength="6" maxlength="6" inputmode="numeric" autocomplete="off" required></label><button class="btn secondary compact" type="submit">Confirm boarding</button>';
               form.onsubmit=e=>{e.preventDefault();pending(e.submitter,async()=>{await api.board(j.id,ticket.id,form.elements.pin.value);form.elements.pin.value='';await refresh();},m=>notice(root,m,'error'));};
               row.append(form);
             }
-            if(ticket.charged_paise) row.insertAdjacentHTML('beforeend', `<a class="text-btn" href="#/chat/${j.id}/${ticket.id}">Passenger chat</a>`);
-            if (['held', 'paid'].includes(ticket.state) && pickupAt(j, ticket.board) > Date.now()) button(
+            if(passenger.chat) row.insertAdjacentHTML('beforeend', `<a class="text-btn" href="#/chat/${j.id}/${ticket.id}">Passenger chat</a>`);
+            if (passenger.cancel && ticket.state!=='requested') button(
               row, 'Cancel and refund', async () => {
                 if (await cancelTicket(api, j, ticket)) await refresh()
               }, true);
-            if (ticket.state === 'paid' && ticket.alight - ticket.board > 1 && ticket.travel_state !== 'completed' && pickupAt(j, ticket
-              .board) <= Date.now() && pickupAt(j, ticket.alight) > Date.now()) {
+            if (passenger.exit) {
               const label = document.createElement('label');
               label.className = 'field';
               label.textContent = 'Actual exit stop';
@@ -189,45 +181,6 @@ export async function mount(ctx) {
     }
   }
   root.querySelector('[data-refresh]').onclick = refresh;
-  const previous = root.querySelector('.previous');
-  if (previous) previous.ontoggle = async () => {
-    if (!previous.open || previous.dataset.loaded) return;
-    const target = previous.querySelector('[data-legacy]');
-    target.textContent = 'Loading…';
-    try {
-      const rows = await api.unpriced();
-      if (signal.aborted) return;
-      target.replaceChildren();
-      if (!rows.length) target.textContent = 'No earlier offers.';
-      for (const r of rows) {
-        const row = document.createElement('article');
-        row.className = 'passenger-row';
-        const title = document.createElement('b');
-        title.textContent = 'Ride · ' + day(r.departure_at) + ' · ' + clock(r.departure_at);
-        row.append(title);
-        button(row, 'Vehicle & rating', async () => {
-          const d = await api.oldDetail(r.id);
-          row.querySelector('.old-detail')?.remove();
-          const info = document.createElement('div');
-          info.className = 'old-detail';
-          info.innerHTML = vehicleBlock(d);
-          row.append(info)
-        });
-        if (Date.parse(r.departure_at) > Date.now()) button(row, 'Cancel earlier ride', async () => {
-          if (await confirmation('Cancel this ride?', 'This closes its active bookings.',
-              'Cancel ride', {
-                danger: true
-              })) {
-            await api.oldCancel(r.id);
-            notice(root, 'Ride cancelled.')
-          }
-        }, true);
-        target.append(row);
-      }
-      previous.dataset.loaded = '1';
-    } catch (e) {
-      target.textContent = e.message
-    }
-  };
+  bindEarlierTrips(ctx, driving, history, button);
   await refresh();
 }

@@ -53,7 +53,7 @@ def participants(session, jid, tid, principal, lock=False):
         or not (journeys.is_driver(j, principal) or journeys.is_rider(t, principal))
     ):
         raise HTTPException(404, "Conversation not found")
-    if not t.charged:
+    if not t.charged and t.confirmed_at is None:
         raise HTTPException(409, "Chat opens after a confirmed booking.")
     return j, t, "driver" if journeys.is_driver(j, principal) else "passenger"
 

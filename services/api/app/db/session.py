@@ -2,9 +2,16 @@ from collections.abc import Iterator
 
 from fastapi import Request
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.db.url import driver_url
+
+
+def insert_for(session, table):
+    insert = pg_insert if session.get_bind().dialect.name == "postgresql" else sqlite_insert
+    return insert(table)
 
 
 def build_engine(url: str) -> Engine:

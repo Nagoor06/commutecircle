@@ -36,6 +36,7 @@ def configure_login_docs(app: FastAPI, settings: Settings) -> None:
                             "profile": "Basic profile",
                             "rides:read": "Search and view rides",
                             "rides:write": "Create ride offers",
+                            "v2:staff": "Review assigned verification and safety cases",
                         },
                     }
                 },

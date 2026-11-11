@@ -24,6 +24,8 @@ services:
         fromDatabase:
           name: commutecircle-staging-db
           property: connectionString
+      - key: PUBLIC_STUDIO_URL
+        value: https://commutecircle-staging-api.onrender.com/studio/
       - key: WEB_ORIGINS
         value: https://nagoor06.github.io
       - key: OIDC_ISSUER

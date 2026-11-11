@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from app.models.journey import Journey, PaymentEntry, Ticket
 from app.models.trip_share import TripShare
 from app.services.notification_outbox import enqueue
-from app.services.v2_common import verify_access
+from app.services.v2_common import check_booking_eligibility, verify_access
 
 
 def utc(t):
@@ -77,8 +77,9 @@ def receipt(t, now):
         alight=t.alight,
         state=status(t, now),
         travel_state=t.travel_state,
-        boarded_at=t.boarded_at,
-        completed_at=t.completed_at,
+        boarded_at=utc(t.boarded_at) if t.boarded_at else None,
+        completed_at=utc(t.completed_at) if t.completed_at else None,
+        confirmed=t.confirmed_at is not None or t.charged > 0,
         expires=utc(t.expires),
         stars=t.stars,
         fare_paise=t.fare,
@@ -134,6 +135,7 @@ def hold(session, jid, p, data):
             ):
                 return receipt(existing, now)
         q = quote(j, rows, data, now)
+        check_booking_eligibility(session, j)
         if not q["seats_available"]:
             raise HTTPException(409, "Seat unavailable. Nothing charged.")
         if any(
@@ -201,7 +203,12 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
                 raise HTTPException(409, "Checkout closed. Nothing charged.")
             if min(inventory(j, tickets(session, j), now)[t.board : t.alight]) < 0:
                 raise HTTPException(409, "Seat inventory changed. Nothing charged.")
-            session.add(PaymentEntry(ticket_id=t.id, kind="charge", amount=t.fare, created_at=now))
+            check_booking_eligibility(session, j)
+            if t.fare:
+                session.add(
+                    PaymentEntry(ticket_id=t.id, kind="charge", amount=t.fare, created_at=now)
+                )
+            t.confirmed_at = now
             t.charged = t.fare
             t.state = "paid"
         elif action == "cancel":
@@ -234,14 +241,12 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             t.state = "driver_cancelled" if driver else "rider_cancelled"
             revoke_location(session, jid, tid)
         elif action == "exit":
-            if t.travel_state and t.travel_state != "boarded":
-                raise HTTPException(409, "Passenger boarding must be confirmed")
-            if t.travel_state == "completed":
-                raise HTTPException(409, "Completed booking cannot change exit")
             if not is_driver(j, p):
                 raise HTTPException(403, "Driver must confirm the actual exit")
-            if state in ("paid", "exited") and stop == t.alight:
+            if state == "exited" and stop == t.alight:
                 return receipt(t, now)
+            if t.travel_state and t.travel_state != "boarded":
+                raise HTTPException(409, "Passenger boarding must be confirmed")
             if (
                 state != "paid"
                 or not t.board < stop < t.alight
@@ -266,8 +271,11 @@ def cancel_all(session, jid, p):
             now = datetime.now(UTC)
             if now >= utc(j.departure):
                 raise HTTPException(409, "Journey has started")
-            for t in tickets(session, j):
-                if status(t, now) in ("held", "paid", "exited", "rider_cancelled"):
+            rows = tickets(session, j)
+            if any(t.travel_state == "boarded" for t in rows):
+                raise HTTPException(409, "A passenger has already boarded")
+            for t in rows:
+                if status(t, now) in ("requested", "held", "paid", "exited", "rider_cancelled"):
                     # A cancelled ride cannot retain a passenger cancellation fee,
                     # including when the two cancellation requests race.
                     refund_to(session, t, t.charged, "driver_refund", now)

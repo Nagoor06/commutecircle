@@ -22,7 +22,7 @@ const items = [
   ['profile', 'user', 'Profile'],
   ['help', 'help', 'Help']
 ];
-const shortNames={find:'Book',offer:'Offer',trips:'Trips'};
+const shortNames={find:'Book',offer:'Offer',trips:'Trips',circles:'Circles',messages:'Inbox'};
 document.querySelector('.primary-nav').innerHTML = items.map(([route, symbol, title]) =>
   `<a href="#/${route==='find'?'book':route}" data-nav="${route}" aria-label="${title}">${icon(symbol,18)}<span class="nav-full">${title}</span><span class="nav-short" aria-hidden="true">${shortNames[route]||title}</span></a>`
   ).join('');
@@ -39,7 +39,14 @@ if (query.has('code') || query.has('error')) {
 }
 const auth = await session(settings);
 if (auth.problem && auth.apiOrigin && !location.hash) location.hash='/signin';
-const api = auth.apiOrigin ? liveClient(auth.token, auth.apiOrigin) : null;
+function sessionExpired() {
+  auth.token = null;
+  gate.textContent = 'Sign in again';
+  gate.onclick = login;
+  accountStatus.hidden = false;
+  accountStatus.textContent = 'Your session ended. Sign in again to continue.';
+}
+const api = auth.apiOrigin ? liveClient(auth.token, auth.apiOrigin, sessionExpired) : null;
 const account = document.querySelector('#account');
 account.innerHTML = auth.apiOrigin ? '<button class="account-btn" data-auth>' + icon('user', 16) + (auth.token ?
   'Sign out' : 'Sign in') + '</button>' : '<span class="mode">' + icon('user', 13) + ' Guest</span>';
@@ -58,7 +65,7 @@ async function beginLogin(mode = 'login') {
   }
 }
 function login() {
-  const target = /^#\/(signin|track)/.test(location.hash) ? '#/book' : location.hash;
+  const target = /^#\/(signin|track)(?:[/?]|$)/.test(location.hash) ? '#/book' : location.hash;
   location.hash = '/signin?return=' + encodeURIComponent(target);
 }
 let signingOut = false;
@@ -66,6 +73,7 @@ if (gate) gate.onclick = () => {
   if (auth.token) {
     signingOut = true;
     forgetPlan();
+    sessionStorage.removeItem('cc:offer-signin');
     location.replace(new URL('./', location.href));
     return
   }
@@ -107,9 +115,10 @@ startRouter({
   state,
   auth: {
     enabled: !!auth.apiOrigin,
-    signed: !!auth.token,
+    get signed() { return !!auth.token; },
     begin: beginLogin,
     help: !!auth.config?.ride_help_enabled,
+    approvals: !!auth.config?.journey_approvals,
     problem: auth.problem,
     login
   },

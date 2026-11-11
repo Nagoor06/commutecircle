@@ -6,7 +6,7 @@ export class ApiError extends Error {
     this.status = status
   }
 }
-export function liveClient(token, origin) {
+export function liveClient(token, origin, onSessionExpired) {
   async function call(path, method = 'GET', data, options = {}) {
     const controller = new AbortController();
     const cancel = () => controller.abort();
@@ -28,6 +28,10 @@ export function liveClient(token, origin) {
         signal: controller.signal
       });
       if (!response.ok) {
+        if (response.status === 401 && token && onSessionExpired) {
+          token = null;
+          onSessionExpired();
+        }
         const body = await response.json().catch(() => ({})), detail = body.detail;
         const message = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(v => v.msg)
           .slice(0, 2).join(' · ') : 'Request could not be completed.';
@@ -42,6 +46,14 @@ export function liveClient(token, origin) {
     } finally {
       clearTimeout(timer);
       options.signal?.removeEventListener('abort', cancel);
+    }
+  }
+  async function pages(path, signal, size = 50) {
+    const rows = [];
+    for (let offset = 0;; offset += size) {
+      const page = await call(path + (path.includes('?') ? '&' : '?') + 'offset=' + offset, 'GET', null, {signal});
+      rows.push(...page);
+      if (page.length < size) return rows;
     }
   }
   const path = id => '/v1/journeys/' + encodeURIComponent(id);
@@ -109,6 +121,7 @@ export function liveClient(token, origin) {
     mine: (offset = 0, signal) => call('/v1/journeys/mine?offset=' + offset, 'GET', null, {
       signal
     }),
+    allMine: signal => pages('/v1/journeys/mine', signal),
     publish: data => call('/v1/journeys', 'POST', data),
     quote: (id, board, alight) => call(path(id) + '/quote', 'POST', {
       board,
@@ -130,7 +143,10 @@ export function liveClient(token, origin) {
     rate: (id, tid, stars) => call(ticket(id, tid) + '/rating', 'PUT', {
       stars
     }),
-    unpriced: () => call('/v1/rides/mine'),
+    unpriced: signal => pages('/v1/rides/mine?limit=50', signal),
+    earlierBookings: signal => pages('/v1/bookings/mine?limit=50', signal),
+    earlierTrips: (role,history,signal) => pages('/v1/me/earlier-trips?'+new URLSearchParams({role,history}),signal),
+    earlierDecision: (id,action) => call('/v1/bookings/'+encodeURIComponent(id)+'/'+action,'POST'),
     oldDetail: id => call('/v1/rides/' + id + '/details'),
     oldCancel: id => call('/v1/rides/' + id + '/cancel', 'POST'),
     ask: question => call('/v1/help/ask', 'POST', {

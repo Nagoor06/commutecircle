@@ -7,13 +7,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.models.journey import Journey
 from app.models.v2 import CircleInvitation, CircleMember, CommuteCircle
 from app.services import journey_catalog
+from app.services.v2_common import bookable_journeys
 
 router = APIRouter(prefix="/v1", tags=["V2 circles"])
 
@@ -79,12 +80,8 @@ def circle_details(cid: UUID, principal: RideReader, session: DatabaseSession, r
     circle = session.get(CommuteCircle, str(cid))
     if not circle or not membership(session, circle.id, principal):
         raise HTTPException(404, "Circle not found")
-    count = len(
-        list(
-            session.scalars(
-                select(CircleMember).where(CircleMember.circle_id == circle.id).limit(101)
-            )
-        )
+    count = session.scalar(
+        select(func.count()).select_from(CircleMember).where(CircleMember.circle_id == circle.id)
     )
     return {
         **display_circle(circle, membership(session, circle.id, principal).role),
@@ -104,6 +101,7 @@ def browse_circle(cid: UUID, principal: RideReader, session: DatabaseSession, re
                 Journey.circle_id == str(cid),
                 Journey.cancelled.is_(False),
                 Journey.last_stop_at > datetime.now(UTC),
+                bookable_journeys(),
             )
             .order_by(Journey.departure, Journey.id)
             .limit(50)
@@ -112,15 +110,13 @@ def browse_circle(cid: UUID, principal: RideReader, session: DatabaseSession, re
     return [
         {"journey": view, "board": 0, "alight": len(view["stops"]) - 1, "match": {}}
         for view in journey_catalog.views(session, rows, principal)
-        if view["booking_mode"] != "approval"
-        or (view["driver_verified"] and view["vehicle_verified"])
     ]
 
 
 @router.post("/circles/{cid}/invitations", status_code=201)
 def invite(cid: UUID, principal: RideWriter, session: DatabaseSession):
     with session.begin():
-        circle = session.get(CommuteCircle, str(cid))
+        circle = session.get(CommuteCircle, str(cid), with_for_update=True)
         member = membership(session, str(cid), principal)
         if not circle or not member or member.role != "owner":
             raise HTTPException(404, "Circle not found")
@@ -166,19 +162,21 @@ def join_circle(data: InviteToken, principal: RideWriter, session: DatabaseSessi
             or invitation.expires_at.replace(tzinfo=UTC) <= datetime.now(UTC)
         ):
             raise HTTPException(410, "Invite expired or already used")
-        circle = session.get(CommuteCircle, invitation.circle_id)
+        circle = session.get(CommuteCircle, invitation.circle_id, with_for_update=True)
         if not circle:
             raise HTTPException(410, "Circle unavailable")
-        if not membership(session, circle.id, principal):
-            session.add(
-                CircleMember(
-                    circle_id=circle.id,
-                    issuer=principal.issuer,
-                    subject=principal.subject,
-                    role="member",
-                    joined_at=datetime.now(UTC),
-                )
+        existing = membership(session, circle.id, principal)
+        if existing:
+            return display_circle(circle, existing.role)
+        session.add(
+            CircleMember(
+                circle_id=circle.id,
+                issuer=principal.issuer,
+                subject=principal.subject,
+                role="member",
+                joined_at=datetime.now(UTC),
             )
+        )
         invitation.accepted_at = datetime.now(UTC)
         result = display_circle(circle, "member")
     return result

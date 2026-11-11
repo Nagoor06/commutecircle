@@ -71,11 +71,11 @@ Read [architecture](docs/architecture.md) for the module boundaries and [Windows
 
 ## Test real sign-in locally
 
-Follow [local Auth0 login](docs/local-login.md) to enable PKCE sign-in in Swagger and test `/v1/rides/mine`. This does not implement the mobile UI.
+Follow [local Auth0 login](docs/local-login.md) to enable PKCE sign-in. Use `GET /v1/journeys/mine` in Swagger to check the same account and trip history as the web app.
 
 ## First local ride
 
-After sign-in works, follow [first demo ride](docs/first-ride.md) to seed two synthetic pickup points and exercise create, list and search.
+Follow [your first ride](docs/first-ride.md) to publish a journey, book it from a second account and compare both receipts. The Studio planner works with an empty database.
 
 Next, follow [bookings and location selection](docs/bookings-and-locations.md) for the database
 upgrade, driver approval flow, concurrent seat protection, and nearby pickup-point API.

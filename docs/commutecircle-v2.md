@@ -1,13 +1,13 @@
-# CommuteCircle V2 — branch implementation notes
+# CommuteCircle V2 pilot
 
-This document describes the **draft** V2 implementation on `feat/commutecircle-v2-mvp`. It is **not a production release approval**.
+The web app and API on `main` implement the pilot workflow below.
 
 ## Technical shape
 
 - Existing FastAPI, SQLAlchemy, Alembic and PostgreSQL modular monolith remains the application.
 - `Journey` + `Ticket` is the inventory, segment reservation and sandbox accounting authority for new V2 features.
 - Existing `Ride` + `Booking` history remains readable; the older workflow has not been deleted or automatically migrated.
-- New tables are created additively in Alembic revisions `0013` to `0018`.
+- New tables are created additively in Alembic revisions `0013` to `0018`. Revision `0019` backfills checkout confirmation from the payment ledger and closes pending requests on already-cancelled journeys.
 - Scoped Auth0 principal (issuer + subject) is used in every V2 authorization check.
 
 ## How V2 works
@@ -27,7 +27,7 @@ This document describes the **draft** V2 implementation on `feat/commutecircle-v
 - Driver/vehicle reviews are **manual**. `v2:staff` is a privileged identity-provider scope and must never be assigned to ordinary users. Integrate an actual evidence review process, secure document retention, reviewer audit and anti-fraud controls before enabling real verification badges at scale.
 - `V2_REQUIRE_DRIVER_VERIFICATION=true` can require verification for new instant-mode public offers as well. Default is false to preserve legacy development behavior. Do not turn on the flag before staff onboarding is ready.
 - Legacy instant booking remains on existing journeys and does not retroactively receive consent/boarding fields. Old trip history is preserved.
-- Request/approval inboxes are in the web app, but a dedicated outbox event for new V2 pending requests and an always-on notification worker are still needed.
+- Request/approval inboxes are in the web app, but a dedicated outbox event for new V2 pending requests is still needed. The API already runs the outbox worker for opted-in booking confirmations and refunds.
 - Automatic recurring expansion **beyond the first 14 days** requires a reliable scheduled worker. The initial V2 endpoint materializes at most 14 days per call; it is idempotent and serialized per template. Do not advertise unlimited unattended recurrence yet.
 - No native background-location tracking guarantee. Browser location remains foreground-sensitive, and this app is not an emergency dispatch service.
 - There is no staffed 24/7 emergency hotline, external identity-verification provider, real payment processor, transport insurance or signed payout reconciliation.
@@ -44,11 +44,11 @@ This document describes the **draft** V2 implementation on `feat/commutecircle-v
 
 ## Staff review screen
 
-The hidden `#/staff` web route is available only to accounts whose API tokens contain the `v2:staff` scope. It lists pending driver and vehicle applications and open safety cases, with explicit reviewer decisions and case notes. The server independently enforces staff authorization on every API request. The route does not imply emergency dispatch or independent proof verification.
+Open `#/staff` before signing in to request the reviewer scope. Only accounts independently granted `v2:staff` by the provider can review cases. It lists pending driver and vehicle applications and open safety cases, with explicit reviewer decisions and case notes. The server independently enforces staff authorization on every API request. The route does not imply emergency dispatch or independent proof verification.
 
 ## Local setup, version and compatibility
 
-The API metadata version is `0.2.0`; URL paths remain `/v1` for backward
+The API metadata version is `0.2.1`; URL paths remain `/v1` for backward
 compatibility. Old Ride/Booking endpoints are marked deprecated in Swagger
 only, not removed. Run `./scripts/configure-local-auth.ps1` (PowerShell) to
 fill missing **public** Auth0 settings in a local `.env`, then
