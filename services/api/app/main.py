@@ -40,16 +40,17 @@ def create_app(database_url: str | None = None) -> FastAPI:
                     await alerts
             engine.dispose()
 
-    app = FastAPI(title="CommuteCircle API", version="0.2.1", lifespan=lifespan)
+    app = FastAPI(title="CommuteCircle API", version="0.2.2", lifespan=lifespan)
     if settings.web_origins:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=list(settings.web_origins),
             allow_methods=["GET", "POST", "PUT", "DELETE"],
-            allow_headers=["Authorization", "Content-Type"],
-            allow_credentials=False,
+            allow_headers=["Authorization", "Content-Type", "X-Studio-Session"],
+            allow_credentials=True,
             max_age=600,
         )
+    app.state.web_origins = settings.web_origins
     app.state.engine = engine
     app.state.token_verifier = TokenVerifier(settings) if settings.oidc_issuer else None
     app.middleware("http")(request_context)
@@ -65,6 +66,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "audience": settings.oidc_audience,
             "client_id": settings.docs_oauth_client_id,
             "journey_approvals": True,
+            "studio_session_cache": True,
             "ride_help_enabled": bool(os.getenv("RIDE_HELP_URL")),
         }
 

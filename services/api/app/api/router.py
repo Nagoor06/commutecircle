@@ -14,6 +14,7 @@ from app.api.routes import (
     ride_details,
     ride_help,
     rides,
+    studio_session,
     trip_sharing,
     v2_approval,
     v2_boarding,
@@ -25,6 +26,7 @@ from app.api.routes import (
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(studio_session.router)
 api_router.include_router(pickup_points.router)
 api_router.include_router(rides.router, deprecated=True)
 api_router.include_router(bookings.router, deprecated=True)

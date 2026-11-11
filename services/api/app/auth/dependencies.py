@@ -9,6 +9,20 @@ from app.auth.tokens import IdentityProviderUnavailable, InvalidAccessToken
 bearer = HTTPBearer(auto_error=False)
 
 
+def verify_access_token(request: Request, token: str) -> Principal:
+    verifier = request.app.state.token_verifier
+    if verifier is None:
+        raise HTTPException(503, "Sign-in is not configured")
+    try:
+        return verifier.verify(token)
+    except InvalidAccessToken as exc:
+        raise HTTPException(
+            401, "Invalid access token", headers={"WWW-Authenticate": "Bearer"}
+        ) from exc
+    except IdentityProviderUnavailable as exc:
+        raise HTTPException(503, "Identity provider temporarily unavailable") from exc
+
+
 def current_principal(
     request: Request,
     security_scopes: SecurityScopes,
@@ -18,17 +32,7 @@ def current_principal(
         raise HTTPException(
             401, "Bearer access token required", headers={"WWW-Authenticate": "Bearer"}
         )
-    verifier = request.app.state.token_verifier
-    if verifier is None:
-        raise HTTPException(503, "Sign-in is not configured")
-    try:
-        principal = verifier.verify(credentials.credentials)
-    except InvalidAccessToken as exc:
-        raise HTTPException(
-            401, "Invalid access token", headers={"WWW-Authenticate": "Bearer"}
-        ) from exc
-    except IdentityProviderUnavailable as exc:
-        raise HTTPException(503, "Identity provider temporarily unavailable") from exc
+    principal = verify_access_token(request, credentials.credentials)
     if not set(security_scopes.scopes).issubset(principal.scopes):
         raise HTTPException(403, "Required permission is missing")
     return principal

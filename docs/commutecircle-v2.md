@@ -48,7 +48,7 @@ Open `#/staff` before signing in to request the reviewer scope. Only accounts in
 
 ## Local setup, version and compatibility
 
-The API metadata version is `0.2.1`; URL paths remain `/v1` for backward
+The API metadata version is `0.2.2`; URL paths remain `/v1` for backward
 compatibility. Old Ride/Booking endpoints are marked deprecated in Swagger
 only, not removed. Run `./scripts/configure-local-auth.ps1` (PowerShell) to
 fill missing **public** Auth0 settings in a local `.env`, then

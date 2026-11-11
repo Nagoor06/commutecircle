@@ -28,3 +28,10 @@ marked deprecated in OpenAPI **without removing them**. Existing clients,
 stored legacy Ride/Booking rows, and migration history continue working.
 All new V2 approval journeys use the canonical Journey/Ticket engine. Never
 delete legacy rows or retire their endpoints before migrating all callers.
+
+
+## Studio browser sessions
+
+The Studio session cache at `/v1/studio-session` pairs an HttpOnly session cookie with a random binding held by the frontend. Saving the cookie requires a provider-issued bearer. Recovering it requires the same binding, an approved browser origin and a still-valid JWT. Ride endpoints continue to require a bearer. Cross-origin cookies use Secure, SameSite=None and Partitioned. The deployed Pages origin must be listed in `WEB_ORIGINS`.
+
+A browser that declines the cookie, or uses an older API, resumes through a top-level Auth0 PKCE redirect with `prompt=none`. The original account and requested staff scope are checked during renewal. Access and refresh tokens stay out of local and session storage. Explicit sign-out invalidates the browser binding across tabs. The next interactive login after sign-out asks the provider for a fresh login. Separate browser profiles can use different accounts at the same time.
