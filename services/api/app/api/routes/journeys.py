@@ -8,10 +8,12 @@ from sqlalchemy.exc import IntegrityError
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import PublicReader, RideReader, RideWriter
 from app.models.journey import Journey, Ticket
+from app.models.v2 import CircleMember
 from app.schemas.journey import CancelTicket, ExitStop, Hold, Offer, RideSearch, Segment
 from app.schemas.ride_details import Review
 from app.services import journey_catalog as catalog
 from app.services import journeys as service
+from app.services.v2_common import eligible_driver, required_verification, verify_access
 
 router = APIRouter(prefix="/v1/journeys", tags=["priced journeys (sandbox)"])
 
@@ -22,6 +24,10 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
     vehicle = data.vehicle.model_dump(mode="json") if data.vehicle else None
     preferences = data.preferences.model_dump()
     offer_id = str(data.offer_id) if data.offer_id else None
+    if data.booking_mode == "approval" and not data.vehicle_id:
+        raise HTTPException(422, "Approval-mode offers require an approved vehicle")
+    if data.booking_mode == "instant" and data.circle_id:
+        raise HTTPException(422, "Private circles require driver approval")
 
     def replay(existing):
         if (
@@ -32,6 +38,10 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
             or service.utc(existing.departure) != data.departure
             or existing.price_paise != data.price_paise
             or existing.capacity != data.capacity
+            or existing.booking_mode != data.booking_mode
+            or existing.vehicle_registration_id
+            != (str(data.vehicle_id) if data.vehicle_id else None)
+            or existing.circle_id != (str(data.circle_id) if data.circle_id else None)
         ):
             raise HTTPException(
                 409, "This offer already exists. Check My trips before publishing again."
@@ -45,6 +55,19 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
                 return replay(existing)
             if data.departure <= datetime.now(UTC):
                 raise HTTPException(422, "Departure must be in the future")
+            if data.booking_mode == "approval" or required_verification():
+                eligible_driver(
+                    session,
+                    principal,
+                    str(data.vehicle_id) if data.vehicle_id else None,
+                    data.capacity,
+                )
+            if data.circle_id:
+                member = session.get(
+                    CircleMember, (str(data.circle_id), principal.issuer, principal.subject)
+                )
+                if not member or member.role != "owner":
+                    raise HTTPException(404, "Circle not found")
             j = Journey(
                 issuer=principal.issuer,
                 driver=principal.subject,
@@ -55,6 +78,9 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
                 preferences=preferences,
                 price_paise=data.price_paise,
                 capacity=data.capacity,
+                booking_mode=data.booking_mode,
+                vehicle_registration_id=str(data.vehicle_id) if data.vehicle_id else None,
+                circle_id=str(data.circle_id) if data.circle_id else None,
             )
             if offer_id:
                 j.id = offer_id
@@ -72,12 +98,24 @@ def offer(data: Offer, principal: RideWriter, session: DatabaseSession):
 def discover(principal: PublicReader, session: DatabaseSession, offset: int = Query(0, ge=0)):
     rows = session.scalars(
         select(Journey)
-        .where(Journey.cancelled.is_(False), Journey.last_stop_at > datetime.now(UTC))
+        .where(
+            Journey.cancelled.is_(False),
+            Journey.circle_id.is_(None),
+            Journey.last_stop_at > datetime.now(UTC),
+        )
         .order_by(Journey.departure, Journey.id)
         .offset(offset)
         .limit(50)
     )
-    return catalog.views(session, rows, principal)
+    visible = catalog.views(session, rows, principal)
+    return [
+        row
+        for row in visible
+        if row["booking_mode"] != "approval"
+        or (row["driver_verified"] and row["vehicle_verified"])
+        or row["owner"]
+        or row["tickets"]
+    ]
 
 
 @router.get("/mine")
@@ -106,7 +144,12 @@ def detail(jid: UUID, principal: PublicReader, session: DatabaseSession):
     j = session.get(Journey, str(jid))
     if not j:
         raise HTTPException(404, "Journey not found")
+    verify_access(session, j, principal, allow_ticket=True)
     row = catalog.views(session, [j], principal)[0]
+    if j.booking_mode == "approval" and not (
+        (row["driver_verified"] and row["vehicle_verified"]) or row["owner"] or row["tickets"]
+    ):
+        raise HTTPException(404, "Journey not found")
     if (j.cancelled or service.utc(j.last_stop_at) <= datetime.now(UTC)) and not (
         row["owner"] or row["tickets"]
     ):
@@ -122,6 +165,8 @@ def rate(jid: UUID, tid: UUID, data: Review, principal: RideWriter, session: Dat
         ticket = session.get(Ticket, str(tid))
         if not ticket or ticket.journey_id != trip.id or not service.is_rider(ticket, principal):
             raise HTTPException(404, "Reservation not found")
+        if ticket.travel_state is not None and ticket.travel_state != "completed":
+            raise HTTPException(409, "Rider must confirm completion before reviewing")
         if ticket.state != "exited" and (
             ticket.state != "paid" or datetime.now(UTC) < service.pickup(trip, ticket.alight)
         ):
@@ -135,6 +180,7 @@ def quote(jid: UUID, data: Segment, principal: PublicReader, session: DatabaseSe
     j = session.get(Journey, str(jid))
     if not j:
         raise HTTPException(404, "Journey not found")
+    verify_access(session, j, principal)
     return service.quote(j, service.tickets(session, j), data, datetime.now(UTC))
 
 

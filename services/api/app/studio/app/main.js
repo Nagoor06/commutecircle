@@ -17,6 +17,7 @@ const items = [
   ['find', 'compass', 'Book a ride'],
   ['offer', 'car', 'Offer a ride'],
   ['trips', 'ticket', 'My trips'],
+  ['circles', 'users', 'My Circles'],
   ['messages', 'message', 'Messages'],
   ['profile', 'user', 'Profile'],
   ['help', 'help', 'Help']

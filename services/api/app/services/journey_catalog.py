@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from sqlalchemy import func, select
 
 from app.models import Booking, Commute, Journey, Ride, Ticket
+from app.models.v2 import CircleMember, CommuterProfile, DriverVerification, VerifiedVehicle
 from app.schemas.journey import Place
 from app.services import journeys
 from app.services.locations import distance_m
@@ -50,19 +51,62 @@ def views(session, candidates, principal, now=None):
     ):
         by_trip[ticket.journey_id].append(ticket)
     result = []
+    identities = {}
     for j in rows:
+        key = (j.issuer, j.driver)
+        if key not in identities:
+            profile = session.get(CommuterProfile, key)
+            verified = session.get(DriverVerification, key)
+            identities[key] = (
+                profile.display_name if profile else None,
+                bool(verified and verified.status == "approved"),
+            )
+        name, driver_verified = identities[key]
+        verified_car = (
+            session.get(VerifiedVehicle, j.vehicle_registration_id)
+            if j.vehicle_registration_id
+            else None
+        )
+        car_verified = bool(verified_car and verified_car.status == "approved")
+        vehicle = (
+            {
+                "make": verified_car.make,
+                "model": verified_car.model,
+                "color": verified_car.color,
+                "verified": True,
+            }
+            if car_verified
+            else j.vehicle
+        )
         driver = journeys.is_driver(j, principal)
         tickets = by_trip[j.id]
         result.append(
             dict(
                 id=j.id,
                 stops=j.stops,
-                vehicle=j.vehicle,
+                vehicle=vehicle,
+                driver_name=name,
+                driver_verified=driver_verified,
+                vehicle_verified=car_verified,
                 preferences=j.preferences or {},
                 price_paise=j.price_paise,
                 capacity=j.capacity,
                 departure=journeys.utc(j.departure),
                 cancelled=j.cancelled,
+                booking_mode=j.booking_mode,
+                vehicle_id=j.vehicle_registration_id,
+                circle_id=j.circle_id
+                if j.circle_id
+                and (
+                    driver
+                    or (
+                        principal
+                        and session.get(
+                            CircleMember, (j.circle_id, principal.issuer, principal.subject)
+                        )
+                    )
+                )
+                else None,
                 owner=driver,
                 free=journeys.inventory(j, tickets, now),
                 tickets=[
@@ -126,7 +170,9 @@ def segment(row, query, start, end, commute=None):
 def search(session, principal, query):
     now = datetime.now(UTC)
     start = max(now, query.after or now)
-    stmt = select(Journey).where(Journey.cancelled.is_(False), Journey.last_stop_at > start)
+    stmt = select(Journey).where(
+        Journey.cancelled.is_(False), Journey.circle_id.is_(None), Journey.last_stop_at > start
+    )
     if query.before:
         stmt = stmt.where(Journey.departure < query.before)
     saved = (
@@ -146,6 +192,10 @@ def search(session, principal, query):
         while batch := list(islice(candidates, 80)):
             identities = {j.id: (j.issuer, j.driver) for j in batch}
             for row in views(session, batch, principal, now):
+                if row["booking_mode"] == "approval" and not (
+                    row["driver_verified"] and row["vehicle_verified"]
+                ):
+                    continue
                 if any(
                     getattr(query, flag) and not row["preferences"].get(flag)
                     for flag in ("quiet", "air_conditioned")

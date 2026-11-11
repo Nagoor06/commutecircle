@@ -13,6 +13,7 @@ export function validIndices(j, a, b) {
 }
 export const ticketLabel = {
   held: 'Awaiting payment',
+  requested: 'Waiting for driver approval',
   paid: 'Booked',
   exited: 'Trip finished',
   expired: 'Hold expired',

@@ -34,6 +34,9 @@ class Offer(BaseModel):
     model_config = ConfigDict(extra="forbid")
     offer_id: UUID | None = None
     vehicle: Vehicle | None = None
+    vehicle_id: UUID | None = None
+    booking_mode: Literal["instant", "approval"] = "instant"
+    circle_id: UUID | None = None
     preferences: RidePreferences = Field(default_factory=RidePreferences)
     stops: list[Stop] = Field(min_length=2, max_length=16)
     departure: AwareDatetime

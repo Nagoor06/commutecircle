@@ -14,14 +14,20 @@ from app.api.routes import (
     ride_help,
     rides,
     trip_sharing,
+    v2_approval,
+    v2_boarding,
+    v2_circles,
+    v2_recurring,
+    v2_safety,
+    v2_verification,
 )
 
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(pickup_points.router)
-api_router.include_router(rides.router)
-api_router.include_router(bookings.router)
-api_router.include_router(ride_details.router)
+api_router.include_router(rides.router, deprecated=True)
+api_router.include_router(bookings.router, deprecated=True)
+api_router.include_router(ride_details.router, deprecated=True)
 
 api_router.include_router(meeting_notes.router)
 
@@ -34,3 +40,10 @@ api_router.include_router(conversations.router)
 api_router.include_router(trip_sharing.router)
 
 api_router.include_router(notifications.router)
+
+api_router.include_router(v2_verification.router)
+api_router.include_router(v2_approval.router)
+api_router.include_router(v2_boarding.router)
+api_router.include_router(v2_safety.router)
+api_router.include_router(v2_recurring.router)
+api_router.include_router(v2_circles.router)

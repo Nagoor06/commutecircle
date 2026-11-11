@@ -10,7 +10,7 @@ function newDraft(route){
     key:requestId(),
     stops:route.map((p,i)=>({...p,km:i?'':0,minutes:i?'':0})),
     time:dateTimeInput(new Date(Date.now()+86400000)),
-    price:'',seats:1,withCar:false,addPublic:true,quiet:false,air_conditioned:false,car:{condition:'good'}
+    price:'',seats:1,bookingMode:'instant',vehicleId:'',circleId:'',v2Vehicles:[],v2Circles:[],withCar:false,addPublic:true,quiet:false,air_conditioned:false,car:{condition:'good'}
   };
 }
 
@@ -27,7 +27,12 @@ function readOffer(draft){
     if(stops[i].metres<=stops[i-1].metres||stops[i].minutes<=stops[i-1].minutes)throw Error('Distance and time must increase at stop '+(i+1)+'.');
     if(normal(stops[i].name)===normal(stops[i-1].name))throw Error('Adjacent stops need different names.');
   }
+  if(draft.bookingMode==='approval'&&!draft.vehicleId)throw Error('Choose an approved vehicle for driver-approved rides.');
+  if(draft.circleId&&draft.bookingMode!=='approval')throw Error('Private circle offers require driver approval.');
   return {offer_id:draft.key,stops,departure:departure.toISOString(),capacity:Number(draft.seats),
+    booking_mode:draft.bookingMode||'instant',
+    ...(draft.vehicleId?{vehicle_id:draft.vehicleId}:{}),
+    ...(draft.circleId?{circle_id:draft.circleId}:{}),
     price_paise:Math.round(Number(draft.price)*100),preferences:{quiet:!!draft.quiet,air_conditioned:!!draft.air_conditioned},...(draft.withCar?{vehicle:{...draft.car}}:{})};
 }
 
@@ -55,9 +60,17 @@ function review(ctx,draft){
   },message=>notice(root,message,'error'));
 }
 
-export function mount(ctx){
+export async function mount(ctx){
   const {root,state,signal,geocoder,query,go}=ctx;
   const d=state.offer||(state.offer=newDraft(state.route));
+  if(ctx.api&&ctx.auth.signed&&ctx.api.driverEligibility){
+    try{
+      const [eligible,circles]=await Promise.all([ctx.api.driverEligibility(signal),ctx.api.circles(signal)]);
+      if(signal.aborted)return;
+      d.v2Vehicles=eligible.vehicles.filter(v=>v.status==='approved');
+      d.v2Circles=circles;
+    }catch(error){d.v2Vehicles=[];d.v2Circles=[]}
+  }
   if(query.get('step')==='review'&&d.ready){review(ctx,d);return}
   root.innerHTML=offerForm(d);
   const form=root.querySelector('[data-offer-form]');

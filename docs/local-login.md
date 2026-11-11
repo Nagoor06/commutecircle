@@ -8,7 +8,7 @@ For initial local testing, use your existing public Native application. In its S
 
 | Setting | Value |
 |---|---|
-| Allowed Callback URLs | `http://localhost:8000/docs/oauth2-redirect` |
+| Allowed Callback URLs | `http://localhost:8000/docs/oauth2-redirect`, `http://localhost:8000/studio/` |
 | Allowed Web Origins (SPA clients, if shown) | `http://localhost:8000` |
 | Allowed Origins (CORS) | `http://localhost:8000` |
 
@@ -18,7 +18,17 @@ In the CommuteCircle API configuration, confirm Identifier `https://commutecircl
 
 ## Local environment
 
-Keep your three OIDC settings and add `DOCS_OAUTH_CLIENT_ID=<public application client ID>` to the root .env. Leave this variable unset to retain manual Bearer-token entry. Never add a client secret. Run:
+The checked-in `.env.example` contains the **public** development Auth0 identifiers
+used by the Render staging blueprint. Your existing `.env` is not overwritten by
+`git pull`. From Windows PowerShell in the repository root run
+`./scripts/configure-local-auth.ps1`. It only fills empty public settings,
+preserving any existing PostgreSQL password or configured Auth0 provider.
+This script cannot change Auth0 tenant settings or create users.
+
+Open `http://localhost:8000/v1/studio-config` and confirm `issuer`,
+`audience` and `client_id` are non-empty. If not, edit your local `.env`
+and run `docker compose up -d --force-recreate api`.
+There is no OAuth client secret for the public PKCE client. Never add a client secret. Run:
 
 ```powershell
 docker compose up -d --build
@@ -39,3 +49,18 @@ Tokens remain in Swagger memory and are not persisted across page reloads. Swagg
 Troubleshooting: callback mismatch means the exact URL is missing in Auth0; invalid_client means public-client/grant configuration needs checking; a CORS failure means Allowed Origins needs checking. A 403 after login usually means a required scope was not granted (check RBAC assignment). A 503 means missing provider configuration or unreachable signing keys. Give the error message/status when asking for help, without tokens or authorization codes.
 
 Automated tests verify OpenAPI URLs, required scopes, PKCE configuration, callback page, nonpersistent token settings, and rejection of unauthenticated booking and listing requests; priced-journey discovery is public. Live Auth0 sign-in requires completing the above dashboard settings and has not been verified by the assistant.
+
+## Studio and V2 staff tests
+
+For Studio, open `http://localhost:8000/studio/` and sign in. Auth0 must
+allow the exact trailing-slash `http://localhost:8000/studio/` callback, as
+well as the Swagger callback. The default browser asks for `rides:read` and
+`rides:write` and does **not** ask for staff authorization.
+
+For the restricted `#/staff` pilot console, an Auth0 administrator must
+configure a separate trusted authorization path that issues the `v2:staff`
+API scope to a staff account. Do not grant the staff scope to ordinary users.
+The backend rejects staff actions without it and prohibits self-review.
+Manual ID/document verification must be performed by a trained independent
+reviewer before approving an application. Never put real identity document
+numbers in the demo evidence-reference input.

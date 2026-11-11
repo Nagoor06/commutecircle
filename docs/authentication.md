@@ -1,6 +1,9 @@
 # Authentication contract
 
-The API verifies provider-issued RS256 JWT access tokens. Live login, registration, a sign-in UI and refresh-token storage are not implemented. No identity-provider account has been provisioned.
+The API verifies provider-issued RS256 JWT access tokens. The browser Studio and Swagger implement Authorization Code with PKCE.
+The Auth0 administrator must still configure callbacks, client/API permissions,
+user roles and staff access. Mobile token refresh/storage and native mobile
+login are not implemented; no debug or self-issued access tokens are accepted.
 
 Configure all three variables together: `OIDC_ISSUER` (exact HTTPS issuer, preserving its trailing slash), `OIDC_AUDIENCE` (a distinct API audience, not the mobile client ID), and `OIDC_JWKS_URL` (the provider's documented HTTPS public-key endpoint). The provider must issue space-separated `scope` claims containing `rides:read` and/or `rides:write`. ID tokens must target the client audience, not this API. This integration supports RS256 and a scope string; other provider formats require an adapter.
 
@@ -17,3 +20,11 @@ Reference: https://pyjwt.readthedocs.io/en/latest/usage.html
 Optional local Swagger PKCE sign-in is now implemented; see [local login](local-login.md). It uses only a public client ID. Live provider sign-in still needs dashboard configuration and user verification.
 
 Auth0 application access: define API permissions, then grant the application **User-Delegated Access** to the API with those permissions in the API Application Access tab. A missing application grant causes Auth0 to reject the authorization request before issuing a token.
+
+## Deprecated endpoints, unchanged compatibility
+
+Old `/v1/rides`, `/v1/bookings` and older ride-details endpoints are
+marked deprecated in OpenAPI **without removing them**. Existing clients,
+stored legacy Ride/Booking rows, and migration history continue working.
+All new V2 approval journeys use the canonical Journey/Ticket engine. Never
+delete legacy rows or retire their endpoints before migrating all callers.

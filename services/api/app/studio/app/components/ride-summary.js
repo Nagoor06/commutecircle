@@ -43,8 +43,8 @@ export function vehicleBlock(j) {
       count: 0
     };
   return `<section class="panel"><div class="panel-cap">${icon('car')} Vehicle & driver</div>
-    <div class="vehicle-title"><div><h2>${esc(carName(v))}</h2><p class="muted">${'Driver rating'} · ${r.count?`${Number(r.average).toFixed(1)} / 5 (${r.count} reviews)`:'No reviews yet'}</p></div></div>
-    ${v?`<dl class="specs"><div><dt>Colour</dt><dd>${esc(v.color)}</dd></div><div><dt>Purchased</dt><dd>${esc(new Date(v.purchased_on+'T12:00:00Z').toLocaleDateString('en-IN',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))}</dd></div><div><dt>Driver-reported condition</dt><dd class="caps">${esc(v.condition)}</dd></div></dl>`:'<p class="muted">The driver hasn’t added a vehicle for this ride.</p>'}</section>`;
+    <div class="vehicle-title"><div><h2>${esc(carName(v))}</h2>${j.driver_name?'<p>'+esc(j.driver_name)+'</p>':''}${j.driver_verified?'<span class="pill">Driver verified</span>':'<span class="pill">Driver verification not confirmed</span>'}${j.vehicle_verified?'<span class="pill">Vehicle verified</span>':''}<p class="muted">${'Driver rating'} · ${r.count?`${Number(r.average).toFixed(1)} / 5 (${r.count} reviews)`:'No reviews yet'}</p></div></div>
+    ${v?`<dl class="specs"><div><dt>Colour</dt><dd>${esc(v.color)}</dd></div>${v.purchased_on?'<div><dt>Purchased</dt><dd>'+esc(new Date(v.purchased_on+'T12:00:00Z').toLocaleDateString('en-IN',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))+'</dd></div>':''}${v.condition?'<div><dt>Driver-reported condition</dt><dd class="caps">'+esc(v.condition)+'</dd></div>':''}</dl>`:'<p class="muted">The driver hasn’t added a vehicle for this ride.</p>'}</section>`;
 }
 export function policy() {
   return '<details class="policy"><summary>' + icon('shield', 16) + ' Cancellation terms ' + icon('down',

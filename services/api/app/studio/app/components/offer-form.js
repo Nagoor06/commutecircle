@@ -23,6 +23,11 @@ export function offerForm(d){
       <div class="form-grid"><label class="field span-2">Departure · local time<input type="datetime-local" name="time" required value="${esc(d.time)}"></label>
         <label class="field">Full-route fare per seat (₹)<input type="number" min="1" max="100000" step=".01" name="price" required placeholder="200" value="${esc(d.price)}"></label>
         <label class="field">Seats offered<select name="seats">${seatOptions}</select></label></div></section>
+    <section class="panel"><div class="panel-cap">Booking policy</div>
+      <label class="field">Booking mode<select name="bookingMode"><option value="instant" ${d.bookingMode!=='approval'?'selected':''}>Instant sandbox checkout</option><option value="approval" ${d.bookingMode==='approval'?'selected':''}>Driver-approved requests</option></select></label>
+      <label class="field">Approved vehicle<select name="vehicleId"><option value="">Select a verified vehicle</option>${(d.v2Vehicles||[]).map(v=>'<option value="'+esc(v.id)+'" '+(d.vehicleId===v.id?'selected':'')+'>'+esc(v.make+' '+v.model)+'</option>').join('')}</select></label>
+      <label class="field">Audience<select name="circleId"><option value="">Public</option>${(d.v2Circles||[]).filter(c=>c.role==='owner').map(c=>'<option value="'+esc(c.id)+'" '+(d.circleId===c.id?'selected':'')+'>'+esc(c.name)+' (private)</option>').join('')}</select></label>
+      <p class="fine">Approval requires staff-verified driver and vehicle. Private circle rides require approval. <a href="#/verification">Manage verification</a>.</p></section>
     <section class="panel"><div class="panel-cap">Ride preferences</div><label class="checkline"><input type="checkbox" name="quiet" ${d.quiet?'checked':''}> ${icon('quiet',18)} <span>Quiet ride · keep calls brief</span></label><label class="checkline"><input type="checkbox" name="air_conditioned" ${d.air_conditioned?'checked':''}> ${icon('snowflake',18)} <span>Air conditioning available</span></label></section>
     <section class="panel"><div class="panel-cap"><span class="step-no">03</span> Vehicle details</div>
       <label class="checkline"><input type="checkbox" name="withCar" ${d.withCar?'checked':''}> Include my vehicle on this offer</label>
@@ -49,7 +54,7 @@ export function stopRow(s,i,n){
 export function offerReview(offer,button){
   const timeline=offer.stops.map((p,i)=>`<li><span class="stop-time">${esc(clock(Date.parse(offer.departure)+p.minutes*60000))}</span>
     <i class="${i===offer.stops.length-1?'last':''}"></i><div><b>${esc(p.name)}</b><small>${p.metres/1000} km from start</small></div></li>`).join('');
-  const car=offer.vehicle?offer.vehicle.make+' '+offer.vehicle.model:'Vehicle details not supplied';
+  const car=offer.vehicle?offer.vehicle.make+' '+offer.vehicle.model:offer.vehicle_id?'Approved vehicle selected':'Vehicle details not supplied';
   return back('#/offer','Edit offer')+head('Driver / Review','Review your ride','Check the route and fare passengers will see.')+
     `<div class="details-grid"><section class="panel"><div class="panel-cap">${icon('route')} Route and timing</div><ol class="stop-list">${timeline}</ol></section>
     <section class="panel"><div class="panel-cap">${icon('car')} Your offer</div>
