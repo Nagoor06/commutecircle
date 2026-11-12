@@ -2,6 +2,7 @@ import {head, icon, esc, notice, pending} from '../ui.js';
 import {access} from '../components/access.js';
 import {fieldMarkup, attachField} from '../components/place-field.js';
 import {stopFromPlace, isSame} from '../data/places.js';
+import {emptyRoute} from '../data/plan.js';
 import {alertsMarkup, bindAlerts} from '../components/booking-alerts.js';
 import {contactsMarkup, bindContacts} from '../components/trusted-contacts.js';
 
@@ -39,7 +40,11 @@ export async function mount(ctx) {
     if (!signal.aborted) go('book');
   },m=>notice(root,m,'error')); };
   root.querySelector('[data-forget]').onclick = e => pending(e.currentTarget,async()=>{
-    await api.forgetCommute(); state.commute = null; state.query = null;
+    await api.forgetCommute();
+    if (saved && isSame(state.route[0],saved.pickup) && isSame(state.route[1],saved.workplace)) {
+      state.route = emptyRoute(); state.query = null;
+    }
+    state.commute = null;
     fields.forEach(f=>f.set({name:''})); root.querySelector('[name=employer]').value='';
     notice(root,'Saved commute deleted.','info');
   },m=>notice(root,m,'error'));

@@ -19,7 +19,7 @@ export async function mount(ctx){
     '<div class="details-grid"><section class="panel"><div class="panel-cap">Your templates</div>'+(templatesHTML||'<p>No recurring templates yet.</p>')+'</section>'+
     '<form class="panel" data-create><div class="panel-cap">New recurring schedule</div>'+
     '<label class="field">Existing published route<select name="journey" required>'+owned.map(j=>'<option value="'+esc(j.id)+'">'+esc(j.stops[0].name)+' → '+esc(j.stops.at(-1).name)+'</option>').join('')+'</select></label>'+
-    '<label class="field">Daily departure in IST<input type="time" name="time" value="'+(owned.length?esc(localTime(owned[0].departure)):'08:30')+'" required></label>'+
+    '<label class="field">Daily departure in IST<input type="time" name="time" value="'+(owned.length?esc(localTime(owned[0].departure)):'')+'" required></label>'+
     '<div class="field">Travel days</div><div class="checkline">'+weekdays.map((d,i)=>'<label><input type="checkbox" name="day" value="'+i+'" '+(i<5?'checked':'')+'> '+d+'</label>').join(' ')+'</div>'+
     '<div class="form-grid"><label class="field">Start<input type="date" name="start" min="'+today()+'" value="'+today(1)+'" required></label><label class="field">End<input type="date" name="end" value="'+today(30)+'" required></label></div>'+
     '<label class="field">Approved vehicle<select name="vehicle" required>'+vehicles.map(v=>'<option value="'+esc(v.id)+'">'+esc(v.make)+' '+esc(v.model)+'</option>').join('')+'</select></label>'+

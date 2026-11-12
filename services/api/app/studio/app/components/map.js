@@ -16,9 +16,9 @@ const tag = i => i ? 'B' : 'A';
 export function mapFrame() {
   return `<section class="atlas" aria-label="Route map"><div class="canvas" data-canvas aria-label="Map showing pickup and drop-off"></div>
     <div class="atlas-badge">${icon('layers',15)} Route map</div>
-    <div class="atlas-controls"><button class="map-tool" aria-label="Zoom in" data-zoom="in">${icon('plus')}</button><button class="map-tool" aria-label="Zoom out" data-zoom="out">${icon('minus')}</button><button class="map-tool" aria-label="Fit both pins" data-fit>${icon('fit')}</button></div>
+    <div class="atlas-controls"><button class="map-tool" aria-label="Zoom in" data-zoom="in">${icon('plus')}</button><button class="map-tool" aria-label="Zoom out" data-zoom="out">${icon('minus')}</button><button class="map-tool" aria-label="Fit selected stops" data-fit>${icon('fit')}</button></div>
     <div class="atlas-attribution"><a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a> · <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a></div>
-    <div class="atlas-footer"><div class="atlas-caption"><span class="route-symbol">${icon('route',20)}</span><div><b data-route-kind>Trip overview</b><small data-geometry>Drag either pin to adjust</small></div></div><button class="text-btn" data-road>Road preview ${icon('arrow',15)}</button></div>
+    <div class="atlas-footer"><div class="atlas-caption"><span class="route-symbol">${icon('route',20)}</span><div><b data-route-kind>Trip overview</b><small data-geometry>Select stops to see your route</small></div></div><button class="text-btn" data-road disabled>Road preview ${icon('arrow',15)}</button></div>
     <small class="map-message" data-map-msg role="status"></small></section>`;
 }
 export async function attachMap(host, {
@@ -106,7 +106,8 @@ export async function attachMap(host, {
     if (ps.length === 2) {
       const km = distance(...localPoints) / 1000;
       label('Stop connection', km.toFixed(1) + ' km straight-line distance')
-    } else label('Stop location', 'Select a mapped place for each endpoint');
+    } else if (ps.length) label('One stop selected', 'Choose the other stop to see your route');
+    else label('Route map', 'Search for a stop or choose a point on the map');
     road.disabled = ps.length !== 2;
   }
 
@@ -121,7 +122,8 @@ export async function attachMap(host, {
         maxZoom: 16,
         animate: false
       });
-    } else map.setView(ps[0] || [16.37, 80.61], ps.length ? 14 : 10);
+    } else if (ps.length) map.setView(ps[0], 14);
+    else map.fitWorld({animate:false});
   }
 
   function buildMarker(i) {
@@ -181,6 +183,12 @@ export async function attachMap(host, {
     });
     return marker;
   }
+  map.on('click', ({latlng}) => {
+    const index = points().findIndex(point => !finitePlace(point));
+    if (index < 0) return;
+    const p = latlng.wrap();
+    if (finitePlace({lat:p.lat, lon:p.lng})) resolver.move(index, {lat:p.lat, lon:p.lng});
+  });
   marks = [buildMarker(0), buildMarker(1)];
   let autoTimer, initialized=false;
 

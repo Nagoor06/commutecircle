@@ -60,6 +60,7 @@ export function describeMatches(items, anchor) {
 
 export function immediateMatches(q, anchor, radius = NEARBY_RADIUS) {
   const n = key(q);
+  if (!n && !finitePlace(anchor)) return [];
   return rankPlaces(places.filter(p => within(p,anchor,radius) && (!n || key(p.name+' '+p.area).includes(n))), q, anchor);
 }
 

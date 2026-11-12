@@ -17,6 +17,7 @@ from app.services import journey_catalog
 from app.services.v2_common import bookable_journeys
 
 router = APIRouter(prefix="/v1", tags=["V2 circles"])
+INVITATION_LIFETIME = timedelta(days=2)
 
 
 class CircleInput(BaseModel):
@@ -133,16 +134,18 @@ def invite(cid: UUID, principal: RideWriter, session: DatabaseSession):
         if active_invites:
             raise HTTPException(429, "Too many active invitations")
         token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(UTC) + INVITATION_LIFETIME
         session.add(
             CircleInvitation(
                 circle_id=circle.id,
                 token_digest=hashlib.sha256(token.encode()).hexdigest(),
-                expires_at=datetime.now(UTC) + timedelta(days=2),
+                expires_at=expires_at,
             )
         )
     return {
         "token": token,
-        "expires_in_seconds": 172800,
+        "expires_at": expires_at,
+        "expires_in_seconds": int(INVITATION_LIFETIME.total_seconds()),
         "warning": "Anyone with this invitation can join until it is used or expires",
     }
 

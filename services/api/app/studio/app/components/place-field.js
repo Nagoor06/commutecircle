@@ -20,8 +20,8 @@ export function fieldMarkup(i, p, options = {}) {
     badge = options.badge || (i ? 'B' : 'A');
   const id = 'place-' + i;
   return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${badge==='A'?'':'orange'}">${esc(badge)}</span>${esc(label)}</label>
-    <div class="place-entry"><input id="${id}" aria-label="${esc(label)}" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list" value="${esc(p.name)}"><button type="button" class="icon-only" aria-label="Edit ${esc(label)}">${icon('pin',17)}</button></div>
-    <small class="place-sub">${esc(p.area||'Public meeting place')}</small>
+    <div class="place-entry"><input id="${id}" aria-label="${esc(label)}" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list" placeholder="Search for a place" value="${esc(p.name)}"><button type="button" class="icon-only" aria-label="Edit ${esc(label)}">${icon('pin',17)}</button></div>
+    <small class="place-sub">${esc(p.area||(p.name?'Public meeting place':''))}</small>
     <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>
   </div>`;
 }
@@ -29,6 +29,7 @@ export function attachField(node, {
   initial,
   update,
   onDraft,
+  onNearby,
   info,
   signal,
   geocoder,
@@ -63,7 +64,7 @@ export function attachField(node, {
   function set(p) {
     selected = p;
     input.value = p.name;
-    sub.textContent = p.area || 'Public meeting place';
+    sub.textContent = p.area || (p.name ? 'Public meeting place' : '');
     close()
   }
 
@@ -114,7 +115,7 @@ export function attachField(node, {
       onDraft()
     }
     if (!edited && normal(q) === normal(selected.name)) q = '';
-    if (!q && !finitePlace(focusPoint)) { show(immediateMatches(''), 'Suggested public places'); return; }
+    if (!q && !finitePlace(focusPoint)) { show([], 'Type a place name or coordinates'); return; }
     try {
       const pair = parseCoordinates(q);
       if (pair) {
@@ -168,7 +169,7 @@ export function attachField(node, {
   input.onkeydown = e => {
     if (e.key === 'Escape') {
       set(selected);
-      onDraft();
+      onDraft(selected);
       return
     }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -194,6 +195,7 @@ export function attachField(node, {
     signal
   });
   node.querySelector('[data-gps]').onclick = () => {
+    onNearby?.();
     invalidate();
     const id = generation;
     if (!navigator.geolocation) {
@@ -250,6 +252,7 @@ export function attachField(node, {
   return {
     set,
     value,
-    close
+    close,
+    describe(text) { sub.textContent = text; }
   };
 }

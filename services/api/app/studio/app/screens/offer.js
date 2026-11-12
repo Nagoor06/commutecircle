@@ -1,16 +1,17 @@
 import {calculateRoute} from '../data/road-route.js';
 import {requestId} from '../data/id.js';
-import {dateTimeInput,notice,pending} from '../ui.js';
+import {notice,pending} from '../ui.js';
 import {knownPlace,normal,finitePlace} from '../data/places.js';
 import {attachField} from '../components/place-field.js';
+import {bindPickupLocation} from '../components/pickup-location.js';
 import {offerForm,offerReview,stopRow} from '../components/offer-form.js';
 
 function newDraft(route){
   return {
     key:requestId(),
     stops:route.map((p,i)=>({...p,km:i?'':0,minutes:i?'':0})),
-    time:dateTimeInput(new Date(Date.now()+86400000)),
-    price:'',seats:1,bookingMode:'instant',vehicleId:'',circleId:'',v2Vehicles:[],v2Circles:[],withCar:false,addPublic:true,quiet:false,air_conditioned:false,car:{condition:'good'}
+    time:'',
+    price:'',seats:1,bookingMode:'instant',vehicleId:'',circleId:'',v2Vehicles:[],v2Circles:[],withCar:false,addPublic:true,quiet:false,air_conditioned:false,car:{condition:''}
   };
 }
 
@@ -18,6 +19,7 @@ function readOffer(draft){
   const departure=new Date(draft.time);
   if(!Number.isFinite(+departure)||+departure<=Date.now())throw Error('Choose a future departure time.');
   const stops=draft.stops.map(stop=>{
+    if(stop.source==='device'||normal(stop.name)==='current location')throw Error('Choose a named public meeting point before publishing.');
     const name=stop.name.trim(), point=finitePlace(stop)?stop:knownPlace(name);
     if(!name)throw Error('Give every stop a public meeting place.');
     return {name,metres:Math.round(Number(stop.km)*1000),minutes:Number(stop.minutes),
@@ -88,6 +90,16 @@ export async function mount(ctx){
   const form=root.querySelector('[data-offer-form]');
   const rows=root.querySelector('[data-stops]');
   const car=root.querySelector('[data-car]');
+  let locator, pickupField;
+  function seatOptions() {
+    const vehicle=d.v2Vehicles.find(v=>v.id===d.vehicleId);
+    const capacity=vehicle?.seat_capacity || 8;
+    const select=form.elements.seats;
+    if(Number(d.seats)>capacity) d.seats='';
+    select.replaceChildren(new Option('Choose seats',''));
+    for(let seats=1;seats<=capacity;seats++) select.add(new Option(String(seats),String(seats)));
+    select.value=String(d.seats);
+  }
   function carFields(){
     const custom=form.elements.withCar;
     custom.disabled=Boolean(d.vehicleId);
@@ -98,6 +110,12 @@ export async function mount(ctx){
   function summary(){
     root.querySelector('[data-summary]').textContent=(d.stops[0].name||'Pickup')+' → '+(d.stops.at(-1).name||'Drop-off');
   }
+  function setStop(i,place){
+    const {km,minutes}=d.stops[i];
+    d.stops[i]={...place,km,minutes};
+    d.ready=null;
+    summary();
+  }
   let rowScope, routeTimer;
   function queueRoute() { clearTimeout(routeTimer); routeTimer=setTimeout(()=>root.querySelector('[data-calculate]').click(),900); }
   signal.addEventListener('abort',()=>{rowScope?.abort();clearTimeout(routeTimer)},{once:true});
@@ -107,9 +125,15 @@ export async function mount(ctx){
     rows.querySelectorAll('.place-field').forEach((node,i)=>{
       const input=node.querySelector('input');
       input.required=true;input.maxLength=80;input.dataset.value='name';
-      attachField(node,{initial:{...d.stops[i]},geocoder,signal:rowScope.signal,info:m=>notice(root,m),
+      const field=attachField(node,{initial:{...d.stops[i]},geocoder,signal:rowScope.signal,info:m=>notice(root,m),
         anchor:()=>d.stops[i ? i-1 : 1],
-        onDraft:()=>{},update:place=>{Object.assign(d.stops[i],place);d.ready=null;summary();if(d.stops.every(finitePlace))queueRoute()}});
+        onNearby:()=>{if(i===0)locator?.cancel();},
+        onDraft:restored=>{if(i===0)locator?.cancel();if(restored)setStop(i,restored);},update:place=>{
+          if(i===0)locator?.cancel();
+          setStop(i,place);
+          if(d.stops.every(finitePlace))queueRoute();
+        }});
+      if(i===0)pickupField=field;
     });
     root.querySelector('[data-add-stop]').disabled=d.stops.length>=16;
     rows.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{
@@ -125,7 +149,7 @@ export async function mount(ctx){
     if(field.dataset.value){
       const stop=d.stops[Number(field.closest('[data-row]').dataset.row)];
       stop[field.dataset.value]=field.value;
-      if(field.dataset.value==='name'){delete stop.lat;delete stop.lon;delete stop.area}
+      if(field.dataset.value==='name'){delete stop.lat;delete stop.lon;delete stop.area;delete stop.source}
       summary();
     }else if(field.name==='withCar'){
       d.withCar=field.checked;carFields();
@@ -133,7 +157,7 @@ export async function mount(ctx){
       d.car[field.name]=field.value;
     }else if(field.name){
       d[field.name]=field.type==='checkbox'?field.checked:field.value;
-      if(field.name==='vehicleId')carFields();
+      if(field.name==='vehicleId'){carFields();seatOptions();}
     }
   };
   root.querySelector('[data-calculate]').onclick=e=>pending(e.currentTarget,async()=>{
@@ -149,5 +173,19 @@ export async function mount(ctx){
     try{d.ready=readOffer(d);go('offer?step=review')}
     catch(error){notice(root,error.message,'error')}
   };
-  drawStops();summary();carFields();
+  drawStops();summary();carFields();seatOptions();
+  locator=bindPickupLocation(root,{
+    signal,auto:!d.stops[0].name || d.stops[0].source==='device',
+    apply:point=>{
+      if(!point.source)locator?.cancel();
+      setStop(0,point);
+      pickupField.set(point);
+      if(!point.source && d.stops.every(finitePlace))queueRoute();
+    },
+    describe:(point,text)=>{
+      if(d.stops[0].source!=='device')return;
+      d.stops[0].area=text;
+      pickupField.describe(text);
+    }
+  });
 }

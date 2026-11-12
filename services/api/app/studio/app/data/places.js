@@ -1,4 +1,4 @@
-// Public meeting areas, with approximate coordinates for the preview corridor.
+// Offline public-place aliases for typed searches and nearby-stop lookups.
 export const places = [{
     name: 'Tenali Junction',
     area: 'Railway station · Tenali',

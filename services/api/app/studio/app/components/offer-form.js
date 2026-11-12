@@ -1,5 +1,6 @@
 import {esc,head,back,icon,day,clock,money,dateInput} from '../ui.js';
 import {fieldMarkup} from './place-field.js';
+import {pickupLocationControl} from './pickup-location.js';
 
 function options(values,selected){
   return values.map(value=>'<option value="'+esc(value)+'"'+(value==selected?' selected':'')+'>'+esc(value)+'</option>').join('');
@@ -9,12 +10,13 @@ function vehicleFields(car){
     '<label class="field">'+label+'<input name="'+key+'" maxlength="'+limit+'" placeholder="'+example+'" value="'+esc(car[key])+'"></label>').join('');
 }
 export function offerForm(d, approvals = true){
-  const seatOptions=options([1,2,3,4,5,6,7,8],d.seats);
+
   const conditions=options(['excellent','good','fair'],d.car.condition);
   return head('Driver / Create an offer','Offer a ride','Set your stops, departure time and price per seat.')+
     `<form data-offer-form><div class="offer-layout"><div class="stack">
     <section class="panel"><div class="panel-cap"><span class="step-no">01</span> Your route</div>
       <p class="panel-intro">Choose public stops in travel order. Calculate road distances and estimated times, then review them before publishing.</p>
+      ${pickupLocationControl()}
       <button type="button" data-calculate class="btn secondary">${icon('route')} Calculate route & timings</button>
       <label class="checkline"><input type="checkbox" name="addPublic" ${d.addPublic?'checked':''}> Add nearby public stops along a two-stop route</label>
       <p class="fine">Uses the selected stops with OSRM routing. Added stops change the route. Review every meeting point and allow for traffic.</p>
@@ -22,7 +24,7 @@ export function offerForm(d, approvals = true){
     <section class="panel"><div class="panel-cap"><span class="step-no">02</span> Departure & fare</div>
       <div class="form-grid"><label class="field span-2">Departure · local time<input type="datetime-local" name="time" required value="${esc(d.time)}"></label>
         <label class="field">Full-route fare per seat (₹)<input type="number" min="1" max="100000" step=".01" name="price" required placeholder="200" value="${esc(d.price)}"></label>
-        <label class="field">Seats offered<select name="seats">${seatOptions}</select></label></div></section>
+        <label class="field">Seats offered<select name="seats" required></select></label></div></section>
     ${approvals?`<section class="panel"><div class="panel-cap">Booking policy</div>
       <label class="field">Booking mode<select name="bookingMode"><option value="instant" ${d.bookingMode!=='approval'?'selected':''}>Instant sandbox checkout</option><option value="approval" ${d.bookingMode==='approval'?'selected':''}>Driver-approved requests</option></select></label>
       <label class="field">Approved vehicle<select name="vehicleId"><option value="">Select a verified vehicle</option>${(d.v2Vehicles||[]).map(v=>'<option value="'+esc(v.id)+'" '+(d.vehicleId===v.id?'selected':'')+'>'+esc(v.make+' '+v.model)+'</option>').join('')}</select></label>
@@ -33,7 +35,7 @@ export function offerForm(d, approvals = true){
       <label class="checkline"><input type="checkbox" name="withCar" ${d.withCar?'checked':''}> Include my vehicle on this offer</label>
       <div data-car class="form-grid" ${d.withCar?'':'hidden'}>${vehicleFields(d.car)}
         <label class="field">Date purchased<input type="date" name="purchased_on" min="1886-01-01" max="${dateInput()}" value="${esc(d.car.purchased_on)}"></label>
-        <label class="field">Driver-reported condition<select name="condition">${conditions}</select></label></div></section></div>
+        <label class="field">Driver-reported condition<select name="condition"><option value="">Choose condition</option>${conditions}</select></label></div></section></div>
     <aside class="panel summary-note"><div class="section-index"><span class="index-dot"></span> Offer summary</div>
       <h2 data-summary></h2><p>Passengers can reserve the legs they travel. The remaining legs stay available.</p>
       <div class="note-box">${icon('info')}<span>Passengers see your ride after publication. Payments currently use sandbox money.</span></div>

@@ -530,3 +530,12 @@
 .corridor>.icon {
   margin-left: auto
 }
+
+.pickup-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .65rem;
+  margin: .35rem 0 .65rem;
+}
+.pickup-location small { color: var(--muted); }
