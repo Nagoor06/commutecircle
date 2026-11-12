@@ -30,6 +30,7 @@ const paths = {
   shield: '<path d="m12 3 8 3v5c0 6-5 9-8 11-3-2-8-5-8-11V6Z"/><path d="m8.5 12 2 2 4.5-5"/>',
   copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V3H3v13h5"/>',
   user: '<circle cx="12" cy="8" r="3.5"/><path d="M4.5 21v-2c0-6.5 15-6.5 15 0v2"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20v-1.5a6.5 6.5 0 0 1 13 0V20M16 5a3.2 3.2 0 0 1 0 6.2m1.5 3a5.3 5.3 0 0 1 4 5.1v.7"/>',
   check: '<path d="m4 12 5 5L20 6"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   wallet: '<path d="M4 6h15v14H4zM4 6l12-3v3"/><path d="M20 11h-6v4h6"/>',

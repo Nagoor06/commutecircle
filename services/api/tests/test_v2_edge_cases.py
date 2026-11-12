@@ -110,7 +110,11 @@ def test_circle_invites_require_owner_and_cannot_be_reused(client, authenticated
         ).status_code
         == 410
     )
-    invite = client.post(f"/v1/circles/{cid}/invitations", headers=owner).json()
+    issued = client.post(f"/v1/circles/{cid}/invitations", headers=owner)
+    assert issued.headers["cache-control"] == "no-store"
+    invite = issued.json()
+    remaining = (datetime.fromisoformat(invite["expires_at"]) - datetime.now(UTC)).total_seconds()
+    assert 0 < invite["expires_in_seconds"] - 60 < remaining <= invite["expires_in_seconds"]
     assert len(invite["token"]) > 32
     assert client.post(
         "/v1/circle-invitations/redeem", headers=outsider, json={"token": invite["token"]}

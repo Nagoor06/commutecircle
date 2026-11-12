@@ -20,7 +20,7 @@ The web app and API on `main` implement the pilot workflow below.
 6. Near pickup, a paid rider creates a short-lived six-digit boarding PIN, shown only in their authenticated checkout. The driver validates it; the server keeps a salted, iterated hash, enforces attempt limits and records a boarding event.
 7. After scheduled drop-off, the rider confirms completion; the completed ticket's private GPS sharing is revoked. Reports are visible only to authors and staff reviewers.
 8. Drivers create a timezone-bound recurring template. The web UI materializes the next 14 days. The driver may skip an individual date before bookings exist.
-9. Invitation-only circles control private journey discovery. One-time invite tokens are hashed in the database. A circle membership is **never** permission to view a member's location, contacts or private booking messages.
+9. Invitation-only circles control private journey discovery. Owners can copy the one-time token or an invitation with the circle name, joining instructions and expiry. The link opens My Circles. The token is shared separately within the message and stored as a hash in the database. Circle membership grants access to private rides. Location, contacts and private booking messages have separate access checks.
 
 ## Manual operation and limitations (must be fixed before a public launch)
 
@@ -48,7 +48,7 @@ Open `#/staff` before signing in to request the reviewer scope. Only accounts in
 
 ## Local setup, version and compatibility
 
-The API metadata version is `0.2.2`; URL paths remain `/v1` for backward
+The API metadata version is `0.2.3`; URL paths remain `/v1` for backward
 compatibility. Old Ride/Booking endpoints are marked deprecated in Swagger
 only, not removed. Run `./scripts/configure-local-auth.ps1` (PowerShell) to
 fill missing **public** Auth0 settings in a local `.env`, then

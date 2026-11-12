@@ -27,6 +27,9 @@ test('an older API keeps instant checkout offers usable and explains V2-only scr
     await page.getByRole('button',{name:/Continue to secure sign-in/}).click();
     await page.getByRole('heading',{name:'This feature needs the V2 service'}).waitFor();
     await navigate(page,'offer');
+    await page.getByLabel('Meeting place',{exact:true}).first().fill('Library entrance');
+    await page.getByLabel('Meeting place',{exact:true}).last().fill('Town station');
+    await page.getByLabel('Departure · local time').fill(new Date(Date.now()+86400000).toISOString().slice(0,16));
     await page.getByLabel('km from start').last().fill('5');
     await page.getByLabel('min from start').last().fill('10');
     await page.getByLabel('Full-route fare').fill('25');
@@ -100,12 +103,15 @@ test('reviewer approves driver → private circle offer → request, checkout, b
     await rider.getByRole('button',{name:'Browse journeys'}).waitFor();
 
     await navigate(driver,'offer');
+    await driver.getByLabel('Meeting place',{exact:true}).first().fill('Market square');
+    await driver.getByLabel('Meeting place',{exact:true}).last().fill('Bus depot');
     await driver.getByLabel('km from start',{exact:true}).last().fill('10');
     await driver.getByLabel('min from start',{exact:true}).last().fill('20');
     await driver.getByLabel('Departure · local time').fill(new Date(Date.now()+15*60000).toISOString().slice(0,16));
     await driver.getByLabel('Full-route fare').fill('120');
     await driver.getByLabel('Booking mode').selectOption('approval');
     await driver.getByLabel('Approved vehicle').selectOption({label:'Honda City'});
+    assert.equal(await driver.getByLabel('Seats offered').locator('option[value="8"]').count(),0);
     await driver.getByLabel('Audience').selectOption({label:'Browser approval circle (private)'});
     await driver.getByLabel('I have checked the public stops').check();
     await driver.getByRole('button',{name:'Review ride'}).click();

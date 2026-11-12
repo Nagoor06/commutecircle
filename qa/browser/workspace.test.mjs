@@ -69,6 +69,8 @@ test('driver offer → debounced passenger matches → segment checkout → driv
   }
   try {
     const driver = await visit('driver');
+    await driver.getByLabel('Meeting place',{exact:true}).first().fill('Tenali Junction');
+    await driver.getByLabel('Meeting place',{exact:true}).last().fill('Vijayawada Bus Station');
     await driver.getByRole('button', {
       name: 'Add an intermediate stop'
     }).click();
@@ -88,6 +90,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     }
     await driver.getByLabel('Full-route fare').fill('200');
     await driver.getByLabel('Include my vehicle').check();
+    await driver.getByLabel('Driver-reported condition').selectOption('good');
     for (const [name, value] of [
         ['Make', 'Honda'],
         ['Model', 'City'],
@@ -121,6 +124,8 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     }).first().waitFor();
 
     const rider = await visit('rider', true, async page => {
+      await page.getByLabel('Pickup',{exact:true}).fill('Tenal');
+      await page.getByRole('option',{name:/Tenali Junction/}).first().click();
       const drop = page.getByRole('combobox', {name: 'Drop-off', exact: true});
       await drop.fill('Mangal');
       await page.getByRole('option', {name: /Mangalagiri/}).first().click();
@@ -399,6 +404,8 @@ test('guest navigation never invents rides; stop hints work when external lookup
       const isReverse=url.pathname==='/reverse';
       return route.fulfill({json:{features:[{properties:{name:isReverse?'Station Road':'Local Bus Stop',city:'Tenali'},geometry:{type:'Point',coordinates:[Number(url.searchParams.get('lon'))+(isReverse ? 0.00001 : 0.01),Number(url.searchParams.get('lat'))+(isReverse ? 0.00001 : 0.01)]}}]}});
     });
+    await page.getByRole('combobox',{name:'Pickup',exact:true}).fill('16.25, 80.64');
+    await page.getByRole('option',{name:/16.25000, 80.64000/}).click();
     await page.locator('[aria-label="Move pickup pin"]').press('ArrowUp');
     await page.getByRole('combobox',{name:'Pickup',exact:true}).filter({visible:true}).waitFor();
     await page.waitForFunction(()=>document.querySelector('[aria-label="Pickup"]').value==='Station Road');

@@ -1,7 +1,17 @@
 # Automatic location suggestions
 
-Both fields use the opposite selected stop as their anchor. Empty input suggests
-public stops within 50 km (straight line). Typing is debounced by 360 ms; obsolete
+A new booking or offer asks for the device location once. With permission, the
+pickup shows the current area, rounded to two decimal places before it reaches
+maps, route search or browser storage. A nearby catalogue landmark can help
+identify the area. The rider chooses the destination. A driver chooses a named
+public meeting point before publishing the offer. Manual pickup entry and
+explicitly saved routes take priority over delayed location callbacks. A denial
+or timeout leaves the fields usable and offers a retry. The planner suggests
+real available rides for the selected date, stops and filters.
+
+Both fields use the opposite selected stop as their anchor. Empty input with a
+mapped anchor suggests public stops within 50 km (straight line). An empty field
+with no anchor waits for the user to type a place or request nearby stops. Typing is debounced by 360 ms; obsolete
 requests are aborted and generation checks reject replies from older queries.
 
 Search first asks Photon for nearby matches with geographic bias and a bounding
