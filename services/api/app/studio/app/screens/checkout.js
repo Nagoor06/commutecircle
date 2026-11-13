@@ -1,5 +1,6 @@
 import {refreshAlerts} from '../components/booking-alerts.js';
 import {stopFromPlace} from '../data/places.js';
+import {travelDayRange, rememberPlan} from '../data/plan.js';
 import {
   meetingMarkup,
   bindMeeting
@@ -15,6 +16,7 @@ import {
   money,
   notice,
   pending,
+  dateInput,
   day,
   clock
 } from '../ui.js';
@@ -39,14 +41,24 @@ export async function mount(ctx) {
   } = ctx;
   const [jid, tid] = parts;
   root.innerHTML = '<p class="loading">Checking the reservation…</p>';
-  const j = await api.detail(jid, signal);
+  let j = await api.detail(jid, signal);
   if (signal.aborted) return;
   let ticket = j.tickets.find(t => t.id === tid);
   if (!ticket || j.owner) throw Error('This passenger checkout is unavailable.');
-  let interval, refreshTimer, generation=0, reading=false, displayedProgress;
+  let interval, refreshTimer, generation=0, reading=false, writing=false, displayedProgress;
   signal.addEventListener('abort', () => {clearInterval(interval);clearInterval(refreshTimer)}, {
     once: true
   });
+
+  async function changeTicket(write) {
+    if(writing)return;
+    writing=true;
+    generation++;
+    try {
+      const next=await write();
+      if(next && !signal.aborted){ticket=next;paint();}
+    } finally {writing=false;}
+  }
 
   function paint() {
     clearInterval(interval);
@@ -64,7 +76,7 @@ export async function mount(ctx) {
       <div class="ledger"><span>Charged</span><b>${money(t.charged_paise)}</b><span>Refunded</span><b>${money(t.refund_paise)}</b></div>
       ${held?`<p class="hold-clock">${icon('clock')} Seat held for <b data-clock></b></p><button data-pay class="btn primary wide">Pay ${money(t.fare_paise)} in sandbox ${icon('arrow')}</button>`:''}
       ${state==='requested'?'<p>This receipt updates when the driver decides. An approved request opens checkout for up to 15 minutes.</p>':''}
-      ${state==='expired'?`<p>Your hold expired. No payment was taken.</p><a class="btn secondary wide" href="${esc(rideHref(jid,t.board,t.alight))}">Check availability</a>`:''}
+      ${state==='expired'?`<p>${t.expired_while_requested?'Your request expired before the driver approved it. No seat was reserved.':'Your hold expired. No payment was taken.'}</p><a class="btn secondary wide" href="${esc(rideHref(jid,t.board,t.alight))}">Check availability</a>`:''}
       ${progress.cancel?'<button data-cancel class="text-btn cancel">Cancel reservation</button>':''}
       ${progress.chat?`<a class="btn secondary wide" href="#/chat/${jid}/${tid}">Message driver</a>`:''}
       ${progress.share?`<a class="btn secondary wide" href="#/track-driver/${jid}/${tid}">Track vehicle</a><a class="btn secondary wide" href="#/share/${jid}?ticket=${tid}">Share my trip</a>`:''}
@@ -73,7 +85,7 @@ export async function mount(ctx) {
       ${progress.complete?'<button type="button" class="btn secondary wide" data-complete>Confirm trip complete</button>':''}
       ${ctx.auth.approvals&&['paid','exited'].includes(state)?'<a class="text-btn" href="#/safety?journey='+encodeURIComponent(jid)+'">Report a safety concern</a>':''}
       ${!held?'<a class="text-btn" href="#/trips">View my trips →</a>':''}
-      ${held?'<p class="fine">Choose email or phone confirmations in <a href="#/profile">My profile</a> before booking.</p>':'<section class="receipt-alerts" data-booking-alerts aria-live="polite"></section>'}${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
+      ${held?'<p class="fine">Choose email or phone confirmations in <a href="#/profile">My profile</a> before booking.</p>':''}${!held||j.booking_mode==='approval'?'<section class="receipt-alerts" data-booking-alerts aria-live="polite"></section>':''}${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
     refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
     const pinButton=root.querySelector('[data-pin]');
     if(pinButton)pinButton.onclick=()=>pending(pinButton,async()=>{
@@ -82,13 +94,18 @@ export async function mount(ctx) {
       if(output)output.textContent='Show this one-time PIN to the driver: '+result.pin+'. Expires '+new Date(result.expires_at).toLocaleTimeString()+'.';
     },e=>notice(root,e,'error'));
     const completeButton=root.querySelector('[data-complete]');
-    if(completeButton)completeButton.onclick=()=>pending(completeButton,async()=>{
+    if(completeButton)completeButton.onclick=()=>pending(completeButton,()=>changeTicket(async()=>{
       await api.complete(jid,tid);
-      const fresh=await api.detail(jid,signal);
-      if(!signal.aborted){ticket=fresh.tickets.find(x=>x.id===tid);paint();}
-    },e=>notice(root,e,'error'));
+      return (await api.detail(jid,signal)).tickets.find(x=>x.id===tid);
+    }),e=>notice(root,e,'error'));
     const alternatives = root.querySelector('[data-alternatives]');
-    if (alternatives) alternatives.onclick = () => { ctx.state.query={origin:stopFromPlace(j.stops[t.board]),destination:stopFromPlace(j.stops[t.alight])}; ctx.go('results'); };
+    if (alternatives) alternatives.onclick = () => {
+      const route=[stopFromPlace(j.stops[t.board]),stopFromPlace(j.stops[t.alight])];
+      const day=dateInput(new Date(Math.max(Date.now(),+pickupAt(j,t.board))));
+      Object.assign(ctx.state,{route,date:day,query:{origin:route[0],destination:route[1],...travelDayRange(day)}});
+      rememberPlan(ctx.state);
+      ctx.go('results');
+    };
     const meeting = root.querySelector('.meeting');
     if (meeting) bindMeeting(meeting, {
       getPoint: () => j.stops[t.board],
@@ -109,36 +126,28 @@ export async function mount(ctx) {
         root.querySelector('[data-clock]').textContent = Math.floor(seconds / 60) + ':' + String(seconds %
           60).padStart(2, '0');
       };
-      update();
       interval = setInterval(update, 1000);
+      update();
       const pay = root.querySelector('[data-pay]');
-      if (pay) pay.onclick = () => pending(pay, async () => {
-        generation++;
-        const paid = await api.pay(jid, tid);
-        if (signal.aborted) return;
-        ticket = paid;
-        paint()
-      }, e => notice(root, e, 'error'));
+      if (pay) pay.onclick = () => pending(pay, () => changeTicket(()=>api.pay(jid,tid)), e => notice(root,e,'error'));
     }
     const cancel = root.querySelector('[data-cancel]');
-    if (cancel) cancel.onclick = () => pending(cancel, async () => {
-      generation++;
+    if (cancel) cancel.onclick = () => pending(cancel, () => changeTicket(async () => {
       if (await cancelTicket(api, j, t) && !signal.aborted) {
-        ticket = (await api.detail(jid, signal)).tickets.find(x => x.id === tid);
-        if (!signal.aborted) paint()
+        return (await api.detail(jid, signal)).tickets.find(x => x.id === tid);
       }
-    }, e => notice(root, e, 'error'));
+    }), e => notice(root, e, 'error'));
   }
   paint();
   refreshTimer=setInterval(async()=>{
-    if(reading||document.hidden||signal.aborted)return;
+    if(reading||writing||document.hidden||signal.aborted)return;
     reading=true;const current=generation;
     try{
       refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
       const fresh=await api.detail(jid,signal), next=fresh.tickets.find(t=>t.id===tid);
       if(!signal.aborted&&current===generation&&next&&(JSON.stringify(next)!==JSON.stringify(ticket) ||
         JSON.stringify(ticketProgress(fresh,next))!==displayedProgress)){
-        ticket=next;paint();
+        j=fresh;ticket=next;paint();
       }
     }catch(e){if(!signal.aborted)notice(root,'Could not refresh the reservation. Retry from My trips.','error');}
     finally{reading=false;}

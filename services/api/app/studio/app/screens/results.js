@@ -64,10 +64,12 @@ export async function mount(ctx) {
         if (all) all.onclick = () => {
           state.query = {...q};
           delete state.query.origin; delete state.query.destination; delete state.query.offset;
-          location.hash = '/results?all=1'
+          if(location.hash==='#/results?all=1')ctx.render();
+          else location.hash = '/results?all=1';
         }
       }
-      more.hidden = !response.more;
+      more.textContent = 'Show more rides';
+      more.hidden = !response.more || !response.items.length;
       notice(root, '');
     } catch (e) {
       if (signal.aborted || current !== version) return;

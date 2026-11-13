@@ -13,7 +13,7 @@ from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.models.journey import Journey
 from app.models.v2 import CircleInvitation, CircleMember, CommuteCircle
-from app.services import journey_catalog
+from app.services import journey_catalog, journeys
 from app.services.v2_common import bookable_journeys
 
 router = APIRouter(prefix="/v1", tags=["V2 circles"])
@@ -36,6 +36,22 @@ def membership(session, cid, p):
 
 def display_circle(row, role):
     return {"id": row.id, "name": row.name, "role": role, "created_at": row.created_at}
+
+
+def owned_circle(session, cid, principal, *, lock=False):
+    circle = session.get(CommuteCircle, str(cid), with_for_update=lock)
+    if not circle or (circle.issuer, circle.owner) != (principal.issuer, principal.subject):
+        raise HTTPException(404, "Circle not found")
+    return circle
+
+
+def active_invitations(cid):
+    return select(CircleInvitation).where(
+        CircleInvitation.circle_id == str(cid),
+        CircleInvitation.accepted_at.is_(None),
+        CircleInvitation.revoked_at.is_(None),
+        CircleInvitation.expires_at > datetime.now(UTC),
+    )
 
 
 @router.post("/circles", status_code=201)
@@ -117,32 +133,21 @@ def browse_circle(cid: UUID, principal: RideReader, session: DatabaseSession, re
 @router.post("/circles/{cid}/invitations", status_code=201)
 def invite(cid: UUID, principal: RideWriter, session: DatabaseSession):
     with session.begin():
-        circle = session.get(CommuteCircle, str(cid), with_for_update=True)
-        member = membership(session, str(cid), principal)
-        if not circle or not member or member.role != "owner":
-            raise HTTPException(404, "Circle not found")
-        active_invites = session.scalar(
-            select(CircleInvitation.id)
-            .where(
-                CircleInvitation.circle_id == circle.id,
-                CircleInvitation.accepted_at.is_(None),
-                CircleInvitation.expires_at > datetime.now(UTC),
-            )
-            .offset(9)
-            .limit(1)
-        )
-        if active_invites:
+        circle = owned_circle(session, cid, principal, lock=True)
+        if session.scalar(active_invitations(cid).offset(9).limit(1)):
             raise HTTPException(429, "Too many active invitations")
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(UTC) + INVITATION_LIFETIME
-        session.add(
-            CircleInvitation(
-                circle_id=circle.id,
-                token_digest=hashlib.sha256(token.encode()).hexdigest(),
-                expires_at=expires_at,
-            )
+        invitation = CircleInvitation(
+            circle_id=circle.id,
+            token_digest=hashlib.sha256(token.encode()).hexdigest(),
+            expires_at=expires_at,
         )
+        session.add(invitation)
+        session.flush()
+        invite_id = invitation.id
     return {
+        "id": invite_id,
         "token": token,
         "expires_at": expires_at,
         "expires_in_seconds": int(INVITATION_LIFETIME.total_seconds()),
@@ -150,24 +155,62 @@ def invite(cid: UUID, principal: RideWriter, session: DatabaseSession):
     }
 
 
+@router.get("/circles/{cid}/invitations")
+def list_invitations(cid: UUID, principal: RideReader, session: DatabaseSession):
+    owned_circle(session, cid, principal)
+    rows = session.scalars(
+        active_invitations(cid).order_by(CircleInvitation.expires_at, CircleInvitation.id)
+    )
+    return [{"id": row.id, "expires_at": journeys.utc(row.expires_at)} for row in rows]
+
+
+@router.delete("/circles/{cid}/invitations/{iid}")
+def revoke_invitation(cid: UUID, iid: UUID, principal: RideWriter, session: DatabaseSession):
+    with session.begin():
+        owned_circle(session, cid, principal, lock=True)
+        row = session.get(CircleInvitation, str(iid), with_for_update=True)
+        if not row or row.circle_id != str(cid):
+            raise HTTPException(404, "Invitation not found")
+        if row.accepted_at:
+            raise HTTPException(409, "This invitation has already been used")
+        if not row.revoked_at:
+            row.revoked_at = datetime.now(UTC)
+    return {"revoked": True}
+
+
+@router.delete("/circles/{cid}/members/me")
+def leave_circle(cid: UUID, principal: RideWriter, session: DatabaseSession):
+    with session.begin():
+        circle = session.get(CommuteCircle, str(cid), with_for_update=True)
+        member = membership(session, str(cid), principal)
+        if not circle or not member:
+            raise HTTPException(404, "Circle not found")
+        if member.role == "owner":
+            raise HTTPException(409, "The circle owner must stay in the circle")
+        session.delete(member)
+    return {"left": True}
+
+
 @router.post("/circle-invitations/redeem")
 def join_circle(data: InviteToken, principal: RideWriter, session: DatabaseSession):
     digest = hashlib.sha256(data.token.encode()).hexdigest()
     with session.begin():
-        invitation = session.scalar(
-            select(CircleInvitation)
-            .where(CircleInvitation.token_digest == digest)
-            .with_for_update()
+        # Serialize redemption, membership changes and revocation in the same lock order.
+        cid = session.scalar(
+            select(CircleInvitation.circle_id).where(CircleInvitation.token_digest == digest)
         )
-        if (
-            not invitation
-            or invitation.accepted_at
-            or invitation.expires_at.replace(tzinfo=UTC) <= datetime.now(UTC)
-        ):
-            raise HTTPException(410, "Invite expired or already used")
-        circle = session.get(CommuteCircle, invitation.circle_id, with_for_update=True)
-        if not circle:
-            raise HTTPException(410, "Circle unavailable")
+        circle = session.get(CommuteCircle, cid, with_for_update=True) if cid else None
+        invitation = (
+            session.scalar(
+                active_invitations(cid)
+                .where(CircleInvitation.token_digest == digest)
+                .with_for_update()
+            )
+            if circle
+            else None
+        )
+        if not invitation:
+            raise HTTPException(410, "Invitation expired, revoked or already used")
         existing = membership(session, circle.id, principal)
         if existing:
             return display_circle(circle, existing.role)

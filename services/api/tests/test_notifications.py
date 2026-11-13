@@ -258,9 +258,11 @@ def test_payment_and_alert_transaction_roll_back_together(
 
     contact(client)
     path, tid, headers = book(client, authenticated, pay=False)
-    monkeypatch.setattr(
-        journeys, "enqueue", lambda *args: (_ for _ in ()).throw(RuntimeError("database failure"))
-    )
+
+    def fail_enqueue(*args, **kwargs):
+        raise RuntimeError("database failure")
+
+    monkeypatch.setattr(journeys, "enqueue", fail_enqueue)
     with pytest.raises(RuntimeError):
         client.post(path + "/sandbox-pay", headers=headers)
     with Session(client.app.state.engine) as session:
@@ -468,3 +470,76 @@ def test_two_workers_claim_each_alert_once(client, authenticated, providers, mon
     with ThreadPoolExecutor(max_workers=2) as pool:
         list(pool.map(lambda _: dispatch(), range(2)))
     assert len(sent) == len(set(sent)) == 1
+
+
+@pytest.mark.parametrize(
+    "action,event", [("approve", "seat_approved"), ("decline", "seat_declined")]
+)
+def test_request_alerts_follow_decisions_and_recipient_consent(
+    client, authenticated, providers, action, event
+):
+    from tests.test_v2 import create_approval_journey, request, verify_driver
+
+    driver = authenticated()
+    rider = authenticated(subject="passenger")
+    driver_key = preferences.owner_key("https://identity.example", "driver-a")
+    with Session(client.app.state.engine) as session, session.begin():
+        session.add(
+            NotificationPreference(owner=driver_key, email="driver@example.com", email_enabled=True)
+        )
+    contact(client, phone="none")
+    jid = create_approval_journey(client, authenticated, verify_driver(client, authenticated))
+    tid = request(client, authenticated, jid).json()["id"]
+    assert request(client, authenticated, jid).json()["id"] == tid
+    assert [(a.event, a.owner) for a in rows(client)] == [("seat_requested", driver_key)]
+    assert "#/trips?view=driving" in rows(client)[0].payload["text"]
+    path = f"/v1/journeys/{jid}/tickets/{tid}"
+    assert client.get(path + "/notifications", headers=rider).json() == []
+    for _ in range(2):
+        decision = client.post(path + "/" + action, headers=driver)
+        assert decision.is_success, decision.text
+    alerts = rows(client)
+    assert len(alerts) == 2
+    rider_alert = next(a for a in alerts if a.event == event)
+    assert rider_alert.owner == OWNER and "#/checkout/" in rider_alert.payload["text"]
+    assert [a["event"] for a in client.get(path + "/notifications", headers=rider).json()] == [
+        event
+    ]
+    assert outbox.claim(client.app.state.engine, datetime.now(UTC)).state == "suppressed"
+    if action == "approve":
+        with Session(client.app.state.engine) as session, session.begin():
+            session.get(Ticket, tid).expires = datetime.now(UTC) - timedelta(seconds=1)
+        assert outbox.claim(client.app.state.engine, datetime.now(UTC)).state == "expired"
+    else:
+        assert outbox.claim(client.app.state.engine, datetime.now(UTC)).state == "sending"
+        assert client.get(f"/v1/journeys/{jid}", headers=rider).json()["tickets"][0]["declined"]
+    with Session(client.app.state.engine) as session:
+        assert session.scalar(select(PaymentEntry.ticket_id)) is None
+
+
+@pytest.mark.parametrize(
+    "approve,cancel_ride", [(False, False), (True, False), (False, True), (True, True)]
+)
+def test_driver_cancellation_notifies_unpaid_approval_rider_once(
+    client, authenticated, providers, approve, cancel_ride
+):
+    from tests.test_v2 import create_approval_journey, request, verify_driver
+
+    contact(client, phone="none")
+    jid = create_approval_journey(client, authenticated, verify_driver(client, authenticated))
+    tid = request(client, authenticated, jid).json()["id"]
+    path = f"/v1/journeys/{jid}"
+    ticket = path + "/tickets/" + tid
+    if approve:
+        assert client.post(ticket + "/approve", headers=authenticated()).is_success
+    for _ in range(2):
+        assert client.post(
+            (path if cancel_ride else ticket) + "/cancel", headers=authenticated()
+        ).is_success
+    rider = authenticated(subject="passenger")
+    alerts = client.get(ticket + "/notifications", headers=rider).json()
+    assert [r["event"] for r in alerts] == (["seat_approved"] if approve else []) + [
+        "request_cancelled"
+    ]
+    assert client.post(ticket + "/decline", headers=authenticated()).status_code == 409
+    assert client.get(path, headers=rider).json()["tickets"][0]["declined"] is False

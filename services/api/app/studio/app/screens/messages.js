@@ -46,6 +46,7 @@ export async function mount(ctx) {
   }
   refresh.onclick=()=>load(true);more.onclick=()=>load();
   await load(true);
+  if(signal.aborted)return;
   const timer=setInterval(()=>{if(!document.hidden && offset<=20)load(true);},15000);
   signal.addEventListener('abort',()=>{generation++;clearInterval(timer);},{once:true});
 }

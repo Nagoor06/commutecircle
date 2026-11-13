@@ -49,7 +49,7 @@ export async function bindAlerts(node, api, signal) {
   catch {if(!signal.aborted)host.textContent='Could not load booking alert preferences. Reopen My profile to retry.';}
 }
 
-const events={paid:'Confirmation',driver_cancelled:'Driver cancellation',rider_cancelled:'Cancellation',exited:'Segment completion'};
+const events={paid:'Confirmation',driver_cancelled:'Driver cancellation',rider_cancelled:'Cancellation',exited:'Segment completion',request_cancelled:'Driver cancelled request',seat_approved:'Request approved',seat_declined:'Request declined'};
 const states={queued:'Waiting to send',sending:'Sending',accepted:'Accepted by provider · delivery unconfirmed',failed:'Could not send',unknown:'Delivery uncertain · not resent',unavailable:'Delivery service not configured',suppressed:'Superseded or opted out',expired:'Sending window ended'};
 export async function refreshAlerts(node,api,jid,tid,signal) {
   if(!node)return;

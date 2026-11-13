@@ -76,6 +76,8 @@ def receipt(t, now):
         board=t.board,
         alight=t.alight,
         state=status(t, now),
+        declined=t.declined_at is not None,
+        expired_while_requested=t.state == "requested" and utc(t.expires) <= now,
         travel_state=t.travel_state,
         boarded_at=utc(t.boarded_at) if t.boarded_at else None,
         completed_at=utc(t.completed_at) if t.completed_at else None,
@@ -214,6 +216,8 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
         elif action == "cancel":
             if state == "requested":
                 t.state = "driver_cancelled" if is_driver(j, p) else "rider_cancelled"
+                if t.state == "driver_cancelled":
+                    enqueue(session, j, t, now, event="request_cancelled")
                 return receipt(t, now)
             if t.travel_state == "boarded":
                 raise HTTPException(
@@ -258,7 +262,12 @@ def act(session, jid, tid, p, action, stop=None, max_fee_paise=None):
             revoke_location(session, jid, tid)
             t.alight = stop
             refund_to(session, t, t.charged - fare(j, t.board, stop), "exit_refund", now)
-        enqueue(session, j, t, now)
+        event = (
+            "request_cancelled"
+            if t.state == "driver_cancelled" and state == "held" and t.requested_at
+            else None
+        )
+        enqueue(session, j, t, now, event=event)
         return receipt(t, now)
 
 
@@ -275,12 +284,18 @@ def cancel_all(session, jid, p):
             if any(t.travel_state == "boarded" for t in rows):
                 raise HTTPException(409, "A passenger has already boarded")
             for t in rows:
-                if status(t, now) in ("requested", "held", "paid", "exited", "rider_cancelled"):
+                state = status(t, now)
+                if state in ("requested", "held", "paid", "exited", "rider_cancelled"):
                     # A cancelled ride cannot retain a passenger cancellation fee,
                     # including when the two cancellation requests race.
                     refund_to(session, t, t.charged, "driver_refund", now)
                     t.state = "driver_cancelled"
-                    enqueue(session, j, t, now)
+                    event = (
+                        "request_cancelled"
+                        if t.requested_at and state in ("requested", "held")
+                        else None
+                    )
+                    enqueue(session, j, t, now, event=event)
             j.cancelled = True
             revoke_location(session, jid)
     return {"cancelled": True}

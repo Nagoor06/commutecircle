@@ -112,8 +112,11 @@ def views(session, candidates, principal, now=None):
                 departure=journeys.utc(j.departure),
                 cancelled=j.cancelled,
                 booking_mode=j.booking_mode,
-                booking_eligible=(j.booking_mode == "instant" and j.vehicle_registration_id is None)
-                or (driver_verified and car_verified),
+                booking_eligible=(not j.circle_id or driver or bool(role))
+                and (
+                    (j.booking_mode == "instant" and j.vehicle_registration_id is None)
+                    or (driver_verified and car_verified)
+                ),
                 vehicle_id=j.vehicle_registration_id if driver else None,
                 circle_id=j.circle_id if driver or role else None,
                 owner=driver,

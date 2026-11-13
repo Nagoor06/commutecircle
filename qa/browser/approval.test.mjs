@@ -95,9 +95,20 @@ test('reviewer approves driver → private circle offer → request, checkout, b
     await driver.getByRole('button',{name:'Create circle'}).click();
     await driver.getByRole('button',{name:'Create invitation'}).click();
     await driver.locator('[data-token-panel]').waitFor();
-    const invitation = await driver.locator('[data-token]').innerText();
+    const revokedToken = await driver.locator('[data-token]').innerText();
+    await driver.getByRole('button',{name:'Manage invitations'}).click();
+    await driver.getByRole('button',{name:'Revoke',exact:true}).click();
+    await driver.getByRole('dialog').getByRole('button',{name:'Revoke invitation'}).click();
+    await driver.getByText('No active invitations.').waitFor();
+    assert.equal(await driver.locator('[data-token-panel]').isVisible(),false);
 
     const rider = await signIn('approval-rider','circles');
+    await rider.getByLabel('Invitation token').fill(revokedToken);
+    await rider.getByRole('button',{name:'Join circle'}).click();
+    await rider.locator('[data-notice]').getByText(/invitation/i).waitFor();
+    await driver.getByRole('button',{name:'Create invitation'}).click();
+    await driver.locator('[data-token]').waitFor();
+    const invitation=await driver.locator('[data-token]').innerText();
     await rider.getByLabel('Invitation token').fill(invitation);
     await rider.getByRole('button',{name:'Join circle'}).click();
     await rider.getByRole('button',{name:'Browse journeys'}).waitFor();
@@ -125,6 +136,7 @@ test('reviewer approves driver → private circle offer → request, checkout, b
     await rider.getByRole('button',{name:'Request driver approval'}).click();
     await rider.getByRole('heading',{name:'Waiting for driver approval'}).waitFor();
     await driver.getByRole('button',{name:'Refresh trips'}).click();
+    await driver.locator('[data-board-count]').getByText('1 awaiting approval',{exact:true}).waitFor();
     await driver.getByRole('button',{name:'Approve',exact:true}).click();
     await rider.getByRole('button',{name:/Pay.*in sandbox/}).click({timeout:25000});
     await rider.getByRole('button',{name:'Show boarding PIN'}).click();
@@ -137,6 +149,13 @@ test('reviewer approves driver → private circle offer → request, checkout, b
     await rider.getByRole('heading',{name:'Boarded',exact:true}).waitFor({timeout:25000});
     assert.equal(await rider.getByRole('button',{name:'Cancel reservation'}).count(),0);
     assert.equal(await rider.getByRole('button',{name:'Confirm trip complete'}).count(),0);
+    const receiptHash=await rider.evaluate(()=>location.hash);
+    await navigate(rider,'circles');
+    await rider.getByRole('button',{name:'Leave circle'}).click();
+    await rider.getByRole('dialog').getByRole('button',{name:'Leave circle'}).click();
+    await rider.getByRole('button',{name:'Browse journeys'}).waitFor({state:'detached'});
+    await rider.evaluate(hash=>{location.hash=hash;},receiptHash);
+    await rider.getByRole('heading',{name:'Boarded',exact:true}).waitFor();
     await rider.getByRole('link',{name:'Report a safety concern'}).click();
     await rider.getByLabel('What happened?').fill('Synthetic browser test of the review queue.');
     await rider.getByRole('button',{name:'Submit confidential report'}).click();
@@ -152,5 +171,37 @@ test('reviewer approves driver → private circle offer → request, checkout, b
     assert.deepEqual(errors,[]);
   } finally {
     await browser.close();
+  }
+});
+
+test('a declined request searches for the same segment and local travel day, even after reload',async t=>{
+  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});
+  t.after(()=>browser.close());
+  const context=await browser.newContext({viewport:{width:320,height:740},timezoneId:'Asia/Kolkata'});
+  await offlineLogin(context,base,'approval-rider',tokens['approval-rider']);
+  const pickup=new Date(Date.now()+4*86400000);
+  pickup.setUTCHours(19,0,0,0); // The following calendar day in India.
+  const localDay=new Date(+pickup+19800000).toISOString().slice(0,10);
+  const after=Date.parse(localDay+'T00:00:00+05:30');
+  const stops=[{name:'East station',metres:0,minutes:0},{name:'River gate',metres:3000,minutes:12},{name:'Town hall',metres:4500,minutes:20}];
+  const ticket={id:'receipt',state:'driver_cancelled',declined:true,board:1,alight:2,fare_paise:900,charged_paise:0,refund_paise:0};
+  await context.route('**/v1/journeys/ride',r=>r.fulfill({json:{id:'ride',booking_mode:'approval',departure:pickup.toISOString(),stops,tickets:[ticket]}}));
+  await context.route('**/v1/journeys/ride/tickets/receipt/notifications',r=>r.fulfill({json:[]}));
+  await context.route('**/v1/journeys/search',r=>r.fulfill({json:{items:[],more:true}}));
+  const page=await context.newPage();
+  await page.goto(base+'/studio/#/checkout/ride/receipt');
+  await page.locator('#account button').click();
+  await page.getByRole('button',{name:/Continue to secure sign-in/}).click();
+  await page.getByRole('heading',{name:'Request declined',exact:true}).waitFor();
+  for(const action of [()=>page.getByRole('button',{name:'Find another ride'}).click(),()=>page.reload()]){
+    const found=page.waitForResponse(r=>r.url().endsWith('/v1/journeys/search')&&r.request().method()==='POST');
+    await action();
+    const query=(await found).request().postDataJSON();
+    assert.equal(query.origin.name,'River gate');
+    assert.equal(query.destination.name,'Town hall');
+    assert.equal(Date.parse(query.after),after);
+    assert.equal(Date.parse(query.before),after+86400000);
+    await page.getByRole('heading',{name:'No rides for this search'}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'Show more rides'}).count(),0);
   }
 });

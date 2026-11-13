@@ -70,7 +70,10 @@ def history(jid: UUID, tid: UUID, principal: RideReader, session: DatabaseSessio
         {"event": row.event, "channel": row.channel, "state": row.state, "created": row.created}
         for row in session.scalars(
             select(Notification)
-            .where(Notification.ticket_id == ticket.id)
+            .where(
+                Notification.ticket_id == ticket.id,
+                Notification.owner == preferences.owner_key(principal.issuer, principal.subject),
+            )
             .order_by(Notification.created, Notification.id)
         )
     ]
