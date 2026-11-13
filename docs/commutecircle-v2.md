@@ -19,7 +19,7 @@ The web app and API on `main` implement the pilot workflow below.
 5. A verified driver approves under the journey row lock; approved requests become temporary `held` tickets. Adjacent nonoverlapping segments may reuse seats. The rider then pays in the **sandbox**; approval and payment are not the same event.
 6. Near pickup, a paid rider creates a short-lived six-digit boarding PIN, shown only in their authenticated checkout. The driver validates it; the server keeps a salted, iterated hash, enforces attempt limits and records a boarding event.
 7. After scheduled drop-off, the rider confirms completion; the completed ticket's private GPS sharing is revoked. Reports are visible only to authors and staff reviewers.
-8. Drivers create a timezone-bound recurring template. The web UI materializes the next 14 days. The driver may skip an individual date before bookings exist.
+8. Drivers create a timezone-bound recurring template. The web UI materializes the next 14 days. The driver may skip a date once all pending requests, seat holds and refund obligations for that occurrence have closed.
 9. Invitation-only circles control private journey discovery. Owners can copy the one-time token or an invitation with the circle name, joining instructions and expiry. The link opens My Circles. The token is shared separately within the message and stored as a hash in the database. Owners can list and revoke active invitations. Members can leave a circle, ending discovery and new requests while preserving their existing reservations and receipts. Location, contacts and private booking messages have separate access checks.
 
 ## Manual operation and limitations (must be fixed before a public launch)
@@ -44,11 +44,11 @@ The web app and API on `main` implement the pilot workflow below.
 
 ## Staff review screen
 
-Open `#/staff` before signing in to request the reviewer scope. Only accounts independently granted `v2:staff` by the provider can review cases. It lists pending driver and vehicle applications and open safety cases, with explicit reviewer decisions and case notes. The server independently enforces staff authorization on every API request. The route does not imply emergency dispatch or independent proof verification.
+Open `#/staff` before signing in to request the reviewer scope. Only accounts independently granted `v2:staff` by the provider can review cases. It lists pending driver and vehicle applications and open safety cases, with explicit reviewer decisions and case notes. The review dialog names the decision and shows the evidence being reviewed. The server locks the application and checks its submission timestamp and expected status before saving a dashboard decision. A competing review or replacement submission refreshes the queue. The route does not imply emergency dispatch or independent proof verification.
 
 ## Local setup, version and compatibility
 
-The API metadata version is `0.2.4`; URL paths remain `/v1` for backward
+The API metadata version is `0.2.5`; URL paths remain `/v1` for backward
 compatibility. Old Ride/Booking endpoints are marked deprecated in Swagger
 only, not removed. Run `./scripts/configure-local-auth.ps1` (PowerShell) to
 fill missing **public** Auth0 settings in a local `.env`, then

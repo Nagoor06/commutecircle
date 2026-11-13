@@ -61,16 +61,29 @@ export async function mount(ctx) {
     '<section class="panel"><div class="panel-cap">Safety case queue ('+reports.length+')</div>'+
     (reportsHtml||'<p>No open safety reports.</p>')+'</section></div>'+
     '<div data-notice role="status" hidden></div>';
-  root.querySelectorAll('[data-driver]').forEach(button=>button.onclick=()=>pending(button,async()=>{
-    if(!await confirmation('Confirm verification decision?',
-      'Only approve once all required evidence has been independently checked.','Confirm decision'))return;
-    await api.staffDriverDecision(button.dataset.driver,button.dataset.decision);
-    if(!signal.aborted)ctx.render();
-  },error=>notice(root,error,'error')));
-  root.querySelectorAll('[data-vehicle]').forEach(button=>button.onclick=()=>pending(button,async()=>{
-    if(!await confirmation('Confirm vehicle verification?',
-      'Check registration, eligibility and the vehicle against your verification procedure.','Confirm decision'))return;
-    await api.staffVehicleDecision(button.dataset.vehicle,button.dataset.decision);
+  if(ctx.state.reviewNotice){
+    notice(root,ctx.state.reviewNotice,'info');
+    delete ctx.state.reviewNotice;
+  }
+  root.querySelectorAll('[data-driver],[data-vehicle]').forEach(button=>button.onclick=()=>pending(button,async()=>{
+    const driver=button.hasAttribute('data-driver');
+    const row=driver?drivers.find(d=>d.subject===button.dataset.driver):vehicles.find(v=>v.id===button.dataset.vehicle);
+    const decision=button.dataset.decision;
+    const verb=decision==='approved'?'Approve':'Reject';
+    const title=verb+(driver?' this driver application?':' this vehicle?');
+    const message=driver?'Review the case reference and applicant before recording this decision.':
+      'Check the registration and passenger capacity against the vehicle evidence.';
+    const details=driver?[['Applicant',row.subject],['Case reference',row.evidence_reference]]:
+      [['Applicant',row.subject],['Vehicle',row.make+' '+row.model],['Registration',row.registration],['Passenger seats',String(row.seat_capacity)]];
+    if(!await confirmation(title,message,'Confirm decision',{danger:decision==='rejected',signal,details}))return;
+    const expected=auth.versionedReviews?{expected_status:row.status,expected_submitted_at:row.submitted_at}:{};
+    try {
+      if(driver)await api.staffDriverDecision(row.subject,decision,expected);
+      else await api.staffVehicleDecision(row.id,decision,expected);
+    } catch(error) {
+      if(error.status!==409)throw error;
+      if(!signal.aborted)ctx.state.reviewNotice='The application changed during review. Review the refreshed queue.';
+    }
     if(!signal.aborted)ctx.render();
   },error=>notice(root,error,'error')));
   root.querySelectorAll('[data-case]').forEach(form=>form.onsubmit=event=>{

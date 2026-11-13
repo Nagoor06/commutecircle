@@ -12,14 +12,20 @@ export async function mount(ctx) {
     <div class="quick-replies"><button type="button">I’m at the pickup point.</button><button type="button">I’ll arrive in 5 minutes.</button><button type="button">Which side of the public entrance?</button></div>
     <form data-chat><label class="field">Message<textarea maxlength="500" rows="3" required placeholder="Describe a public landmark…"></textarea></label><button class="btn primary">Send message</button></form>
     <div data-notice role="status" hidden></div><div class="button-row"><button data-refresh class="text-btn">Refresh messages</button><button data-block class="text-btn cancel">Block this chat</button></div></section>`;
-  let timer, busy=false, blocked=false, last='', acknowledged='', draftKey;
+  let timer, busy=false, refreshQueued=false, blocked=false, last='', acknowledged='', draftKey;
   const field=root.querySelector('textarea'), form=root.querySelector('form');
-  async function refresh() {
-    if (busy || signal.aborted) return;
+  async function refresh(afterWrite=false) {
+    if(signal.aborted)return;
+    if(busy){if(afterWrite===true)refreshQueued=true;return;}
     busy=true;
     try {
       const data=await api.messages(jid,tid,signal);
       if(signal.aborted)return;
+      blocked=data.closed;
+      form.hidden=blocked;
+      root.querySelector('.quick-replies').hidden=blocked;
+      root.querySelector('[data-block]').hidden=blocked;
+      if(blocked)notice(root,'This conversation is closed. You can still read its messages.');
       const serialized=JSON.stringify(data.messages);
       if(serialized!==last){
         last=serialized;
@@ -39,23 +45,26 @@ export async function mount(ctx) {
       if(newest && newest!==acknowledged && !document.hidden && log.scrollHeight-log.scrollTop-log.clientHeight<80){
         await api.readMessages(jid,tid,newest,signal);acknowledged=newest;
       }
-      blocked=data.closed;
-      form.hidden=blocked;root.querySelector('.quick-replies').hidden=blocked;
-      if(blocked) notice(root,'This conversation is closed. You can still read its messages.');
     } catch(e){if(!signal.aborted)notice(root,e.message+' Use Refresh messages to retry.','error');}
-    finally{busy=false;}
+    finally{
+      busy=false;
+      if(refreshQueued&&!signal.aborted){refreshQueued=false;void refresh();}
+    }
   }
   form.onsubmit=e=>{e.preventDefault();pending(e.submitter,async()=>{
-    draftKey ||= requestId();
-    await api.sendMessage(jid,tid,{message_id:draftKey,text:field.value.trim()});
-    field.value='';draftKey=null;notice(root,'');await refresh();
+    const key=draftKey ||= requestId();
+    const text=field.value.trim();
+    await api.sendMessage(jid,tid,{message_id:key,text});
+    if(signal.aborted)return;
+    if(draftKey===key){field.value='';draftKey=null;}
+    notice(root,'');await refresh(true);
   },m=>notice(root,m,'error'));};
   field.oninput=()=>{draftKey=null;};
   root.querySelectorAll('.quick-replies button').forEach(b=>b.onclick=()=>{field.value=b.textContent;draftKey=null;field.focus();});
   root.querySelector('[data-refresh]').onclick=refresh;
   root.querySelector('[data-block]').onclick=e=>pending(e.currentTarget,async()=>{
-    if(await confirmation('Block this conversation?','Neither person can send further messages for this booking. This does not cancel the ride.','Block chat')){
-      await api.blockChat(jid,tid);await refresh();
+    if(await confirmation('Block this conversation?','Neither person can send further messages for this booking. This does not cancel the ride.','Block chat',{danger:true,signal})){
+      await api.blockChat(jid,tid);await refresh(true);
     }
   },m=>notice(root,m,'error'));
   await refresh();

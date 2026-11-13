@@ -16,12 +16,10 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
 .brand { color: #fffff0; }
 .brand > span:last-child { color: var(--signal); }
 .primary-nav a { color: #e7ede2; }
-.primary-nav a:hover { background: #324b3d; color: white; }
 .primary-nav [aria-current=page] { background: var(--signal); color: #142c22; }
 #account .account-btn, #account .mode {
   border: 1px solid #6f8173; border-radius: 8px; background: transparent; color: #fffef2;
 }
-#account .account-btn:hover { background: #314a3b; }
 .page-head { padding-block: 7px 18px; border-bottom: 1px solid var(--edge); }
 .page-head h1 { font-weight: 720; letter-spacing: -.065em; line-height: 1.02; }
 .page-head .eyebrow { letter-spacing: .10em; color: #405c4d; }
@@ -32,7 +30,6 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
 .btn.primary {
   background: var(--signal); color: #102b1e; border-color: #a4ba74; box-shadow: none;
 }
-.btn.primary:hover { background: #ccea78; color: #102b1e; }
 .btn.secondary { background: var(--paper); border-color: #b9c5b9; }
 .btn, .account-btn { font-weight: 690; }
 .tabs a[aria-current=page] { background: var(--forest); color: white; }
@@ -141,4 +138,50 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
 }
 @media (prefers-reduced-motion:reduce) {
   .page { animation: none; }
+}
+
+.dialog {
+  width: min(448px,calc(100vw - 24px)); padding: 0; max-height: calc(100dvh - 32px);
+  color: var(--ink); border: 1px solid #abb9a9; border-radius: 17px;
+  box-shadow: 0 20px 70px #0c231e3d; overflow: auto; overscroll-behavior: contain;
+}
+.dialog::backdrop { background: #0e2822a6; }
+.dialog-body { padding: clamp(18px,4vw,30px); overflow-wrap: anywhere; }
+.dialog-tools { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+.dialog-symbol, .dialog-close { display: inline-grid; place-items: center; border-radius: 11px; }
+.dialog-symbol { width: 42px; height: 42px; color: var(--signal); background: var(--forest); }
+.dialog.destructive .dialog-symbol { background: #f7e7dd; color: #8c372b; }
+.dialog-close { width: 44px; height: 44px; border: 1px solid var(--edge); background: var(--paper); color: var(--ink); }
+.dialog h2 { margin: 0; font-size: clamp(24px,4vw,32px); line-height: 1.13; letter-spacing: -.035em; }
+.dialog p { color: var(--muted); line-height: 1.55; margin: 10px 0 0; }
+.dialog-details { margin: 15px 0 0; padding: 0; border-top: 1px dashed #b9c6b8; }
+.dialog-details > div { display: grid; grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr); gap: 10px; padding: 6px 0; }
+.dialog-details dt { color: var(--muted); }
+.dialog-details dd { margin: 0; text-align: right; font-weight: 660; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; padding: 15px clamp(18px,4vw,30px); background: #eff2e9; border-top: 1px solid var(--edge); }
+.dialog-actions .btn { min-height: 44px; }
+body:has(.dialog[open]) { overflow: hidden; }
+:where(button,a,input,select,textarea,summary,[tabindex]):focus-visible { outline: 3px solid #366b4a; outline-offset: 3px; }
+.topbar :focus-visible, .primary-nav a:focus-visible { outline-color: #d9f58e; }
+@media (hover:hover) and (pointer:fine) {
+  .primary-nav a:hover:not([aria-current=page]) { background: #324b3d; color: white; }
+  #account .account-btn:hover { background: #314a3b; }
+  .btn, .dialog-close, .match-chip, .map-tool { transition: background-color .15s, border-color .15s, box-shadow .15s; }
+  .btn.primary:hover:not(:disabled) { background: #c7e674; border-color: #708c42; color: #102b1e; }
+  .btn.secondary:hover:not(:disabled), .dialog-close:hover, .map-tool:hover { background: #e7eee0; border-color: #799478; }
+  .btn.danger:hover:not(:disabled) { background: #802d24; }
+  .btn.quiet-danger:hover:not(:disabled) { color: #782a22; background: #f5e8e1; border-color: #bd8b80; }
+  .match-chip:hover, .commute-shortcut:hover { background: #edf3e4; text-decoration: underline; }
+}
+.btn:active:not(:disabled), .dialog-close:active { box-shadow: inset 0 0 0 2px #244b322f; }
+@media(max-width:480px) {
+  .dialog { margin: auto auto max(12px,env(safe-area-inset-bottom)); width: calc(100vw - 16px); }
+  .dialog-actions .btn { flex: 1 1 120px; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .dialog[open] { animation: dialog-in .16s ease-out; }
+  @keyframes dialog-in { from { opacity: 0; transform: translateY(6px); } }
+}
+@media(prefers-reduced-motion:reduce) {
+  .btn, .dialog-close, .match-chip, .map-tool { transition: none; }
 }

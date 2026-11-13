@@ -45,7 +45,7 @@ export function bindEarlierTrips(ctx, driving, history, button) {
             button(group,'Decline request',async()=>{await api.earlierDecision(request.id,'reject');await load();});
           } else if (upcoming && !driving && ['pending','accepted'].includes(request.status)) {
             button(group,'Cancel seat request',async()=>{
-              if (await confirmation('Cancel this request?',title.textContent,'Cancel request')) {
+              if (await confirmation('Cancel this request?',title.textContent,'Cancel request',{danger:true,signal})) {
                 await api.earlierDecision(request.id,'cancel');
                 await load();
               }
@@ -63,7 +63,7 @@ export function bindEarlierTrips(ctx, driving, history, button) {
           row.append(info);
         });
         if (driving && upcoming) button(row,'Cancel earlier ride',async()=>{
-          if(await confirmation('Cancel this ride?','This closes its active seat requests.','Cancel ride',{danger:true})){
+          if(await confirmation('Cancel this ride?','This closes its active seat requests.','Cancel ride',{danger:true,signal})){
             await api.oldCancel(ride.id);
             await load();
           }
