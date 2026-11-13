@@ -66,8 +66,8 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  border: 2px solid var(--green);
-  background: #f6faec;
+  border: 2px solid var(--brand);
+  background: var(--soft);
   position: relative
 }
 
@@ -78,12 +78,12 @@
   height: 20px;
   left: 1.5px;
   top: 7px;
-  background: #bbcbb9
+  background: var(--control-edge)
 }
 
 .itinerary div:last-child i,
 .stop-list i.last {
-  border-color: var(--terra);
+  border-color: var(--dropoff);
   border-radius: 2px
 }
 
@@ -115,7 +115,7 @@
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: #53685a
+  color: var(--muted)
 }
 
 .ride-foot>a {
@@ -128,7 +128,7 @@
 }
 
 .route-h1>span {
-  color: #80a587
+  color: var(--brand)
 }
 
 .details-grid,
@@ -191,7 +191,7 @@
   width: 2px;
   top: 16px;
   bottom: -10px;
-  background: #c6d3bf
+  background: var(--control-edge)
 }
 
 .stop-time,
@@ -205,7 +205,7 @@
 }
 
 .stop-list .muted-stop {
-  opacity: .65
+  color: var(--muted)
 }
 
 .fare-line {
@@ -231,7 +231,7 @@
   justify-content: space-between;
   gap: 10px;
   font-size: 14px;
-  border-top: 1px solid #dee5d9;
+  border-top: 1px solid var(--edge);
   padding: 9px 0
 }
 
@@ -307,7 +307,7 @@ summary::-webkit-details-marker {
 
 .ticket-head {
   padding-bottom: 20px;
-  border-bottom: 1px dashed #bfcfb9
+  border-bottom: 1px dashed var(--control-edge)
 }
 
 .ticket-route {
@@ -338,12 +338,12 @@ summary::-webkit-details-marker {
   gap: 6px;
   border-radius: 8px;
   padding: 8px;
-  background: #edf4df;
+  background: var(--warning-soft);
   font-size: 14px
 }
 
 .cancel {
-  color: #963f2e
+  color: var(--danger)
 }
 
 .checkout-pay>.text-btn {
@@ -404,14 +404,14 @@ summary::-webkit-details-marker {
 .checkline input {
   width: 18px;
   height: 18px;
-  accent-color: var(--green)
+  accent-color: var(--brand)
 }
 
 .note-box {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  background: #eef4e5;
+  background: var(--soft);
   border-radius: 9px;
   padding: 10px;
   font-size: 13px
@@ -430,7 +430,7 @@ summary::-webkit-details-marker {
   display: flex;
   padding: 3px;
   gap: 2px;
-  background: #e8eee3;
+  background: var(--soft);
   border-radius: 11px
 }
 
@@ -445,9 +445,9 @@ summary::-webkit-details-marker {
 }
 
 .tabs a[aria-current=page] {
-  background: #fffefa;
-  color: #1c5238;
-  box-shadow: 0 1px 4px #234b271a
+  background: var(--paper);
+  color: var(--brand);
+  box-shadow: 0 1px 4px #30213e1a
 }
 
 .trip-list {
@@ -494,7 +494,7 @@ summary::-webkit-details-marker {
   padding: clamp(12px, 3vw, 20px);
   border: 1px solid var(--edge);
   border-radius: 14px;
-  background: var(--soft);
+  background: linear-gradient(125deg, var(--soft) 50%, var(--accent-soft));
   scroll-margin-block: 18vh
 }
 
@@ -512,7 +512,7 @@ summary::-webkit-details-marker {
 }
 
 .invitation-message a {
-  color: var(--green);
+  color: var(--brand);
   text-decoration: underline
 }
 
@@ -556,7 +556,7 @@ summary::-webkit-details-marker {
 }
 
 .accent-panel {
-  background: #edf3e4
+  background: var(--brand-tint)
 }
 
 .accent-panel form,
@@ -601,11 +601,11 @@ summary::-webkit-details-marker {
   padding: 24px;
   border-radius: 16px;
   background: var(--paper);
-  box-shadow: 0 15px 65px #142c2b44
+  box-shadow: 0 15px 65px #30213e44
 }
 
 .dialog::backdrop {
-  background: #102b2366
+  background: #30213e66
 }
 
 .dialog p {

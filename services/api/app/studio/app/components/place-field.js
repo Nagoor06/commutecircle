@@ -19,7 +19,7 @@ export function fieldMarkup(i, p, options = {}) {
   const label = options.label || (i ? 'Drop-off' : 'Pickup'),
     badge = options.badge || (i ? 'B' : 'A');
   const id = 'place-' + i;
-  return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${badge==='A'?'':'orange'}">${esc(badge)}</span>${esc(label)}</label>
+  return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${badge==='B'?'dropoff':''}">${esc(badge)}</span>${esc(label)}</label>
     <div class="place-entry"><input id="${id}" aria-label="${esc(label)}" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list" placeholder="Search for a place" value="${esc(p.name)}"><button type="button" class="icon-only" aria-label="Edit ${esc(label)}">${icon('pin',17)}</button></div>
     <small class="place-sub">${esc(p.area||(p.name?'Public meeting place':''))}</small>
     <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>

@@ -30,7 +30,7 @@ export async function trackingMap(host, signal) {
         stopMarkers.forEach(m=>m.remove());stopMarkers=[];stopsKey=key;
         for(const [i,s] of (data.stops||[]).entries())if(finitePlace(s)){
           const label=document.createElement('span');label.textContent=s.name;
-          stopMarkers.push(L.circleMarker([s.lat,s.lon],{radius:5,color:'#345e4d',fillColor:'white',fillOpacity:1,weight:2})
+          stopMarkers.push(L.circleMarker([s.lat,s.lon],{radius:5,color:'var(--brand)',fillColor:'white',fillOpacity:1,weight:2})
             .bindTooltip(label).addTo(map));
         }
       }
@@ -39,7 +39,7 @@ export async function trackingMap(host, signal) {
         marker=L.marker(next,{title:source,alt:source,zIndexOffset:1000,icon:L.divIcon({className:'live-position',
           html:`<span class="live-marker ${data.source==='driver'?'vehicle-marker':'traveller-marker'}">${icon(data.source==='driver'?'car':'user',25)}</span>`,iconSize:[48,48],iconAnchor:[24,24]})}).addTo(map);
         const label=document.createElement('span');label.textContent=source;marker.bindTooltip(label);
-        circle=L.circle(next,{radius:p.accuracy_m,color:'#146b56',weight:1,fillOpacity:.09,interactive:false}).addTo(map);
+        circle=L.circle(next,{radius:p.accuracy_m,color:'var(--live)',weight:1,fillOpacity:.09,interactive:false}).addTo(map);
         latest=next;stamp=observed;map.setView(next,15);return;
       }
       if(observed<=stamp)return;

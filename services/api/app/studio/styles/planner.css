@@ -33,24 +33,25 @@
 .place-field {
   position: relative;
   min-width: 0;
-  border: 1px solid #ccd7ca;
+  border: 1px solid var(--control-edge);
   border-radius: 12px;
   padding: 11px 13px 9px;
-  background: linear-gradient(130deg, #f3f7ef, #fffefa)
+  background: linear-gradient(130deg, var(--bg), var(--paper))
 }
 
 .place-field.is-searching { z-index: 21 }
 
 .place-field:focus-within {
-  border-color: #639575;
-  box-shadow: 0 0 0 2px #76a18320
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: -2px
 }
 
 .place-field>label {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #4e6456;
+  color: var(--muted);
   font: 700 10px/1.4 ui-monospace, monospace;
   letter-spacing: .1em;
   text-transform: uppercase
@@ -64,12 +65,12 @@
   border-radius: 50%;
   font: 700 10px/1 ui-monospace, monospace;
   color: white;
-  background: #20664e
+  background: var(--brand)
 }
 
-.point-key.orange {
+.point-key.dropoff {
   border-radius: 5px;
-  background: #a44e31
+  background: var(--dropoff)
 }
 
 .place-entry {
@@ -92,7 +93,7 @@
 
 .place-sub {
   display: block;
-  color: #637367;
+  color: var(--muted);
   font-size: 11.5px;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -109,12 +110,12 @@
   width: 29px;
   height: 29px;
   border-radius: 50%;
-  background: #fffefa;
-  border: 1px solid #cdd9cb;
+  background: var(--paper);
+  border: 1px solid var(--edge);
   display: grid;
   place-items: center;
-  color: #37634a;
-  box-shadow: 0 1px 3px #1b412113
+  color: var(--brand);
+  box-shadow: 0 1px 3px #30213e13
 }
 
 .date-row {
@@ -125,7 +126,7 @@
   margin: 6px 0 8px;
   font-size: 12.5px;
   font-weight: 650;
-  color: #4c6054
+  color: var(--muted)
 }
 
 .date-row>span {
@@ -159,7 +160,7 @@
 
 .browse-all {
   font-size: 12px;
-  color: #496650;
+  color: var(--brand);
   width: 100%;
   padding: 12px 0 0
 }
@@ -171,10 +172,10 @@
 .suggestions {
   position: absolute;
   z-index: 20;
-  background: #fffefa;
-  border: 1px solid #c6d6c5;
+  background: var(--paper);
+  border: 1px solid var(--edge);
   border-radius: 12px;
-  box-shadow: 0 12px 36px #1b35282c;
+  box-shadow: 0 12px 36px #30213e29;
   left: -1px;
   right: -1px;
   top: calc(100% + 3px);
@@ -208,7 +209,7 @@
 
 .suggestions [role=option]:hover,
 .suggestions [aria-selected=true] {
-  background: #edf3e8
+  background: var(--brand-tint)
 }
 
 .suggestions [role=option]>span {
@@ -241,7 +242,7 @@
   gap: 5px;
   border-top: 1px solid var(--edge);
   padding: 10px 12px;
-  background: #f4f7ef
+  background: var(--soft)
 }
 .lookup-actions [data-hint] { padding: 0; white-space: normal; line-height: 1.4 }
 .lookup-actions [data-hint]:empty { display: none }
@@ -249,7 +250,7 @@
 .lookup-actions button {
   border: 0;
   background: transparent;
-  color: var(--green);
+  color: var(--brand);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -266,8 +267,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #e9eddf;
-  border: 1px solid #d1dacd;
+  background: var(--map-ground);
+  border: 1px solid var(--edge);
   border-radius: 19px;
   overflow: hidden;
   box-shadow: var(--shadow)
@@ -277,8 +278,8 @@
   flex: 1;
   min-height: 305px;
   width: 100%;
-  background-color: #e6ecdf;
-  background-image: linear-gradient(32deg, #f5f5e777 1px, transparent 1px), linear-gradient(118deg, #cbd7c377 1px, transparent 1px);
+  background-color: var(--map-ground);
+  background-image: linear-gradient(32deg, #fffdf999 1px, transparent 1px), linear-gradient(118deg, #c8b9ca77 1px, transparent 1px);
   background-size: 34px 64px
 }
 
@@ -297,10 +298,10 @@
 .atlas-badge {
   top: 15px;
   left: 15px;
-  border: 1px solid #d3dbca;
-  background: #fffefaed;
-  box-shadow: 0 2px 9px #1c3e2620;
-  color: #385c46;
+  border: 1px solid var(--edge);
+  background: #fffdf9f5;
+  box-shadow: 0 2px 9px #30213e20;
+  color: var(--brand);
   border-radius: 9px;
   display: flex;
   align-items: center;
@@ -315,10 +316,10 @@
   right: 13px;
   top: 13px;
   display: grid;
-  background: #fffefa;
-  border: 1px solid #cad7c8;
+  background: var(--paper);
+  border: 1px solid var(--edge);
   border-radius: 10px;
-  box-shadow: 0 2px 9px #163b2222;
+  box-shadow: 0 2px 9px #30213e22;
   overflow: hidden
 }
 
@@ -327,25 +328,25 @@
   width: 35px;
   border: 0;
   background: transparent;
-  color: #294d39
+  color: var(--ink)
 }
 
 .map-tool+.map-tool {
-  border-top: 1px solid #e0e6db
+  border-top: 1px solid var(--edge)
 }
 
 .map-tool:hover {
-  background: #e9f1e4
+  background: var(--brand-tint)
 }
 
 .atlas-attribution {
   bottom: 58px;
   right: 0;
   border-radius: 4px 0 0 0;
-  background: #fffefaec;
+  background: #fffdf9f5;
   font: 10px/1.5 Arial, sans-serif;
   padding: 1px 5px;
-  color: #365246
+  color: var(--muted)
 }
 
 .atlas-footer {
@@ -355,7 +356,7 @@
   justify-content: space-between;
   gap: 6px;
   padding: 8px 16px;
-  border-top: 1px solid #cfd9c9;
+  border-top: 1px solid var(--edge);
   background: var(--paper);
   z-index: 460
 }
@@ -397,9 +398,9 @@
   bottom: 79px;
   left: 9px;
   max-width: calc(100% - 18px);
-  background: #fffef6f2;
+  background: #fffdf9f5;
   border: 1px solid var(--edge);
-  color: #38533e;
+  color: var(--muted);
   border-radius: 7px;
   padding: 4px 8px;
   font-size: 11px
@@ -422,8 +423,8 @@
   border: 3px solid white;
   border-radius: 50% 50% 50% 6px;
   transform: rotate(-45deg);
-  background: #164f3e;
-  box-shadow: 0 2px 7px #15322855
+  background: var(--brand);
+  box-shadow: 0 2px 7px #30213e55
 }
 
 .map-marker-body>span {
@@ -439,19 +440,19 @@
   width: 12px;
   height: 5px;
   border-radius: 50%;
-  background: #143d354f
+  background: #30213e4f
 }
 
 .finish .map-marker-body {
-  background: #a65031
+  background: var(--dropoff)
 }
 
 .atlas .leaflet-tooltip.stop-label {
-  background: #fffef9f5;
-  border: 1px solid #cbd6c8;
-  color: #263e31;
+  background: #fffdf9f5;
+  border: 1px solid var(--edge);
+  color: var(--ink);
   border-radius: 6px;
-  box-shadow: 0 2px 6px #132d251e;
+  box-shadow: 0 2px 6px #30213e1e;
   padding: 4px 7px;
   font: 650 11px/1.25 inherit;
   max-width: 150px;
@@ -491,15 +492,15 @@
   padding: 11px 13px;
   flex: 1;
   text-align: left;
-  background: #fffefa;
+  background: var(--paper);
   border: 1px solid var(--edge);
   border-radius: 12px;
   min-width: 0
 }
 
 .corridor:hover {
-  border-color: #87a58a;
-  background: #fcfef7
+  border-color: var(--control-edge);
+  background: var(--paper)
 }
 
 .corridor-icon {
@@ -509,8 +510,8 @@
 }
 
 .corridor-icon.warm {
-  background: #f4e9dc;
-  color: #916243
+  background: var(--accent-soft);
+  color: var(--dropoff)
 }
 
 .corridor b,

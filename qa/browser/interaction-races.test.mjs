@@ -21,6 +21,22 @@ async function signedPage(t,width,path,setup) {
   return page;
 }
 
+async function assertButtonContrast(button) {
+  const [foreground, background] = await button.evaluate(el => {
+    const style = getComputedStyle(el);
+    return [style.color, style.backgroundColor];
+  });
+  function luminance(rgb) {
+    const [r, g, b] = rgb.match(/[\d.]+/g).map(channel => {
+      const value = Number(channel) / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  const [dark, light] = [luminance(foreground), luminance(background)].sort((a, b) => a - b);
+  assert.ok((light + 0.05) / (dark + 0.05) >= 4.5, `Low text contrast: ${foreground} on ${background}`);
+}
+
 test('confirmation has an accessible name and safe keyboard, backdrop and navigation dismissal',async t=>{
   let leaveCalls=0;
   const page=await signedPage(t,320,'circles',async page=>{
@@ -30,14 +46,16 @@ test('confirmation has an accessible name and safe keyboard, backdrop and naviga
   const leave=page.getByRole('button',{name:'Leave circle',exact:true});
   const dialog=page.getByRole('dialog',{name:'Leave River commuters?'});
   const primary=page.getByRole('button',{name:'Create circle'});
+  await assertButtonContrast(primary);
   const normal=await primary.evaluate(b=>getComputedStyle(b).backgroundColor);
   await primary.hover();
   await page.waitForFunction(color=>getComputedStyle(document.querySelector('[data-create] button')).backgroundColor!==color,normal);
-  assert.equal(await primary.evaluate(b=>getComputedStyle(b).color),'rgb(16, 43, 30)');
+  await assertButtonContrast(primary);
   for(const width of [320,900]){
     await page.setViewportSize({width,height:740});
     await leave.click();
     await dialog.waitFor();
+    await assertButtonContrast(dialog.getByRole('button',{name:'Leave circle',exact:true}));
     assert.equal(await dialog.getByRole('button',{name:'Go back'}).evaluate(el=>el===document.activeElement),true);
     assert.equal(await dialog.evaluate(el=>getComputedStyle(el).animationName),'none');
     const box=await dialog.boundingBox();

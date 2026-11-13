@@ -30,7 +30,9 @@ export async function mount(ctx){
     root.querySelector('[data-consent]').disabled=active;
     const passengers=root.querySelector('[data-passengers]');
     if(passengers){passengers.disabled=active;if(active)passengers.checked=current.passengers_allowed;}
-    root.querySelector('[data-state]').textContent=active?current.status+(current.updated_at?' · updated '+clock(current.updated_at):'')+' · expires '+clock(current.expires_at):'Sharing is off.';
+    const status=root.querySelector('[data-state]');
+    status.dataset.state=active?current.state:'off';
+    status.textContent=active?current.status+(current.updated_at?' · updated '+clock(current.updated_at):'')+' · expires '+clock(current.expires_at):'Sharing is off.';
     if(active)linkInput.value=new URL('./',location.href).href+'#/track/'+current.token;
     else linkInput.value='';
   }

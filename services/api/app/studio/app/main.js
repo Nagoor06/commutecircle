@@ -102,6 +102,7 @@ function openStudio(auth) {
   const sharingBar = document.querySelector('#sharing-status');
   state.sharing = createTripSharing(api, (current, problem) => {
     if (problem) { accountStatus.hidden=false; accountStatus.textContent=problem; }
+    sharingBar.dataset.state = current?.state || 'off';
     sharingBar.hidden = !current;
     if (!current) return;
     sharingBar.querySelector('span').textContent = current.status;

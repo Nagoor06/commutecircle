@@ -16,7 +16,7 @@ export function createTripSharing(api, notify) {
     await stop();const generation=++version;
     const result=await api.startShare({journey_id,passengers_allowed,...(ticket_id?{ticket_id}:{})});
     if(generation!==version){await api.stopShare(result.id);return;}
-    current={...result,journey_id,ticket_id,passengers_allowed,status:'Waiting for device location…',updated_at:null};
+    current={...result,journey_id,ticket_id,passengers_allowed,state:'waiting',status:'Waiting for device location…',updated_at:null};
     sequence=0;lastSent=0;sending=false;announce();
     function deadline(){
       clearTimeout(expiry);
@@ -30,10 +30,11 @@ export function createTripSharing(api, notify) {
         const response=await api.locateShare(result.id,{latitude:position.coords.latitude,longitude:position.coords.longitude,
           accuracy_m:position.coords.accuracy,observed_at:new Date(position.timestamp).toISOString(),sequence:++sequence});
         if(generation!==version)return;
-        if(response.accepted){current.updated_at=response.updated_at;current.status='Location sharing is on';deadline();announce();}
+        if(response.accepted){current.updated_at=response.updated_at;current.state='live';current.status='Location sharing is on';deadline();announce();}
       }catch(error){
         if(generation!==version)return;
         if([401,403,404,410].includes(error.status)){await stop().catch(()=>{});return;}
+        current.state='stale';
         current.status='Update failed. Keep this page open; location will retry.';announce();
       }finally{if(generation===version)sending=false;}
     };
@@ -44,6 +45,7 @@ export function createTripSharing(api, notify) {
         notify(null,'Location permission denied. Sharing stopped. Allow location in your browser before trying again.');
         return;
       }
+      current.state='stale';
       current.status='Location signal unavailable. Your contact sees the last update time.';announce();
     };
     const options={enableHighAccuracy:true,maximumAge:0,timeout:15000};

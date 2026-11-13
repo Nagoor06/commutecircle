@@ -8,20 +8,20 @@ import {
 } from '../../lib/vector/pbf.js';
 
 const palette = {
-  ground: '#f1f0e6',
-  built: '#e5e7dd',
-  park: '#cdddc1',
-  forest: '#c1d5b5',
-  farm: '#e8e8d3',
-  water: '#a4ccd0',
-  waterEdge: '#92bdc2',
-  road: '#fffdf4',
-  minorEdge: '#d6d6c8',
-  major: '#f0d296',
-  majorEdge: '#d5b377',
-  rail: '#a0a99f',
-  ink: '#536256',
-  blueInk: '#4f7e83'
+  ground: '#f4eee8',
+  built: '#eae3e3',
+  park: '#d7e3d5',
+  forest: '#c5d9c6',
+  farm: '#e9e8d8',
+  water: '#b2d5e3',
+  waterEdge: '#97bdcf',
+  road: '#fffdf9',
+  minorEdge: '#d6cbd1',
+  major: '#f4cca6',
+  majorEdge: '#c69e80',
+  rail: '#a69aa6',
+  ink: '#4d4054',
+  blueInk: '#355f74'
 };
 let tileInfo;
 async function source() {
@@ -113,7 +113,7 @@ function drawTile(canvas, tile, coords, native) {
   features(tile, 'waterway', (f, e) => {
     if (f.type === 2) stroke(f, e, palette.waterEdge, f.properties.class === 'river' ? 1.9 : 1)
   });
-  if (z >= 14) fillLayer('building', () => '#d9d9cd');
+  if (z >= 14) fillLayer('building', () => '#dcd2d6');
   const roads = [],
     rails = [];
   features(tile, 'transportation', (f, e) => {
@@ -138,7 +138,7 @@ function drawTile(canvas, tile, coords, native) {
   roads.sort((a, b) => a.rank - b.rank);
   for (const [f, e] of rails) {
     stroke(f, e, palette.rail, z >= 13 ? 1.4 : .85);
-    if (z >= 12) stroke(f, e, '#fbf9ef', .75, [4, 4])
+    if (z >= 12) stroke(f, e, '#faf6f0', .75, [4, 4])
   }
   for (const {
       f,
@@ -168,7 +168,7 @@ function drawTile(canvas, tile, coords, native) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineWidth = 3;
-    ctx.strokeStyle = '#f7f7ec';
+    ctx.strokeStyle = '#fffaf3';
     ctx.strokeText(text, x, y);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
@@ -190,7 +190,7 @@ function drawTile(canvas, tile, coords, native) {
     const p = f.properties;
     if (!names(p) && !p.ref) return;
     const pts = f.loadGeometry()[0];
-    if (pts?.length) label(names(p) || p.ref, point(pts[Math.floor(pts.length / 2)], e), 9, '#7c7764');
+    if (pts?.length) label(names(p) || p.ref, point(pts[Math.floor(pts.length / 2)], e), 9, '#635665');
   });
   features(tile, 'water_name', (f, e) => {
     const pts = f.loadGeometry()[0];
