@@ -59,6 +59,7 @@ export async function mount(ctx) {
       if (signal.aborted || id !== generation) return;
       const items = [];
       for (const j of rows) {
+        ctx.state.sharing.reconcile(j);
         if (j.owner !== driving) continue;
         if (driving) {
           const past = j.cancelled || pickupAt(j, j.stops.length - 1) <= Date.now();

@@ -63,6 +63,7 @@ export async function mount(ctx) {
   function paint() {
     clearInterval(interval);
     const t = ticket;
+    ctx.state.sharing.reconcile(j,t);
     const held = t.state === 'held' && Date.parse(t.expires) > Date.now(),
       state = held ? 'held' : t.state === 'held' ? 'expired' : t.state;
     const progress = ticketProgress(j, {...t, state});

@@ -342,6 +342,7 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       exact: true
     }).waitFor();
     assert.match(await rider.locator('.trip-list').innerText(), /Refund ₹100/);
+    await rider.locator('#sharing-status').waitFor({state:'hidden'});
     await rider.screenshot({
       path: 'evidence/mobile-refund.png',
       fullPage: true
