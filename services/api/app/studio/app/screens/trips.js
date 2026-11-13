@@ -108,7 +108,7 @@ export async function mount(ctx) {
         if((driving && !history && !j.cancelled) || progress?.share) actions.insertAdjacentHTML('beforeend', `<a class="btn secondary compact" href="#/share/${j.id}${t?'?ticket='+t.id:''}">Share my trip</a>`);
         if (driving && !j.cancelled && !j.tickets.some(t=>t.travel_state==='boarded') && Date.parse(j.departure) > Date.now()) button(actions,
           'Cancel ride', async () => {
-            if (await cancelJourney(api, j)) await refresh()
+            if (await cancelJourney(api, j, signal)) await refresh()
           }, true);
         if (t && (
           t.travel_state === 'completed' ||
@@ -135,7 +135,11 @@ export async function mount(ctx) {
             row.className='passenger-row';
             row.innerHTML='<p>'+esc(j.stops[req.board].name)+' → '+esc(j.stops[req.alight].name)+' · '+money(req.fare_paise)+'</p>';
             button(row,'Approve',async()=>{await api.approve(j.id,req.id);notice(root,'Passenger approved. They must complete sandbox checkout.','info');await refresh();});
-            button(row,'Decline',async()=>{await api.decline(j.id,req.id);await refresh();},true);
+            button(row,'Decline',async()=>{
+              if(!await confirmation('Decline this seat request?','The passenger can look for another ride. No payment has been taken.','Decline request',
+                {danger:true,signal,details:[['From',j.stops[req.board].name],['To',j.stops[req.alight].name]]}))return;
+              await api.decline(j.id,req.id);await refresh();
+            },true);
             requests.append(row);
           }
           card.append(requests);
@@ -162,7 +166,7 @@ export async function mount(ctx) {
             if(passenger.chat) row.insertAdjacentHTML('beforeend', `<a class="text-btn" href="#/chat/${j.id}/${ticket.id}">Passenger chat</a>`);
             if (passenger.cancel && ticket.state!=='requested') button(
               row, 'Cancel and refund', async () => {
-                if (await cancelTicket(api, j, ticket)) await refresh()
+                if (await cancelTicket(api, j, ticket, signal)) await refresh()
               }, true);
             if (passenger.exit) {
               const label = document.createElement('label');
@@ -176,7 +180,7 @@ export async function mount(ctx) {
               button(row, 'Confirm early exit', async () => {
                 const stop = +select.value;
                 if (await confirmation('Confirm passenger exit?', j.stops[stop].name +
-                    ' becomes the final stop. The onward fare is refunded.', 'Confirm exit')) {
+                    ' becomes the final stop. The onward fare is refunded.', 'Confirm exit',{signal})) {
                   await api.exit(j.id, ticket.id, stop);
                   await refresh()
                 }

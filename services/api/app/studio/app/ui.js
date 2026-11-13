@@ -82,29 +82,51 @@ export function notice(root, message, kind = 'info') {
 }
 export function pending(button, fn, onError) {
   if (button.disabled) return;
+  const restoreFocus=document.activeElement===button;
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   return Promise.resolve().then(fn).catch(e => onError(e.message || 'Something went wrong.')).finally(() => {
     button.disabled = false;
     button.removeAttribute('aria-busy');
+    if(restoreFocus && button.isConnected && document.activeElement===document.body)button.focus({preventScroll:true});
   });
 }
-export function confirmation(title, message, label, {
-  danger = false
-} = {}) {
-  const d = document.createElement('dialog');
-  d.className = 'dialog';
-  d.innerHTML =
-    `<form method="dialog"><span class="empty-icon">${icon(danger?'info':'shield',24)}</span><h2>${esc(title)}</h2><p>${esc(message)}</p><div class="button-row"><button class="btn secondary" value="no" autofocus>Go back</button><button class="btn ${danger?'danger':'primary'}" value="yes">${esc(label)}</button></div></form>`;
-  document.body.append(d);
-  d.showModal();
-  return new Promise(resolve => d.addEventListener('close', () => {
-    const ok = d.returnValue === 'yes';
-    d.remove();
-    resolve(ok)
-  }, {
-    once: true
-  }));
+let dialogId = 0;
+export function confirmation(title, message, label, {danger=false, signal, details=[]}={}) {
+  if(signal?.aborted)return Promise.resolve(false);
+  const id='confirmation-'+ ++dialogId;
+  const dialog=document.createElement('dialog');
+  dialog.className='dialog'+(danger?' destructive':'');
+  dialog.setAttribute('aria-labelledby',id+'-title');
+  dialog.setAttribute('aria-describedby',id+'-description');
+  dialog.innerHTML=`<form method="dialog">
+    <div class="dialog-body"><div class="dialog-tools"><span class="dialog-symbol">${icon(danger?'info':'shield',22)}</span>
+    <button type="button" class="dialog-close" aria-label="Close dialog">${icon('close',18)}</button></div>
+    <h2 id="${id}-title">${esc(title)}</h2><p id="${id}-description">${esc(message)}</p>
+    ${details.length?`<dl class="dialog-details">${details.map(([name,value])=>`<div><dt>${esc(name)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>`:''}
+    </div><div class="dialog-actions"><button class="btn secondary" value="no" autofocus>Go back</button>
+    <button class="btn ${danger?'danger':'primary'}" value="yes">${esc(label)}</button></div></form>`;
+  document.body.append(dialog);
+  return new Promise(resolve=>{
+    const close=()=>{if(dialog.open)dialog.close('no');};
+    dialog.querySelector('.dialog-close').onclick=close;
+    const onBackdrop=e=>{
+      if(e.target!==dialog)return false;
+      const box=dialog.getBoundingClientRect();
+      return e.clientX<box.left || e.clientX>box.right || e.clientY<box.top || e.clientY>box.bottom;
+    };
+    let pressedOutside=false;
+    dialog.onpointerdown=e=>{pressedOutside=onBackdrop(e);};
+    dialog.onclick=e=>{if(pressedOutside && onBackdrop(e))close();pressedOutside=false;};
+    dialog.addEventListener('close',()=>{
+      signal?.removeEventListener('abort',close);
+      const accepted=!signal?.aborted && dialog.returnValue==='yes';
+      dialog.remove();
+      resolve(accepted);
+    },{once:true});
+    dialog.showModal();
+    signal?.addEventListener('abort',close,{once:true});
+  });
 }
 export function dateInput(date = new Date()) {
   return new Date(+date - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);

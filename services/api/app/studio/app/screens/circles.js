@@ -113,7 +113,7 @@ export async function mount(ctx){
       `<div class="invitation-row"><div><b>Invitation ${esc(i.id.slice(0,8))}</b><small>Expires ${esc(new Date(i.expires_at).toLocaleString())}</small></div>
         <button class="btn secondary compact" data-revoke="${esc(i.id)}">Revoke</button></div>`).join(''):'<p>No active invitations.</p>');
     panel.querySelectorAll('[data-revoke]').forEach(button=>button.onclick=()=>pending(button,async()=>{
-      if(!await confirmation('Revoke this invitation?','Its one-time token will stop working. Existing members keep their access.','Revoke invitation') || signal.aborted)return;
+      if(!await confirmation('Revoke this invitation?','Its one-time token will stop working. Existing members keep their access.','Revoke invitation',{danger:true,signal}) || signal.aborted)return;
       await api.revokeInvitation(row.dataset.circle,button.dataset.revoke);
       if(signal.aborted)return;
       const card=row.querySelector('[data-token-panel]');
@@ -135,7 +135,7 @@ export async function mount(ctx){
   root.querySelectorAll('[data-leave]').forEach(button=>button.onclick=()=>pending(button,async()=>{
     const row=button.closest('.circle-row');
     if(!await confirmation('Leave '+row.querySelector('h3').textContent+'?',
-      'You will lose access to new circle rides. Existing reservations and receipts stay in My trips.','Leave circle') || signal.aborted)return;
+      'You will lose access to new circle rides. Existing reservations and receipts stay in My trips.','Leave circle',{danger:true,signal}) || signal.aborted)return;
     await api.leaveCircle(row.dataset.circle);
     if(!signal.aborted)ctx.render();
   },m=>notice(root,m,'error')));

@@ -134,7 +134,7 @@ export async function mount(ctx) {
     }
     const cancel = root.querySelector('[data-cancel]');
     if (cancel) cancel.onclick = () => pending(cancel, () => changeTicket(async () => {
-      if (await cancelTicket(api, j, t) && !signal.aborted) {
+      if (await cancelTicket(api, j, t, signal) && !signal.aborted) {
         return (await api.detail(jid, signal)).tickets.find(x => x.id === tid);
       }
     }), e => notice(root, e, 'error'));

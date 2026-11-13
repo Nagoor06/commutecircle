@@ -219,7 +219,6 @@ main,
   white-space: nowrap
 }
 
-.primary-nav a:hover,
 .primary-nav [aria-current=page] {
   background: #e9f1e3;
   color: #174c36
@@ -298,10 +297,8 @@ main,
   padding: 6px 0
 }
 
-.text-btn:hover,
-.back:hover,
-.browse-all:hover {
-  text-decoration: underline
+@media (hover:hover) and (pointer:fine) {
+  .text-btn:hover, .back:hover, .browse-all:hover { text-decoration: underline; }
 }
 
 .icon-only {
@@ -417,18 +414,10 @@ h1 {
   box-shadow: 0 3px 8px #194e3018
 }
 
-.btn.primary:hover:not(:disabled) {
-  background: #103e30
-}
-
 .btn.secondary {
   border-color: #c9d7c9;
   background: var(--paper);
   color: #214a36
-}
-
-.btn.secondary:hover:not(:disabled) {
-  background: #eaf2e4
 }
 
 .btn.danger {

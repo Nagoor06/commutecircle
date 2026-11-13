@@ -137,6 +137,7 @@ function openStudio(auth) {
       begin: beginLogin,
       help: !!auth.config?.ride_help_enabled,
       approvals: !!auth.config?.journey_approvals,
+      versionedReviews: !!auth.config?.versioned_reviews,
       circleManagement: !!auth.config?.circle_management,
       problem: auth.problem,
       login

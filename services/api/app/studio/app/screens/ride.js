@@ -90,14 +90,22 @@ export async function mount(ctx) {
         return
       }
       if (!auth.signed) { auth.login(); return; }
-      const key = j.id + ':' + a + ':' + b;
-      if (!state.checkoutKeys.has(key)) state.checkoutKeys.set(key, requestId());
       if(j.booking_mode==='approval'&&!root.querySelector('[data-consent]')?.checked){
         throw Error('Confirm the fare, pickup and approval policy before requesting.');
       }
-      const ticket = j.booking_mode==='approval'
-        ? await api.requestSeat(j.id,a,b,state.checkoutKeys.get(key))
-        : await api.hold(j.id, a, b, state.checkoutKeys.get(key));
+      const key=j.id+':'+a+':'+b;
+      if(!state.checkoutKeys.has(key))state.checkoutKeys.set(key,requestId());
+      from.disabled=true;to.disabled=true;
+      if(consent)consent.disabled=true;
+      let ticket;
+      try {
+        ticket=j.booking_mode==='approval'
+          ? await api.requestSeat(j.id,a,b,state.checkoutKeys.get(key))
+          : await api.hold(j.id,a,b,state.checkoutKeys.get(key));
+      } finally {
+        from.disabled=false;to.disabled=false;
+        if(consent)consent.disabled=false;
+      }
       if (['expired', 'rider_cancelled', 'driver_cancelled'].includes(ticket.state)) {
         state.checkoutKeys.delete(key);
         throw Error('The earlier reservation closed. Try again for a new hold.');

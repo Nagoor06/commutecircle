@@ -37,7 +37,7 @@ export async function mount(ctx) {
       if (!offset && !data.items.length) list.innerHTML=empty(unread?'You’re all caught up':'No conversations yet',unread?
         'New messages from your driver or passenger will appear here.':'Chat opens after a confirmed booking. You can also open it from My trips.',unread?'#/messages':'#/book',unread?'All conversations':'Find a ride');
       for(const row of data.items) if(!known.has(row.ticket_id)) {known.add(row.ticket_id);list.insertAdjacentHTML('beforeend',conversation(row));}
-      offset+=data.items.length;more.hidden=!data.has_more;notice(root,'');
+      offset+=data.items.length;more.hidden=!data.has_more || !data.items.length;notice(root,'');
     }catch(e){
       if(signal.aborted)return;
       if(!offset)list.innerHTML='';

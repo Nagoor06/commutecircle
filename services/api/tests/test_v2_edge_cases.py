@@ -254,3 +254,67 @@ def test_staff_reviewers_cannot_approve_their_own_verifications(client, authenti
         assert denied.status_code == 403
         approved = client.post(url, headers=staff(authenticated), json={"decision": "approved"})
         assert approved.status_code == 200
+
+
+def test_reviewing_replaced_evidence_or_an_already_decided_vehicle_conflicts(client, authenticated):
+    driver, reviewer = authenticated(), staff(authenticated)
+    applications = "/v1/staff/driver-verifications"
+    for reference in ("case-reference-old", "case-reference-new"):
+        assert (
+            client.post(
+                "/v1/me/driver-verification", headers=driver, json={"evidence_reference": reference}
+            ).status_code
+            == 202
+        )
+        pending = client.get(applications, headers=reviewer).json()[0]
+        if reference.endswith("old"):
+            original = pending["submitted_at"]
+    path = applications + "/driver-a/decision"
+    stale = {
+        "decision": "approved",
+        "expected_status": "pending",
+        "expected_submitted_at": original,
+    }
+    assert client.post(path, headers=reviewer, json=stale).status_code == 409
+    assert (
+        client.get(applications, headers=reviewer).json()[0]["evidence_reference"]
+        == "case-reference-new"
+    )
+    fresh = {**stale, "expected_submitted_at": pending["submitted_at"]}
+    assert client.post(path, headers=reviewer, json=fresh).json()["status"] == "approved"
+    assert (
+        client.post(path, headers=reviewer, json={**fresh, "decision": "rejected"}).status_code
+        == 409
+    )
+    assert (
+        client.get("/v1/me/driver-eligibility", headers=driver).json()["driver_status"]
+        == "approved"
+    )
+
+    car = client.post(
+        "/v1/me/vehicles",
+        headers=driver,
+        json={
+            "make": "Test",
+            "model": "City",
+            "color": "Blue",
+            "registration": "CC-UNIT-001",
+            "seat_capacity": 3,
+        },
+    )
+    assert car.status_code == 201
+    queue = "/v1/staff/vehicles"
+    vehicle = client.get(queue, headers=reviewer).json()[0]
+    path = queue + "/" + vehicle["id"] + "/decision"
+    expected = {"expected_status": "pending", "expected_submitted_at": vehicle["submitted_at"]}
+    assert (
+        client.post(path, headers=reviewer, json={"decision": "rejected", **expected}).json()[
+            "status"
+        ]
+        == "rejected"
+    )
+    assert (
+        client.post(path, headers=reviewer, json={"decision": "approved", **expected}).status_code
+        == 409
+    )
+    assert client.get(queue, headers=reviewer).json() == []

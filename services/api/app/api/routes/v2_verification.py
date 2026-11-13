@@ -4,13 +4,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.db.session import insert_for
 from app.models.v2 import CommuterProfile, DriverVerification, VerifiedVehicle
+from app.services.journeys import utc
 from app.services.v2_common import required_verification, staff
 
 router = APIRouter(prefix="/v1", tags=["V2 verification"])
@@ -39,6 +40,10 @@ class VehicleData(BaseModel):
 class Decision(BaseModel):
     model_config = ConfigDict(extra="forbid")
     decision: str = Field(pattern="^(approved|rejected|suspended)$")
+    expected_status: str | None = Field(
+        default=None, pattern="^(pending|approved|rejected|suspended)$"
+    )
+    expected_submitted_at: AwareDatetime | None = None
 
 
 def visible_vehicle(row, owner_view=False):
@@ -159,7 +164,12 @@ def pending_drivers(principal: RideReader, session: DatabaseSession, response: R
     staff(principal)
     response.headers["Cache-Control"] = "no-store"
     rows = session.scalars(
-        select(DriverVerification).where(DriverVerification.status == "pending").limit(50)
+        select(DriverVerification)
+        .where(
+            DriverVerification.issuer == principal.issuer, DriverVerification.status == "pending"
+        )
+        .order_by(DriverVerification.submitted_at, DriverVerification.subject)
+        .limit(50)
     )
     return [
         {
@@ -167,6 +177,7 @@ def pending_drivers(principal: RideReader, session: DatabaseSession, response: R
             "subject": r.subject,
             "status": r.status,
             "evidence_reference": r.evidence_reference,
+            "submitted_at": utc(r.submitted_at),
         }
         for r in rows
     ]
@@ -177,26 +188,44 @@ def pending_vehicles(principal: RideReader, session: DatabaseSession, response: 
     staff(principal)
     response.headers["Cache-Control"] = "no-store"
     rows = session.scalars(
-        select(VerifiedVehicle).where(VerifiedVehicle.status == "pending").limit(50)
+        select(VerifiedVehicle)
+        .where(VerifiedVehicle.issuer == principal.issuer, VerifiedVehicle.status == "pending")
+        .order_by(VerifiedVehicle.submitted_at, VerifiedVehicle.id)
+        .limit(50)
     )
     return [
-        {"id": r.id, "issuer": r.issuer, "subject": r.subject, **visible_vehicle(r, True)}
+        {
+            "issuer": r.issuer,
+            "subject": r.subject,
+            "submitted_at": utc(r.submitted_at),
+            **visible_vehicle(r, True),
+        }
         for r in rows
     ]
+
+
+def record_decision(row, data, principal):
+    if (row.issuer, row.subject) == (principal.issuer, principal.subject):
+        raise HTTPException(403, "Self-review is prohibited")
+    if (data.expected_status is not None and row.status != data.expected_status) or (
+        data.expected_submitted_at is not None
+        and utc(row.submitted_at) != data.expected_submitted_at
+    ):
+        raise HTTPException(409, "This application changed. Refresh the queue before reviewing it.")
+    if row.status != data.decision:
+        row.status = data.decision
+        row.reviewer, row.reviewed_at = principal.subject, datetime.now(UTC)
+    return {"status": row.status}
 
 
 @router.post("/staff/driver-verifications/{subject}/decision")
 def decide_driver(subject: str, data: Decision, principal: RideWriter, session: DatabaseSession):
     staff(principal)
     with session.begin():
-        row = session.get(DriverVerification, (principal.issuer, subject))
+        row = session.get(DriverVerification, (principal.issuer, subject), with_for_update=True)
         if not row:
             raise HTTPException(404, "Application not found")
-        if (row.issuer, row.subject) == (principal.issuer, principal.subject):
-            raise HTTPException(403, "Self-review is prohibited")
-        row.status = data.decision
-        row.reviewer, row.reviewed_at = principal.subject, datetime.now(UTC)
-    return {"status": row.status}
+        return record_decision(row, data, principal)
 
 
 @router.post("/staff/vehicles/{vehicle_id}/decision")
@@ -205,11 +234,7 @@ def decide_vehicle(
 ):
     staff(principal)
     with session.begin():
-        row = session.get(VerifiedVehicle, str(vehicle_id))
-        if not row:
+        row = session.get(VerifiedVehicle, str(vehicle_id), with_for_update=True)
+        if not row or row.issuer != principal.issuer:
             raise HTTPException(404, "Vehicle not found")
-        if (row.issuer, row.subject) == (principal.issuer, principal.subject):
-            raise HTTPException(403, "Self-review is prohibited")
-        row.status = data.decision
-        row.reviewer, row.reviewed_at = principal.subject, datetime.now(UTC)
-    return {"status": row.status}
+        return record_decision(row, data, principal)

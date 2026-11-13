@@ -63,8 +63,8 @@ export function liveClient(token, origin, onSessionExpired) {
     staffDrivers: signal => call('/v1/staff/driver-verifications','GET',null,{signal}),
     staffVehicles: signal => call('/v1/staff/vehicles','GET',null,{signal}),
     staffReports: signal => call('/v1/staff/safety-reports','GET',null,{signal}),
-    staffDriverDecision: (id,decision) => call('/v1/staff/driver-verifications/'+encodeURIComponent(id)+'/decision','POST',{decision}),
-    staffVehicleDecision: (id,decision) => call('/v1/staff/vehicles/'+encodeURIComponent(id)+'/decision','POST',{decision}),
+    staffDriverDecision: (id,decision,expected={}) => call('/v1/staff/driver-verifications/'+encodeURIComponent(id)+'/decision','POST',{decision,...expected}),
+    staffVehicleDecision: (id,decision,expected={}) => call('/v1/staff/vehicles/'+encodeURIComponent(id)+'/decision','POST',{decision,...expected}),
     staffReviewCase: (id,data) => call('/v1/staff/safety-reports/'+encodeURIComponent(id)+'/review','POST',data),
     profile: signal => call('/v1/me/profile','GET',null,{signal}),
     saveProfile: data => call('/v1/me/profile','PUT',data),
@@ -126,10 +126,10 @@ export function liveClient(token, origin, onSessionExpired) {
     }),
     allMine: signal => pages('/v1/journeys/mine', signal),
     publish: data => call('/v1/journeys', 'POST', data),
-    quote: (id, board, alight) => call(path(id) + '/quote', 'POST', {
+    quote: (id, board, alight, signal) => call(path(id) + '/quote', 'POST', {
       board,
       alight
-    }),
+    },{signal}),
     hold: (id, board, alight, key) => call(path(id) + '/holds', 'POST', {
       board,
       alight,
