@@ -1,8 +1,9 @@
 import {filtersMarkup, bindFilters} from '../components/search-filters.js';
 import {rideHref} from '../components/ride-summary.js';
 import {fare, pickupAt} from '../data/segments.js';
-import {money, clock, head, icon, esc, notice, dateInput} from '../ui.js';
+import {money, clock, icon, esc, notice, dateInput} from '../ui.js';
 import {stopFromPlace, isSame} from '../data/places.js';
+import {travelDayRange, rememberPlan} from '../data/plan.js';
 import {mapFrame, attachMap} from '../components/map.js';
 import {fieldMarkup, attachField} from '../components/place-field.js';
 import {bindPickupLocation, pickupLocationControl} from '../components/pickup-location.js';
@@ -12,21 +13,22 @@ export async function mount({root, state, api, auth, geocoder, go, signal}) {
   if (!state.date || state.date < dateInput()) state.date = dateInput();
   let filters = {...(state.query || {}), prefer_commute:auth.signed};
   delete filters.origin; delete filters.destination; delete filters.after; delete filters.before; delete filters.offset;
-  root.innerHTML = head('Passenger / Plan a trip', 'Book a ride', 'Join a journey someone already plans to make.') +
-    `<div class="find-layout"><section class="planner-card"><div class="section-index"><span class="index-dot"></span> Journey planner</div>
+  root.innerHTML = `<header class="booking-hero"><div class="hero-copy">
+      <h1>Book a <em>ride</em></h1><p>Choose your stops and find a seat on a commute already going your way.</p></div>
+      <span class="hero-calendar">${icon('calendar',17)} ${esc(new Intl.DateTimeFormat(undefined,{weekday:'short',day:'numeric',month:'short'}).format(new Date()))}</span></header>
+     <div class="find-layout"><section class="planner-card">
       <div class="form-title"><h2>Where are you headed?</h2></div>
       <div class="stop-stack">${fieldMarkup(0,points[0])}<button class="swap-btn" data-swap aria-label="Swap pickup and drop-off">${icon('swap',16)}</button>${fieldMarkup(1,points[1])}</div>
       ${pickupLocationControl()}
-      <label class="date-row"><span>Travel date</span><input type="date" aria-label="Travel date" min="${dateInput()}" value="${esc(state.date)}" required></label>
-      ${filtersMarkup(filters)}
+      <div class="planner-options"><label class="date-row"><span>Travel date</span><input type="date" aria-label="Travel date" min="${dateInput()}" value="${esc(state.date)}" required></label>
+      ${filtersMarkup(filters)}</div>
       <button type="button" class="text-btn" data-commute hidden>Use my saved commute</button>
-      <a class="text-btn" href="#/profile">${icon('shield',16)} Set up my private office commute</a>
-      <p class="fine">Your current location gives an approximate pickup area. Choose a public meeting point for boarding.</p>
       <div data-notice role="status" hidden></div>
       <button data-find class="btn primary wide">${icon('search')} View matching rides ${icon('arrow')}</button>
       <button data-browse class="browse-all">Browse rides on this date ${icon('chevron',14)}</button>
     </section>${mapFrame()}</div>
-    <section class="auto-results" aria-label="Matching rides" aria-live="polite"><div class="auto-heading"><div class="eyebrow"><i></i><span data-match-heading>Available rides</span></div><span data-match-count></span></div><div data-matches></div></section>`;
+    <section class="auto-results" aria-label="Matching rides" aria-live="polite"><div class="auto-heading"><h2 data-match-heading>Available rides</h2><span data-match-count></span></div><div data-matches></div></section>
+    <a class="commute-shortcut" href="#/profile">${icon('pin',18)} Set up my saved commute ${icon('arrow',16)}</a>`;
 
   const fields = [];
   const date = root.querySelector('.date-row input');
@@ -72,14 +74,8 @@ export async function mount({root, state, api, auth, geocoder, go, signal}) {
   bindFilters(root, value => { filters = {...filters, ...value}; scheduleMatches(); });
   date.onchange = () => { state.date = date.value; scheduleMatches(); };
 
-  function range() {
-    const start = new Date(date.value + 'T00:00:00'), end = new Date(start);
-    end.setDate(end.getDate()+1);
-    return {after:start.toISOString(), before:end.toISOString()};
-  }
-
   function query(stops) {
-    return {...filters, ...range(),
+    return {...filters, ...travelDayRange(date.value),
       ...(stops[0]?.name ? {origin:stopFromPlace(stops[0])} : {}),
       ...(stops[1]?.name ? {destination:stopFromPlace(stops[1])} : {})};
   }
@@ -114,13 +110,14 @@ export async function mount({root, state, api, auth, geocoder, go, signal}) {
     const complete = !!(points[0].name && points[1].name);
     heading.textContent = complete ? 'Route matches' : points[0].name ? 'Rides from your pickup' :
       points[1].name ? 'Rides to your drop-off' : 'Available rides on this date';
-    if (!date.validity.valid) { matches.textContent = 'Choose today or a future travel date.'; return; }
+    const q = date.validity.valid ? query(points) : null;
+    state.query = q;
+    rememberPlan(state);
+    if (!q) { matches.textContent = 'Choose today or a future travel date.'; return; }
     if (complete && isSame(...points)) { matches.textContent = 'Choose two different stops to see matching rides.'; return; }
     if (!api) { matches.textContent = auth.problem || 'The booking service is currently unavailable.'; return; }
     matches.textContent = 'Checking available seats…';
     matchTimer = setTimeout(async () => {
-      const q = query(points);
-      if (complete) state.query = q;
       const req = new AbortController();
       matchRequest = req;
       try {
@@ -144,6 +141,7 @@ export async function mount({root, state, api, auth, geocoder, go, signal}) {
         points.splice(0, 2, a, b);
       }
       state.query = query(browse ? [] : points);
+      rememberPlan(state);
       go('results');
     } catch (error) { info(error.message); }
   }

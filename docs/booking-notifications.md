@@ -3,8 +3,7 @@
 The booking transaction writes a durable PostgreSQL outbox event together with the
 seat and sandbox ledger change. A unique `(ticket_id, event, channel)` key and the
 existing journey lock prevent duplicate events on payment/cancellation retries.
-Holds and unsuccessful payments never create confirmation messages. Each opted-in
-passenger receives email and, optionally, **one** phone channel: WhatsApp or SMS.
+Holds and unsuccessful payments never create confirmation messages. Drivers who opt in also receive new approval-mode seat requests. Opted-in riders receive approval, decline or driver cancellation decisions with a link to their receipt. An approved seat is held until the checkout deadline. Workers skip alerts when consent changes, a decision is superseded or its deadline has passed. Each recipient may enable email and one phone channel (WhatsApp or SMS). A passenger’s receipt shows only that passenger’s alert history.
 
 Profile settings are private. Email comes from the configured Auth0 `/userinfo`
 endpoint with matching subject and `email_verified: true`; frontend login now asks

@@ -50,7 +50,10 @@ export function mount({
    <aside class="stack"><section class="panel accent-panel"><div class="panel-cap">${icon('spark')} Ride assistant</div><h2>Ask the guide</h2>
    ${api&&auth.signed&&auth.help?'<form data-ask><label class="field">Question<input required maxlength="300" placeholder="When can I cancel for free?"></label><p class="fine">Ask general questions. Leave out home addresses, phone numbers and workplace names.</p><button class="btn primary">Ask question</button></form><p data-answer role="status"></p>':'<p>AI answers with source links are available in the signed-in studio when the local ride-help service is running.</p>'}
    <a data-source href="${guide}" target="_blank" rel="noopener" class="text-btn">Open rider guide ${icon('arrow',16)}</a></section>
-</aside></div>`;
+</aside></div><details class="photo-credit"><summary>Photography credit</summary>
+    <p>“PJR Flyover at Night Illuminated Skyline” by Mohammad Anees Qamar. Cropped and converted to WebP.
+    <a href="https://commons.wikimedia.org/wiki/File:PJR_Flyover_at_Night_Illuminated_Skyline.jpg">Original photograph</a> ·
+    <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></p></details>`;
   const form = root.querySelector('[data-ask]');
   if (!form) return;
   form.onsubmit = async e => {

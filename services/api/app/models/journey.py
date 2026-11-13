@@ -57,6 +57,7 @@ class Ticket(Base):
     charged: Mapped[int] = mapped_column(default=0)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    declined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consent_version: Mapped[str | None] = mapped_column(String(24), nullable=True)
     consent_fare_paise: Mapped[int | None] = mapped_column(nullable=True)

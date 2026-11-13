@@ -12,6 +12,7 @@ from app.auth.dependencies import RideReader, RideWriter
 from app.models.journey import Journey, Ticket
 from app.schemas.journey import Segment
 from app.services import journeys
+from app.services.notification_outbox import enqueue
 from app.services.v2_common import check_booking_eligibility, verify_access
 
 router = APIRouter(prefix="/v1/journeys", tags=["V2 booking approvals"])
@@ -90,6 +91,7 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
             session.flush()
         except IntegrityError as exc:
             raise HTTPException(409, "Request ID conflict") from exc
+        enqueue(session, j, t, now, event="seat_requested")
         return request_receipt(t)
 
 
@@ -115,7 +117,7 @@ def decision(session, jid, tid, principal, approved):
             raise HTTPException(404, "Request not found")
         now = datetime.now(UTC)
         if (approved and t.consent_at and t.state in ("held", "paid", "exited")) or (
-            not approved and t.state == "driver_cancelled"
+            not approved and t.declined_at is not None
         ):
             return journeys.receipt(t, now)
         if j.booking_mode != "approval" or journeys.status(t, now) != "requested" or j.cancelled:
@@ -135,6 +137,8 @@ def decision(session, jid, tid, principal, approved):
             t.expires = min(now + timedelta(minutes=15), q["pickup_at"])
         else:
             t.state = "driver_cancelled"
+            t.declined_at = now
+        enqueue(session, j, t, now, event="seat_approved" if approved else "seat_declined")
         return journeys.receipt(t, now)
 
 

@@ -32,7 +32,7 @@ export function ticketProgress(journey, ticket, now = Date.now()) {
   const finished = completed || (!ticket.travel_state &&
     (ticket.state === 'exited' || (paid && now >= dropoff)));
   return {
-    label: finished ? 'Completed' : missed ? 'Boarding not recorded' :
+    label: ticket.declined ? 'Request declined' : finished ? 'Completed' : missed ? 'Boarding not recorded' :
       boarded ? (ticket.state === 'exited' ? 'Exited early' : 'Boarded') : ticketLabel[ticket.state],
     past: finished || missed || ['expired', 'driver_cancelled', 'rider_cancelled'].includes(ticket.state),
     board: awaiting && !journey.cancelled && now >= pickup - 30 * 60000 && now < pickup + 45 * 60000,

@@ -3,7 +3,6 @@ import {
   access
 } from '../components/access.js';
 import {
-  head,
   icon,
   esc,
   day,
@@ -36,14 +35,15 @@ export async function mount(ctx) {
   } = ctx, driving = query.get('view') === 'driving', history = query.get('when') === 'history';
   const path = (d, h) => '#/trips?view=' + (d ? 'driving' : 'riding') + '&when=' + (h ? 'history' :
     'upcoming');
-  root.innerHTML = head('Your workspace', 'My trips', 'Manage your reservations and the rides you offer.') +
+  root.innerHTML = `<header class="trip-board"><div><div class="eyebrow">${icon(driving?'car':'ticket',16)} ${driving?'Driving':'Riding'}</div><h1>My trips</h1></div><div class="board-stat" data-board-count hidden></div></header>` +
     `<div class="trip-tools"><div class="tabs"><a href="${path(false,history)}" ${!driving?'aria-current="page"':''}>${icon('ticket',16)} Riding</a><a href="${path(true,history)}" ${driving?'aria-current="page"':''}>${icon('car',16)} Driving</a></div>
     <div class="tabs subtle"><a href="${path(driving,false)}" ${!history?'aria-current="page"':''}>Current</a><a href="${path(driving,true)}" ${history?'aria-current="page"':''}>History</a></div></div>
     <div data-notice role="status" hidden></div><div class="trip-list" aria-live="polite"><p class="loading">Loading trips…</p></div><button data-refresh class="text-btn">${icon('list',15)} Refresh trips</button>
     ${api.mode==='live'?`<details class="panel previous"><summary>${driving?'Earlier driver-approved offers':'Earlier seat requests'}</summary><div data-legacy></div></details>`:''}`;
   const list = root.querySelector('.trip-list');
   if (ctx.auth.approvals) root.insertAdjacentHTML('beforeend','<p class="fine"><a href="#/recurring">Manage recurring rides</a> · <a href="#/circles">My circles</a> · <a href="#/safety">Safety reports</a></p>');
-  let generation = 0;
+  const summary=root.querySelector('[data-board-count]');
+  let generation = 0, loadFailed = false;
 
   function button(parent, title, fn, danger = false) {
     const b = document.createElement('button');
@@ -59,6 +59,7 @@ export async function mount(ctx) {
       if (signal.aborted || id !== generation) return;
       const items = [];
       for (const j of rows) {
+        ctx.state.sharing.reconcile(j);
         if (j.owner !== driving) continue;
         if (driving) {
           const past = j.cancelled || pickupAt(j, j.stops.length - 1) <= Date.now();
@@ -69,6 +70,17 @@ export async function mount(ctx) {
             if (past === history) items.push([j, t]);
           }
       }
+      if(loadFailed){notice(root,'');loadFailed=false;}
+      const pendingByJourney=new Map(driving&&!history?items.map(([j])=>[j.id,j.tickets.filter(t=>t.state==='requested').length]):[]);
+      const pendingCount=[...pendingByJourney.values()].reduce((total,n)=>total+n,0);
+      items.sort(([j,a],[k,b])=>{
+        const decisions=Number(!!pendingByJourney.get(k.id))-Number(!!pendingByJourney.get(j.id));
+        const byPickup=pickupAt(j,a?.board??0)-pickupAt(k,b?.board??0);
+        return decisions || (history?-byPickup:byPickup);
+      });
+      summary.hidden=false;
+      const unit=driving?'offer':'reservation';
+      summary.innerHTML=`<strong>${items.length}</strong><span>${history?'Past':'Current'} ${unit}${items.length===1?'':'s'}</span>${pendingCount?`<small>${pendingCount} awaiting approval</small>`:''}`;
       const expanded = new Set([...list.querySelectorAll('.passengers[open]')].map(d=>d.dataset.journey));
       list.replaceChildren();
       if (!items.length) {
@@ -177,7 +189,9 @@ export async function mount(ctx) {
         list.append(card);
       }
     } catch (e) {
-      if (!signal.aborted) {
+      if (!signal.aborted && id === generation) {
+        loadFailed = true;
+        summary.hidden = true;
         list.innerHTML = '';
         notice(root, e.message, 'error')
       }

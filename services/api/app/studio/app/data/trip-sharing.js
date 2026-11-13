@@ -51,6 +51,17 @@ export function createTripSharing(api, notify) {
     // Request a fresh fix even while stationary. Never re-send a cached point as a new update.
     poll=setInterval(()=>{if(!document.hidden&&generation===version)navigator.geolocation.getCurrentPosition(received,failed,options);},10000);
   }
+  function reconcile(journey, updatedTicket) {
+    if(!current || current.journey_id!==journey.id)return;
+    const ticket=updatedTicket?.id===current.ticket_id ? updatedTicket :
+      journey.tickets?.find(t=>t.id===current.ticket_id);
+    if(journey.cancelled || (ticket && (ticket.state!=='paid' || ticket.travel_state==='completed'))) {
+      version++;
+      clear();
+      current=null;
+      announce();
+    }
+  }
   window.addEventListener('pagehide',()=>{stop(true).catch(()=>{});});
-  return {start,stop,get current(){return current;},subscribe(listener){listeners.add(listener);listener(current);return()=>listeners.delete(listener);}};
+  return {start,stop,reconcile,get current(){return current;},subscribe(listener){listeners.add(listener);listener(current);return()=>listeners.delete(listener);}};
 }

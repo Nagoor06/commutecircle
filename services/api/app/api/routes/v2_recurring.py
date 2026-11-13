@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
@@ -182,8 +182,17 @@ def exception(
             .with_for_update()
         )
         if journey and not journey.cancelled:
-            # Preserve driver-refund semantics; never cancel paid tickets silently.
-            if session.scalar(select(Ticket.id).where(Ticket.journey_id == journey.id).limit(1)):
+            outstanding = select(Ticket.id).where(
+                Ticket.journey_id == journey.id,
+                or_(
+                    Ticket.state.in_(("paid", "exited")),
+                    Ticket.charged > Ticket.refund,
+                    and_(
+                        Ticket.state.in_(("requested", "held")), Ticket.expires > datetime.now(UTC)
+                    ),
+                ),
+            )
+            if session.scalar(outstanding.limit(1)):
                 raise HTTPException(
                     409, "Existing bookings require explicit driver cancellation first"
                 )

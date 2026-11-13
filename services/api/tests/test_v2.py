@@ -1,9 +1,12 @@
 """V2 trust, approval, boarding, private circles and recurrence API regressions."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Barrier
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.models.journey import Journey, Ticket
@@ -306,6 +309,26 @@ def test_recurring_template_materializes_idempotently(client, authenticated):
     second = client.post(f"/v1/recurring-rides/{rid}/materialize", headers=authenticated())
     assert second.json()["count"] == 0
 
+    occurrence = first.json()["created"][0]
+    exception = f"/v1/recurring-rides/{rid}/exceptions/{occurrence['date']}"
+    jid = occurrence["id"]
+    tid = request(client, authenticated, jid).json()["id"]
+    assert (
+        client.put(exception, headers=authenticated(), json={"reason": "Day off"}).status_code
+        == 409
+    )
+    assert client.post(
+        f"/v1/journeys/{jid}/tickets/{tid}/decline", headers=authenticated()
+    ).is_success
+    assert client.put(exception, headers=authenticated(), json={"reason": "Day off"}).is_success
+    assert client.get(f"/v1/journeys/{jid}", headers=authenticated()).json()["cancelled"]
+    assert (
+        client.post(f"/v1/recurring-rides/{rid}/materialize", headers=authenticated()).json()[
+            "count"
+        ]
+        == 0
+    )
+
 
 def test_confidential_safety_report_requires_trip_participation(client, authenticated):
     vid = verify_driver(client, authenticated)
@@ -333,3 +356,77 @@ def test_confidential_safety_report_requires_trip_participation(client, authenti
     ).is_success
     with Session(client.app.state.engine) as session:
         assert session.get(SafetyReport, report_id).state == "reviewing"
+
+
+def test_circle_revocation_leave_and_existing_receipts(client, authenticated):
+    owner, rider = authenticated(), authenticated(subject="passenger")
+    cid, other = [
+        client.post("/v1/circles", headers=owner, json={"name": name}).json()["id"]
+        for name in ("Morning crew", "Evening crew")
+    ]
+    invite = f"/v1/circles/{cid}/invitations"
+    leave = f"/v1/circles/{cid}/members/me"
+    redeem = "/v1/circle-invitations/redeem"
+    first = client.post(invite, headers=owner).json()
+    assert client.get(invite, headers=owner).json() == [
+        {"id": first["id"], "expires_at": first["expires_at"]}
+    ]
+    assert client.get(invite, headers=rider).status_code == 404
+    assert client.delete(invite + "/" + first["id"], headers=rider).status_code == 404
+    assert (
+        client.delete(f"/v1/circles/{other}/invitations/" + first["id"], headers=owner).status_code
+        == 404
+    )
+    for _ in range(2):
+        assert client.delete(invite + "/" + first["id"], headers=owner).json() == {"revoked": True}
+    assert client.post(redeem, headers=rider, json={"token": first["token"]}).status_code == 410
+    assert client.get(invite, headers=owner).json() == []
+    second = client.post(invite, headers=owner).json()
+    assert client.post(redeem, headers=rider, json={"token": second["token"]}).is_success
+    assert client.delete(invite + "/" + second["id"], headers=owner).status_code == 409
+
+    vid = verify_driver(client, authenticated)
+    jid = create_approval_journey(client, authenticated, vid, cid)
+    other_jid = create_approval_journey(client, authenticated, vid, cid)
+    tid = request(client, authenticated, jid).json()["id"]
+    journey = f"/v1/journeys/{jid}"
+    assert client.delete(leave, headers=owner).status_code == 409
+    assert client.delete(leave, headers=rider).json() == {"left": True}
+    assert client.get("/v1/circles", headers=rider).json() == []
+    assert client.get(f"/v1/journeys/{other_jid}", headers=rider).status_code == 404
+    assert request(client, authenticated, other_jid).status_code == 404
+    detail = client.get(journey, headers=rider).json()
+    assert not detail["booking_eligible"] and detail["tickets"][0]["id"] == tid
+    assert client.get(journey + "/tickets/" + tid + "/notifications", headers=rider).is_success
+    assert client.post(redeem, headers=rider, json={"token": second["token"]}).status_code == 410
+    third = client.post(invite, headers=owner).json()
+    assert client.post(redeem, headers=rider, json={"token": third["token"]}).is_success
+    assert client.get(f"/v1/journeys/{other_jid}", headers=rider).json()["booking_eligible"]
+
+
+def test_circle_invitation_redemption_and_revocation_are_atomic(client, authenticated):
+    if client.app.state.engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row locks")
+    owner, rider = authenticated(), authenticated(subject="racing-member")
+    circle = client.post("/v1/circles", headers=owner, json={"name": "Weekend rides"}).json()["id"]
+    path = f"/v1/circles/{circle}/invitations"
+    invitation = client.post(path, headers=owner).json()
+    barrier = Barrier(2)
+
+    def accept():
+        barrier.wait(timeout=5)
+        return client.post(
+            "/v1/circle-invitations/redeem", headers=rider, json={"token": invitation["token"]}
+        ).status_code
+
+    def revoke():
+        barrier.wait(timeout=5)
+        return client.delete(path + "/" + invitation["id"], headers=owner).status_code
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        joined, revoked = workers.submit(accept), workers.submit(revoke)
+        outcome = joined.result(timeout=10), revoked.result(timeout=10)
+    assert outcome in {(200, 409), (410, 200)}
+    memberships = client.get("/v1/circles", headers=rider).json()
+    assert [c["id"] for c in memberships] == ([circle] if outcome[0] == 200 else [])
+    assert client.get(path, headers=owner).json() == []

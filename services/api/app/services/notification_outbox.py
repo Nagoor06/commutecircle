@@ -20,13 +20,28 @@ LABELS = {
     "driver_cancelled": "Driver cancelled your booking",
     "rider_cancelled": "Booking cancelled",
     "exited": "Journey segment completed",
+    "request_cancelled": "The driver cancelled your seat request",
+    "seat_requested": "A passenger requested a seat",
+    "seat_approved": "Your seat request was approved",
+    "seat_declined": "Your seat request was declined",
+}
+APPROVAL_STATES = {
+    "request_cancelled": "driver_cancelled",
+    "seat_requested": "requested",
+    "seat_approved": "held",
+    "seat_declined": "driver_cancelled",
 }
 
 
-def enqueue(session, journey, ticket, now):
-    if not ticket.charged and ticket.confirmed_at is None:
+def enqueue(session, journey, ticket, now, *, event=None):
+    event = event or ticket.state
+    if event not in APPROVAL_STATES and not ticket.charged and ticket.confirmed_at is None:
         return  # A seat hold is never a successful booking/payment confirmation.
-    owner = owner_key(ticket.issuer, ticket.rider)
+    owner = (
+        owner_key(journey.issuer, journey.driver)
+        if event == "seat_requested"
+        else owner_key(ticket.issuer, ticket.rider)
+    )
     pref = session.get(NotificationPreference, owner)
     if not pref:
         return
@@ -38,24 +53,39 @@ def enqueue(session, journey, ticket, now):
     departure = utc(journey.departure) + timedelta(minutes=journey.stops[ticket.board]["minutes"])
     when = departure.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y, %I:%M %p IST")
     reference = ticket.id[:8].upper()
-    label = LABELS[ticket.state]
+    label = LABELS[event]
     origin, destination = journey.stops[ticket.board]["name"], journey.stops[ticket.alight]["name"]
     amount = f"INR {(ticket.charged - ticket.refund) / 100:.2f}"
     refund = f"INR {ticket.refund / 100:.2f}"
     studio = os.getenv("PUBLIC_STUDIO_URL") or "http://localhost:8000/studio/"
-    link = f"{studio.rstrip('/')}/#/checkout/{journey.id}/{ticket.id}"
+    path = (
+        "trips?view=driving" if event == "seat_requested" else f"checkout/{journey.id}/{ticket.id}"
+    )
+    link = f"{studio.rstrip('/')}/#/{path}"
+    if event == "seat_requested":
+        details = "Open My trips to review the request. The passenger has not been charged."
+    elif event == "seat_approved":
+        deadline = (
+            utc(ticket.expires).astimezone(ZoneInfo("Asia/Kolkata")).strftime("%d %b, %I:%M %p IST")
+        )
+        details = f"Complete sandbox checkout before {deadline} to keep your seat."
+    elif event == "request_cancelled":
+        details = "Your request closed before payment. Open your receipt to find another ride."
+    elif event == "seat_declined":
+        details = "No seat was booked. Open your request to find another ride."
+    else:
+        details = f"Sandbox net fare: {amount}; sandbox refund: {refund}.\nNo real money was taken."
     text = (
-        f"CommuteCircle — {label}\nReference: {reference}\n{origin} → {destination}\n"
-        f"Pickup: {when}\nSandbox net fare: {amount}; sandbox refund: {refund}.\n"
-        f"No real money was taken.\nYour private receipt (sign in): {link}\n"
-        "Manage booking alerts in My profile."
+        f"CommuteCircle — {label}\nReference: {reference}\n"
+        f"{origin} → {destination}\nPickup: {when}\n"
+        f"{details}\nSign in: {link}\nManage booking alerts in My profile."
     )
     ready = provider.configured()
     for channel, recipient in targets:
         prior = session.scalar(
             select(Notification.id).where(
                 Notification.ticket_id == ticket.id,
-                Notification.event == ticket.state,
+                Notification.event == event,
                 Notification.channel == channel,
             )
         )
@@ -73,7 +103,7 @@ def enqueue(session, journey, ticket, now):
             Notification(
                 ticket_id=ticket.id,
                 owner=owner,
-                event=ticket.state,
+                event=event,
                 channel=channel,
                 recipient=recipient,
                 created=now,
@@ -137,9 +167,14 @@ def claim(engine, now):
                 and pref.phone == row.recipient
             )
         )
-        if not consent or ticket.state != row.event:
+        expected = APPROVAL_STATES.get(row.event, row.event)
+        if not consent or not ticket or ticket.state != expected:
             row.state = "suppressed"
-        elif now - utc(row.created) >= timedelta(hours=1) or row.attempts >= 5:
+        elif (
+            (row.event in ("seat_requested", "seat_approved") and utc(ticket.expires) <= now)
+            or now - utc(row.created) >= timedelta(hours=1)
+            or row.attempts >= 5
+        ):
             row.state = "expired"
         elif not provider.configured()[row.channel]:
             row.state = "unavailable"
