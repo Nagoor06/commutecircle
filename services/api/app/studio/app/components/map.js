@@ -76,7 +76,7 @@ export async function attachMap(host, {
     interactive: false
   }).addTo(map);
   const line = L.polyline([], {
-    color: '#106854',
+    color: 'var(--brand)',
     opacity: 1,
     weight: 4,
     dashArray: '7 8',

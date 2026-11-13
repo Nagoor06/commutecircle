@@ -40,6 +40,25 @@ test('stop clears device tracking even while an upload is in flight',async t=>{
   assert.deepEqual(stopped,['share-id']);
 });
 
+test('sharing indicates a live fix only after delivery and changes to stale on signal loss', async t => {
+  const {callbacks} = device(t);
+  const sharing = createTripSharing({
+    startShare: async () => response(),
+    locateShare: async () => ({accepted: true, updated_at: new Date().toISOString()}),
+    stopShare: async () => {}
+  }, () => {});
+  try {
+    await sharing.start('journey', null);
+    assert.equal(sharing.current.state, 'waiting');
+    await callbacks.success(fix());
+    assert.equal(sharing.current.state, 'live');
+    callbacks.error({code: 2});
+    assert.equal(sharing.current.state, 'stale');
+  } finally {
+    await sharing.stop();
+  }
+});
+
 test('permission denial revokes sharing and gives a clear recovery message',async t=>{
   const {callbacks}=device(t),messages=[],stopped=[];
   const sharing=createTripSharing({startShare:async()=>response(),stopShare:async id=>stopped.push(id)},

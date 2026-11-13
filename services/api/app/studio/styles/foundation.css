@@ -1,16 +1,34 @@
 /* Shared visual foundation. Screen-specific layout lives below the primitives. */
 :root {
   color-scheme: light;
-  --ink: #122f29;
-  --muted: #576a63;
-  --soft: #edf2e9;
-  --green: #175940;
-  --edge: #d6dfd5;
-  --paper: #fffefa;
-  --bg: #f5f7f2;
-  --lime: #d9ef9c;
-  --terra: #a64e2f;
-  --shadow: 0 8px 24px #14352508;
+  --ink: #2d2231;
+  --muted: #635867;
+  --bg: #fbf5ee;
+  --paper: #fffdf9;
+  --soft: #f3edf8;
+  --edge: #dfd4dd;
+  --control-edge: #948499;
+  --brand: #654185;
+  --brand-hover: #50316f;
+  --brand-tint: #eaddf4;
+  --night: #30213e;
+  --night-raised: #493453;
+  --on-night: #fff8f2;
+  --night-muted: #ecdeee;
+  --night-edge: #927f9a;
+  --accent: #ffb58e;
+  --accent-soft: #ffeadc;
+  --focus: #77439f;
+  --dropoff: #9c4e25;
+  --danger: #a12c43;
+  --danger-hover: #812137;
+  --danger-soft: #fce9ed;
+  --live: #185d51;
+  --live-soft: #e1f2ea;
+  --warning: #82501f;
+  --warning-soft: #fff0d6;
+  --map-ground: #f4eee8;
+  --shadow: 0 4px 18px #30213e0b;
   font-family: Inter, "Aptos", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--ink);
   background: var(--bg);
@@ -25,7 +43,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(ellipse at 88% 15%, #eef3e7aa, transparent 40%), var(--bg)
+  background: radial-gradient(ellipse at 88% 15%, #ffe3ce8c, transparent 40%), var(--bg)
 }
 
 button,
@@ -70,9 +88,11 @@ select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid #46825b;
+  outline: 3px solid var(--focus);
   outline-offset: 3px
 }
+
+::selection { background: var(--brand-tint); color: var(--night); }
 
 button[aria-busy=true] {
   cursor: progress
@@ -88,7 +108,7 @@ button[aria-busy=true] {
   padding: .6rem 1rem;
   color: var(--ink);
   background: var(--soft);
-  border-left: 3px solid var(--green);
+  border-left: 3px solid var(--brand);
 }
 
 h1,
@@ -160,7 +180,7 @@ small {
 .topbar {
   position: relative;
   z-index: 650;
-  background: #fffefbf7;
+  background: var(--paper);
   border-bottom: 1px solid var(--edge)
 }
 
@@ -185,11 +205,11 @@ main,
   font-weight: 760;
   letter-spacing: -1.4px;
   white-space: nowrap;
-  color: #16382f
+  color: var(--ink)
 }
 
 .brand>span:last-child {
-  color: #447255
+  color: var(--brand)
 }
 
 .brand-mark {
@@ -215,13 +235,13 @@ main,
   border-radius: 20px;
   font-size: 14px;
   font-weight: 620;
-  color: #41584e;
+  color: var(--muted);
   white-space: nowrap
 }
 
 .primary-nav [aria-current=page] {
-  background: #e9f1e3;
-  color: #174c36
+  background: var(--soft);
+  color: var(--ink)
 }
 
 .primary-nav [aria-current=page] .icon {
@@ -247,10 +267,10 @@ main,
 
 .mode {
   font-size: 12px;
-  border: 1px solid #d6dfcf;
+  border: 1px solid var(--edge);
   padding: 6px 11px;
-  background: #f7faf1;
-  color: #466048;
+  background: var(--soft);
+  color: var(--muted);
   white-space: nowrap
 }
 
@@ -260,7 +280,7 @@ main,
   width: 7px;
   height: 7px;
   border-radius: 100%;
-  background: #75a166;
+  background: var(--brand);
   display: inline-block;
   flex: none
 }
@@ -288,12 +308,12 @@ main,
 }
 
 .small-btn {
-  color: var(--green);
+  color: var(--brand);
   padding: 7px 8px
 }
 
 .text-btn {
-  color: var(--green);
+  color: var(--brand);
   padding: 6px 0
 }
 
@@ -304,7 +324,7 @@ main,
 .icon-only {
   border: 0;
   background: transparent;
-  color: #486859;
+  color: var(--muted);
   width: 34px;
   height: 34px
 }
@@ -359,7 +379,7 @@ main {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #476850;
+  color: var(--brand);
   font: 700 10.5px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
   letter-spacing: .13em;
   text-transform: uppercase
@@ -369,7 +389,7 @@ main {
   width: 19px;
   height: 2px;
   border-radius: 0;
-  background: #769f73
+  background: var(--brand)
 }
 
 h1 {
@@ -409,26 +429,26 @@ h1 {
 }
 
 .btn.primary {
-  background: var(--green);
-  color: #fff;
-  box-shadow: 0 3px 8px #194e3018
+  background: var(--brand);
+  border-color: var(--brand);
+  color: white
 }
 
 .btn.secondary {
-  border-color: #c9d7c9;
+  border-color: var(--control-edge);
   background: var(--paper);
-  color: #214a36
+  color: var(--brand)
 }
 
 .btn.danger {
-  background: #9d3d2d;
+  background: var(--danger);
   color: #fff
 }
 
 .btn.quiet-danger {
-  border-color: #e1cfc6;
-  color: #91442f;
-  background: #fffaf7
+  border-color: #c98a98;
+  color: var(--danger);
+  background: var(--danger-soft)
 }
 
 .btn.compact {
@@ -443,8 +463,8 @@ h1 {
 
 .pill {
   font-size: 12px;
-  color: #335e44;
-  background: #edf3e6;
+  color: var(--brand);
+  background: var(--soft);
   padding: 6px 10px
 }
 
@@ -499,7 +519,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #214438;
+  color: var(--ink);
   font-weight: 710;
   font-size: 17px;
   line-height: 1.4;
@@ -512,7 +532,7 @@ h1 {
 .corridor-icon,
 .route-symbol,
 .step-no {
-  color: #356747
+  color: var(--brand)
 }
 
 .field,
@@ -521,26 +541,28 @@ h1 {
   gap: 5px;
   font-weight: 630;
   font-size: 13px;
-  color: #39554b
+  color: var(--muted)
 }
 
 input:not([type=checkbox]),
 select,
 textarea {
-  border: 1px solid #c7d3c8;
-  background: #fffefa;
+  border: 1px solid var(--control-edge);
+  background: var(--paper);
   border-radius: 9px;
   min-width: 0;
-  color: #203c31;
+  color: var(--ink);
   padding: 10px 12px;
   min-height: 42px;
   width: 100%;
   font-size: 15px
 }
 
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+
 input[readonly] {
-  background: #f1f4ed;
-  color: #627566
+  background: var(--soft);
+  color: var(--muted)
 }
 
 textarea {
@@ -552,13 +574,14 @@ textarea {
   font-size: 13px;
   border-radius: 8px;
   padding: 9px 11px;
-  background: #ecf3e8;
-  color: #33543d
+  background: var(--soft);
+  color: var(--brand)
 }
 
 .notice.error {
-  background: #fff0e8;
-  color: #843622
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-inline-start: 3px solid currentColor
 }
 
 .system-note {
@@ -585,7 +608,7 @@ textarea {
   display: inline-grid;
   place-items: center;
   border-radius: 12px;
-  background: #e9f1df;
+  background: var(--brand-tint);
   flex: none
 }
 
@@ -612,6 +635,6 @@ textarea {
 
 .direct-link,
 .link {
-  color: var(--green);
+  color: var(--brand);
   text-decoration: underline
 }

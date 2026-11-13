@@ -100,9 +100,9 @@
     justify-content: space-around;
     gap: 2px;
     padding: 5px 5px calc(5px + env(safe-area-inset-bottom));
-    background: #fffefbfa;
-    border-top: 1px solid #cfd9cc;
-    box-shadow: 0 -3px 16px #10221b0a
+    background: var(--night);
+    border-top: 1px solid var(--edge);
+    box-shadow: 0 -3px 16px #30213e15
   }
 
   .primary-nav a {
@@ -355,12 +355,12 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #c4d2c3;
+  border: 1px solid var(--control-edge);
   border-radius: 22px;
-  background: #fffefa;
+  background: var(--paper);
   padding: 7px 13px;
   font-size: 13px;
-  color: var(--green);
+  color: var(--brand);
   font-weight: 660
 }
 
@@ -369,9 +369,9 @@
   padding: 14px 19px;
   border: 1px solid var(--edge);
   border-radius: 12px;
-  background: #f0f4ea;
+  background: var(--soft);
   font-size: 14px;
-  color: #395747
+  color: var(--ink)
 }
 
 .auto-heading {
