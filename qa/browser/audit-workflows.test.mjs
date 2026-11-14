@@ -85,16 +85,17 @@ test('main workspaces fit phone, tablet and desktop breakpoint boundaries', {tim
       id:'test-template',stops:[{name:label},{name:label}],local_time:'08:00',weekdays:[0,1,2,3,4],starts_on:'2099-01-01',ends_on:'2099-01-31',active:true
     }]}));
   });
-  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const errors=[],overflows=[];page.on('pageerror',e=>errors.push(e.message));
   for(const [route,ready] of [['book','.planner-card'],['offer','[data-offer-form]'],['circles','.circle-row'],['recurring','[data-create]'],['trips','[data-trip-list]'],['messages','.inbox'],['profile','[data-profile]']]) {
     await page.evaluate(route=>{location.hash='/'+route;},route);
     await page.locator(ready==='[data-trip-list]'?'.trip-tools':ready).waitFor();
-    for(const width of [320,360,390,540,720,721,768,950,1024,1150,1151,1280,1440]) {
+    for(const width of [320,360,390,540,720,721,768,950,1024,1150,1151,1280,1281,1440]) {
       await page.setViewportSize({width,height:844});
       const overflow=await page.evaluate(()=>({viewport:innerWidth,page:document.documentElement.scrollWidth,
-        offenders:[...document.querySelectorAll('main *')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&r.right>innerWidth+1;}).slice(0,5).map(el=>el.className)}));
-      assert.ok(overflow.page<=width+1,`${route} at ${width}px: ${JSON.stringify(overflow)}`);
+        offenders:[...document.querySelectorAll('body *')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&r.right>innerWidth+1&&!el.closest('.leaflet-container');}).slice(0,8).map(el=>el.id||el.className)}));
+      if(overflow.page>width+1)overflows.push(`${route} at ${width}px: ${JSON.stringify(overflow)}`);
     }
   }
   assert.deepEqual(errors,[]);
+  assert.deepEqual(overflows,[]);
 });

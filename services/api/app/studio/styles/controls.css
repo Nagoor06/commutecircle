@@ -27,7 +27,7 @@ input[type=date]::-webkit-date-and-time-value,input[type=datetime-local]::-webki
 .atlas .leaflet-tooltip.stop-label{max-width:180px;white-space:normal;overflow-wrap:break-word;padding:7px 10px;line-height:1.35}
 .match-reasons>span{display:inline-flex;align-items:center;gap:5px}
 .stop-fields{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr)}
-@media(min-width:721px) and (max-width:1150px){
+@media(min-width:721px) and (max-width:1280px){
   .top-inner{flex-wrap:wrap;gap:0 16px;padding-top:12px}
   #account{margin-left:auto}
   .primary-nav{order:3;width:100%;justify-content:center;padding:10px 0}
