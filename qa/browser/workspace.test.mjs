@@ -413,7 +413,7 @@ test('guest navigation never invents rides; stop hints work when external lookup
     assert.ok(!(await page.locator('.stop-label').allTextContents()).includes('Pickup pin'));
     await page.getByRole('combobox',{name:'Drop-off',exact:true}).fill('Local Bus');
     await page.getByRole('option',{name:/Local Bus Stop/}).waitFor();
-    const forward=lookups.find(u=>u.pathname==='/api/'), reverse=lookups.find(u=>u.pathname==='/reverse');
+    const forward=lookups.find(u=>u.pathname==='/api/'), reverse=lookups.findLast(u=>u.pathname==='/reverse');
     assert.ok(forward && reverse);
     assert.ok(Math.abs(Number(forward.searchParams.get('lat'))-Number(reverse.searchParams.get('lat')))<.0001);
     await page.getByRole('combobox',{name:'Drop-off',exact:true}).press('Escape');
