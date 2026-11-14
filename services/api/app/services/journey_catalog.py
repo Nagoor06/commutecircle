@@ -146,13 +146,14 @@ def near(place, stop, radius=PICKUP_RADIUS_M):
     return place is None or (distance is not None and distance <= radius)
 
 
-def segment(row, query, start, end, commute=None):
+def segment(row, query, start, end, commute=None, *, now):
     stops = row["stops"]
     options = []
     for a, stop in enumerate(stops[:-1]):
         boarding = row["departure"] + timedelta(minutes=stop["minutes"])
         if (
-            boarding <= start
+            boarding <= now
+            or boarding < start
             or (end and boarding >= end)
             or not near(query.origin, stop, query.radius_m)
         ):
@@ -212,7 +213,7 @@ def search(session, principal, query):
                     for flag in ("quiet", "air_conditioned")
                 ):
                     continue
-                selection = segment(row, query, start, query.before, commute)
+                selection = segment(row, query, start, query.before, commute, now=now)
                 if not selection:
                     continue
                 identity = identities[row["id"]]

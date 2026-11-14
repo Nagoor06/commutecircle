@@ -1,6 +1,7 @@
 import {places, normal, parseCoordinates, finitePlace, distance} from './places.js';
 import {nearbyPublicStops} from './public-stops.js';
 import {requestPlaces, remember} from './place-provider.js';
+import {readJson} from './read-json.js';
 
 const shards = new Map(), remoteCache = new Map();
 export const NEARBY_RADIUS = 50000;
@@ -69,9 +70,7 @@ async function stations(q, signal, anchor, radius) {
   if (!/^[a-z0-9]$/.test(letter)) return [];
   let rows = shards.get(letter);
   if (!rows) {
-    const response = await fetch(new URL('../../assets/stations/'+letter+'.json', import.meta.url), {signal});
-    if (!response.ok) return [];
-    rows = await response.json();
+    rows = await readJson(new URL('../../assets/stations/'+letter+'.json', import.meta.url), {signal});
     remember(shards, letter, rows, 8);
   }
   const needle = key(q);

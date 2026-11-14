@@ -20,7 +20,7 @@ export async function mount(ctx){
     '<form class="panel" data-create><div class="panel-cap">New recurring schedule</div>'+
     '<label class="field">Existing published route<select name="journey" required>'+owned.map(j=>'<option value="'+esc(j.id)+'">'+esc(j.stops[0].name)+' → '+esc(j.stops.at(-1).name)+'</option>').join('')+'</select></label>'+
     '<label class="field">Daily departure in IST<input type="time" name="time" value="'+(owned.length?esc(localTime(owned[0].departure)):'')+'" required></label>'+
-    '<div class="field">Travel days</div><div class="checkline">'+weekdays.map((d,i)=>'<label><input type="checkbox" name="day" value="'+i+'" '+(i<5?'checked':'')+'> '+d+'</label>').join(' ')+'</div>'+
+    '<div class="field">Travel days</div><div class="checkline weekday-choices" role="group" aria-label="Travel days">'+weekdays.map((d,i)=>'<label><input type="checkbox" name="day" value="'+i+'" '+(i<5?'checked':'')+'> '+d+'</label>').join(' ')+'</div>'+
     '<div class="form-grid"><label class="field">Start<input type="date" name="start" min="'+today()+'" value="'+today(1)+'" required></label><label class="field">End<input type="date" name="end" value="'+today(30)+'" required></label></div>'+
     '<label class="field">Approved vehicle<select name="vehicle" required></select></label><p class="fine" data-capacity-note hidden></p>'+
     '<label class="field">Visibility<select name="circle"><option value="">Public</option>'+circles.filter(c=>c.role==='owner').map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+' (members only)</option>').join('')+'</select></label>'+

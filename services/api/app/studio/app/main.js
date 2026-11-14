@@ -12,6 +12,7 @@ import {
 } from './data/live.js';
 import {restorePlan, rememberPlan, forgetPlan} from './data/plan.js';
 import {createTripSharing} from './data/trip-sharing.js';
+import {readJson} from './data/read-json.js';
 import {
   startRouter
 } from './router.js';
@@ -30,10 +31,9 @@ document.querySelector('.primary-nav').innerHTML = items.map(([route, symbol, ti
   ).join('');
 let settings = {};
 try {
-  const response = await fetch(new URL('app-settings.json', document.baseURI), {
+  settings = await readJson(new URL('app-settings.json', document.baseURI), {
     cache: 'no-cache'
   });
-  if (response.ok) settings = await response.json();
 } catch {}
 const query = new URLSearchParams(location.search);
 if (query.has('code') || query.has('error')) {

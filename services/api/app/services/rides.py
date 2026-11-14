@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from app.auth.principal import Principal
 from app.models import PickupPoint, Ride
 from app.repositories import rides as repository
 from app.schemas.ride import RideCreate
+from app.services.v2_common import required_verification
 
 
 class RideValidationError(Exception):
@@ -14,6 +16,8 @@ class RideValidationError(Exception):
 
 
 def create_ride(session: Session, principal: Principal, data: RideCreate) -> Ride:
+    if required_verification():
+        raise HTTPException(409, "Publish through /v1/journeys with an approved vehicle")
     departure = data.departure_at.astimezone(UTC)
     if departure <= datetime.now(UTC):
         raise RideValidationError("Departure must be in the future")
