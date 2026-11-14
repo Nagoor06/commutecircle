@@ -403,7 +403,7 @@ test('guest navigation never invents rides; stop hints work when external lookup
     await page.route('https://photon.komoot.io/**',async route=>{
       const url=new URL(route.request().url());lookups.push(url);
       const isReverse=url.pathname==='/reverse';
-      return route.fulfill({json:{features:[{properties:{name:isReverse?'Station Road':'Local Bus Stop',city:'Tenali'},geometry:{type:'Point',coordinates:[Number(url.searchParams.get('lon'))+(isReverse ? 0.00001 : 0.01),Number(url.searchParams.get('lat'))+(isReverse ? 0.00001 : 0.01)]}}]}});
+      return route.fulfill({json:{features:[{properties:{name:isReverse?'Station Road':'Local Bus Stop',city:'Tenali',countrycode:'IN'},geometry:{type:'Point',coordinates:[Number(url.searchParams.get('lon'))+(isReverse ? 0.00001 : 0.01),Number(url.searchParams.get('lat'))+(isReverse ? 0.00001 : 0.01)]}}]}});
     });
     await page.getByRole('combobox',{name:'Pickup',exact:true}).fill('16.25, 80.64');
     await page.getByRole('option',{name:/16.25000, 80.64000/}).click();

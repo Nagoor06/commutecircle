@@ -104,3 +104,41 @@ test('main workspaces fit phone, tablet and desktop breakpoint boundaries', {tim
   assert.deepEqual(errors,[]);
   assert.deepEqual(overflows,[]);
 });
+
+test('location search stays near the current area and expands only within India on request',async t=>{
+  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});
+  t.after(()=>browser.close());
+  const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
+  await context.addInitScript(()=>Object.defineProperty(navigator,'geolocation',{value:{
+    getCurrentPosition:success=>success({coords:{latitude:12.9715987,longitude:77.5945627}})
+  }}));
+  await context.route('https://tiles.openfreemap.org/**',r=>r.abort());
+  await context.route('**/assets/stations/*.json',r=>r.fulfill({json:[]}));
+  const queries=[];
+  await context.route('https://photon.komoot.io/**',r=>{
+    queries.push(new URL(r.request().url()));
+    const point=(name,lat,lon,countrycode)=>({properties:{name,countrycode},geometry:{coordinates:[lon,lat]}});
+    return r.fulfill({json:{features:[
+      point('Central Bengaluru',12.98,77.60,'IN'),point('Central Delhi',28.61,77.20,'IN'),
+      point('Central London',51.50,-.12,'GB'),point('Central Unknown',12.99,77.61,'')
+    ]}});
+  });
+  const page=await context.newPage();page.setDefaultTimeout(10000);
+  await page.goto(base+'/studio/#/book');
+  await page.waitForFunction(()=>document.querySelector('[aria-label=Pickup]')?.value==='Current location');
+  await page.getByRole('combobox',{name:'Pickup',exact:true}).fill('Central');
+  await page.getByRole('option',{name:/Central Bengaluru/}).waitFor();
+  assert.equal(await page.getByRole('option',{name:/Central Delhi|Central London|Central Unknown/}).count(),0);
+  assert.equal(queries.at(-1).searchParams.get('lat'),'12.9700');
+  assert.equal(queries.at(-1).searchParams.get('lon'),'77.5900');
+  assert.ok(queries.at(-1).searchParams.has('bbox'));
+  await page.getByRole('button',{name:'Search across India',exact:true}).click();
+  await page.getByRole('option',{name:/Central Delhi/}).waitFor();
+  assert.equal(await page.getByRole('option',{name:/Central London|Central Unknown/}).count(),0);
+  assert.equal(queries.at(-1).searchParams.has('bbox'),false);
+  assert.ok(queries.every(u=>u.searchParams.get('countrycode')==='IN'));
+  await page.getByRole('button',{name:'Search nearby',exact:true}).click();
+  await page.waitForFunction(()=>![...document.querySelectorAll('[role=option]')].some(el=>el.textContent.includes('Delhi')));
+  await page.getByRole('option',{name:/Central Bengaluru/}).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+});

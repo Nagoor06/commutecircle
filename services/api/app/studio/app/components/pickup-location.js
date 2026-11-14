@@ -1,6 +1,7 @@
 import {icon} from '../ui.js';
 import {finitePlace} from '../data/places.js';
 import {nearbyPublicStops} from '../data/public-stops.js';
+import {rememberSearchArea} from '../data/search-area.js';
 
 export const pickupLocationControl = () =>
   '<div class="pickup-location"><button type="button" class="text-btn" data-locate-pickup>'+icon('target',16)+
@@ -26,6 +27,7 @@ function currentArea(retry) {
         return;
       }
       const lat = Number(coords.latitude.toFixed(2)), lon = Number(coords.longitude.toFixed(2));
+      rememberSearchArea({lat,lon});
       resolve({name:'Current location', lat, lon, source:'device',
         area:'Approximate pickup area · '+lat.toFixed(2)+', '+lon.toFixed(2)});
     }, error => {

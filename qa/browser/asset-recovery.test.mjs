@@ -33,13 +33,13 @@ test('a stalled station shard does not block online place search',async t=>{
       signal.addEventListener('abort',()=>reject(signal.reason),{once:true});
     });
     return Promise.resolve({ok:true,json:async()=>({features:[{
-      properties:{name:'Stockholm',osm_key:'place',osm_value:'city'},
-      geometry:{coordinates:[18.0686,59.3293]}
+      properties:{name:'Mysuru',countrycode:'IN',osm_key:'place',osm_value:'city'},
+      geometry:{coordinates:[76.6394,12.2958]}
     }]})});
   });
-  const found=suggest('Stockholm',{signal:new AbortController().signal,geocoder:'https://places.example/api/'});
+  const found=suggest('Mysuru',{signal:new AbortController().signal,geocoder:'https://places.example/api/'});
   await flush();t.mock.timers.tick(5000);
-  assert.equal((await found).items[0].name,'Stockholm');
+  assert.equal((await found).items[0].name,'Mysuru');
   assert.equal(requests.length,2);
   assert.ok(requests[1].startsWith('https://places.example/api/'));
 });

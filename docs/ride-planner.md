@@ -7,7 +7,13 @@ mounts one screen and cancels work belonging to the previous screen.
 - **Book a ride** has one pannable, pinch-zoomable map. Either pin can be dragged
   or moved with the keyboard. The two fields independently debounce suggestions
   by 360 ms. On-device matching uses public station areas and station codes.
-  A configurable Photon endpoint adds place and street matches. A failed lookup
+  A configurable Photon endpoint adds Indian place and street matches, requesting
+  country code IN and rejecting foreign or missing-country results. With a location
+  reference, suggestions stay within 25 km until the user selects **Search across India**.
+  A fresh approximate device area takes precedence over another selected stop;
+  without location access, users can include their city in the query.
+  The offline catalogue excludes station codes without explicit Indian state metadata.
+  A failed lookup
   preserves local results. Device location is displayed after the user selects it.
 - **Matching rides** update after 420 ms of inactivity for a signed-in rider.
   Search checks ordered stops, boarding time and all legs in the requested

@@ -5,12 +5,13 @@ rider, driver, checkout, profile or sharing screens.
 
 ## Location selection
 
-- Pickup and drop-off use the opposite selected point as a location bias. Driver
-  intermediate stops use the previous stop. Profile uses the other commute point.
-- Empty-field suggestions are public catalogue stops within 50 km, ordered by
-  straight-line distance. Search farther away enables suggestions beyond 50 km.
+- Place search prefers a fresh approximate device area, falling back to a selected
+  stop. Raw device coordinates remain local.
+- Empty-field suggestions are public catalogue stops within 25 km, ordered by
+  straight-line distance. Search across India explicitly enables farther suggestions.
 - Ambiguous same-named stations remain separate when their coordinates differ.
-  Provider caches include the selected anchor. There is no hard country boundary.
+  Provider caches include the selected anchor and scope. Only verified Indian
+  provider results and Indian station catalogue entries become suggestions.
 - Pin dragging and keyboard movement immediately retain the exact coordinates.
   Debounced Photon reverse lookup supplies a name and address. A result more than
   75 m away says “Near”; over 1 km is rejected. Failure shows coordinates and an
