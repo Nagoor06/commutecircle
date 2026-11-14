@@ -124,6 +124,13 @@ test('driver offer → debounced passenger matches → segment checkout → driv
     }).first().waitFor();
 
     const rider = await visit('rider', true, async page => {
+      let lastSearch;
+      page.on('response', async response => {
+        if (new URL(response.url()).pathname === '/v1/journeys/search') {
+          lastSearch = {query:response.request().postDataJSON(), status:response.status(),
+            result:await response.json().catch(()=>null)};
+        }
+      });
       await page.getByLabel('Pickup',{exact:true}).fill('Tenal');
       await page.getByRole('option',{name:/Tenali Junction/}).first().click();
       const drop = page.getByRole('combobox', {name: 'Drop-off', exact: true});
@@ -131,8 +138,11 @@ test('driver offer → debounced passenger matches → segment checkout → driv
       await page.getByRole('option', {name: /Mangalagiri/}).first().click();
       await page.getByLabel('Travel date', {exact:true}).fill(travelDate);
       await page.reload();
+      assert.equal(await page.getByLabel('Pickup',{exact:true}).inputValue(), 'Tenali Junction');
       assert.equal(await drop.inputValue(), 'Mangalagiri');
-      await page.locator('[data-matches] a').filter({hasText:'Mangalagiri'}).first().waitFor();
+      await page.locator('[data-matches] a').filter({hasText:'Mangalagiri'}).first().waitFor().catch(async error=>{
+        throw new Error(`${error.message}\nSearch state: ${JSON.stringify(lastSearch)}\n${await page.locator('[data-matches]').textContent()}`);
+      });
       let unavailable=true;
       await page.route('**/v1/journeys/search',route=>{
         if(unavailable){unavailable=false;return route.fulfill({status:503,json:{detail:'Temporarily unavailable'}});}
