@@ -35,6 +35,8 @@ input[type=date]::-webkit-date-and-time-value,input[type=datetime-local]::-webki
 }
 @media(max-width:950px){.stop-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){
+  .top-inner{gap:10px}
+  .account-btn{min-height:44px}
   .primary-nav{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:0;padding-inline:4px}
   .primary-nav a{padding:6px 1px;min-width:0;min-height:50px;gap:3px;font-size:10px}
   .nav-full{display:none}.nav-short{display:inline}
@@ -46,4 +48,11 @@ input[type=date]::-webkit-date-and-time-value,input[type=datetime-local]::-webki
   .checkline{font-size:13px;gap:8px}
   .auto-heading{flex-wrap:wrap}
 }
+@media(max-width:370px){
+  .brand{font-size:18px}
+  .brand-mark{width:28px;height:28px;margin-right:7px}
+  .account-btn{padding-inline:8px}
+}
+.weekday-choices{flex-wrap:wrap;gap:4px 14px}
+.weekday-choices>label{display:inline-flex;align-items:center;gap:6px;min-height:44px}
 @media(min-width:721px){.find-layout{align-items:start}.find-layout .atlas{position:sticky;top:18px;height:clamp(480px,70vh,650px)}}
