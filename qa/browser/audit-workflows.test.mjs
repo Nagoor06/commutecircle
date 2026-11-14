@@ -91,9 +91,13 @@ test('main workspaces fit phone, tablet and desktop breakpoint boundaries', {tim
     await page.locator(ready==='[data-trip-list]'?'.trip-tools':ready).waitFor();
     for(const width of [320,360,390,540,720,721,768,950,1024,1150,1151,1280,1281,1440]) {
       await page.setViewportSize({width,height:844});
+      await page.waitForFunction(w=>matchMedia('(width: '+w+'px)').matches,width);
       await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      // Chromium applies viewport emulation and responsive layout asynchronously.
+      // Persistent overflow still fails; a pending resize frame is not a defect.
+      await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth+1,null,{timeout:1500}).catch(()=>{});
       const overflow=await page.evaluate(()=>({viewport:innerWidth,page:document.documentElement.scrollWidth,
-        offenders:[...document.querySelectorAll('body *')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&r.right>innerWidth+1&&!el.closest('.leaflet-container');}).slice(0,8).map(el=>el.id||el.className)}));
+        offenders:[...document.querySelectorAll('body *')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&r.right>innerWidth+1&&!el.closest('.leaflet-container');}).slice(0,8).map(el=>({tag:el.tagName,id:el.id,cls:el.getAttribute('class'),right:el.getBoundingClientRect().right,width:el.getBoundingClientRect().width,font:getComputedStyle(el).fontSize,text:el.textContent.slice(0,80)}))}));
       if(overflow.page>width+1)overflows.push(`${route} at ${width}px: ${JSON.stringify(overflow)}`);
     }
   }
