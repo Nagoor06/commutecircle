@@ -128,7 +128,7 @@ export function attachField(node, {
       return
     }
     const id = generation;
-    show(describeMatches(immediateMatches(q,focusPoint),focusPoint), q ? 'Looking for places…' : 'Finding the nearest public stops…');
+    show(q ? describeMatches(immediateMatches(q,focusPoint),focusPoint) : [], q ? 'Looking for places…' : 'Finding the nearest public stops…');
     timer = setTimeout(async () => {
       const req = new AbortController();
       request = req;
