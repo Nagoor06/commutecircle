@@ -102,7 +102,7 @@
     padding: 5px 5px calc(5px + env(safe-area-inset-bottom));
     background: var(--night);
     border-top: 1px solid var(--edge);
-    box-shadow: 0 -3px 16px #30213e15
+    box-shadow: 0 -3px 16px #14213d15
   }
 
   .primary-nav a {

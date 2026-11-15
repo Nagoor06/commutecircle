@@ -105,7 +105,7 @@ test('main workspaces fit phone, tablet and desktop breakpoint boundaries', {tim
   assert.deepEqual(overflows,[]);
 });
 
-test('location search stays near the current area and expands only within India on request',async t=>{
+test('location search shows near and far Indian matches in distance order without scope controls',async t=>{
   const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});
   t.after(()=>browser.close());
   const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
@@ -119,7 +119,7 @@ test('location search stays near the current area and expands only within India 
     queries.push(new URL(r.request().url()));
     const point=(name,lat,lon,countrycode)=>({properties:{name,countrycode},geometry:{coordinates:[lon,lat]}});
     return r.fulfill({json:{features:[
-      point('Central Bengaluru',12.98,77.60,'IN'),point('Central Delhi',28.61,77.20,'IN'),
+      point('Central Delhi',28.61,77.20,'IN'),point('Central Mysuru',12.30,76.64,'IN'),point('Central Bengaluru',12.98,77.60,'IN'),
       point('Central London',51.50,-.12,'GB'),point('Central Unknown',12.99,77.61,'')
     ]}});
   });
@@ -128,17 +128,15 @@ test('location search stays near the current area and expands only within India 
   await page.waitForFunction(()=>document.querySelector('[aria-label=Pickup]')?.value==='Current location');
   await page.getByRole('combobox',{name:'Pickup',exact:true}).fill('Central');
   await page.getByRole('option',{name:/Central Bengaluru/}).waitFor();
-  assert.equal(await page.getByRole('option',{name:/Central Delhi|Central London|Central Unknown/}).count(),0);
+  await page.getByRole('option',{name:/Central Delhi/}).waitFor();
+  assert.deepEqual(await page.getByRole('option').locator('b').allTextContents(),['Central Bengaluru','Central Mysuru','Central Delhi']);
+  assert.equal(await page.getByRole('option',{name:/Central London|Central Unknown/}).count(),0);
   assert.equal(queries.at(-1).searchParams.get('lat'),'12.9700');
   assert.equal(queries.at(-1).searchParams.get('lon'),'77.5900');
-  assert.ok(queries.at(-1).searchParams.has('bbox'));
-  await page.getByRole('button',{name:'Search across India',exact:true}).click();
-  await page.getByRole('option',{name:/Central Delhi/}).waitFor();
-  assert.equal(await page.getByRole('option',{name:/Central London|Central Unknown/}).count(),0);
   assert.equal(queries.at(-1).searchParams.has('bbox'),false);
   assert.ok(queries.every(u=>u.searchParams.get('countrycode')==='IN'));
-  await page.getByRole('button',{name:'Search nearby',exact:true}).click();
-  await page.waitForFunction(()=>![...document.querySelectorAll('[role=option]')].some(el=>el.textContent.includes('Delhi')));
-  await page.getByRole('option',{name:/Central Bengaluru/}).waitFor();
+  assert.equal(await page.locator('[data-scope]').count(),0);
+  await page.getByText('Nearest matches first',{exact:true}).waitFor();
+  assert.doesNotMatch(await page.locator('.suggestions:not([hidden])').textContent(),/India only|25 km|Search across India/);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
 });

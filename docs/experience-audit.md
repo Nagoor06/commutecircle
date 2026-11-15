@@ -7,10 +7,11 @@ rider, driver, checkout, profile or sharing screens.
 
 - Place search prefers a fresh approximate device area, falling back to a selected
   stop. Raw device coordinates remain local.
-- Empty-field suggestions are public catalogue stops within 25 km, ordered by
-  straight-line distance. Search across India explicitly enables farther suggestions.
+- Empty-field suggestions show the nearest public catalogue stops. Typed matches
+  combine online places and offline stations in ascending straight-line distance,
+  with no radius cutoff or scope switch.
 - Ambiguous same-named stations remain separate when their coordinates differ.
-  Provider caches include the selected anchor and scope. Only verified Indian
+  Provider caches include the selected location bias. Only verified Indian
   provider results and Indian station catalogue entries become suggestions.
 - Pin dragging and keyboard movement immediately retain the exact coordinates.
   Debounced Photon reverse lookup supplies a name and address. A result more than

@@ -4,16 +4,6 @@ import {requestPlaces, remember} from './place-provider.js';
 import {readJson} from './read-json.js';
 
 const shards = new Map(), remoteCache = new Map();
-export const NEARBY_RADIUS = 25000;
-const within = (p, anchor, radius) => !finitePlace(anchor) || distance(p,anchor) <= radius;
-
-function bounds(anchor, radius) {
-  const angle = radius / 6371000, deltaLat = angle * 180 / Math.PI;
-  const deltaLon = Math.asin(Math.min(1, Math.sin(angle) / Math.cos(anchor.lat*Math.PI/180))) * 180 / Math.PI;
-  // Photon boxes cannot wrap the date line. The exact distance filter still applies.
-  if (anchor.lon-deltaLon < -180 || anchor.lon+deltaLon > 180) return {};
-  return {bbox:[anchor.lon-deltaLon,Math.max(-85,anchor.lat-deltaLat),anchor.lon+deltaLon,Math.min(85,anchor.lat+deltaLat)].join(',')};
-}
 const key = text => normal(text).normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 const words = s => key(s).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 function rank(name, code, q) {
@@ -33,22 +23,19 @@ function relevance(p, q) {
 
 export function rankPlaces(items, q, anchor) {
   const found = [], nearby = finitePlace(anchor);
-  for (const p of items) {
-    if (nearby && distance(p, anchor) < 25) continue;
+  const ordered = items.filter(finitePlace).sort((a,b) =>
+    (nearby ? distance(a,anchor)-distance(b,anchor) : 0) ||
+    relevance(a,q)-relevance(b,q) || a.name.localeCompare(b.name));
+  for (const p of ordered) {
     // Same-named stations in different cities remain separate choices.
     if (!found.some(f => finitePlace(f) && finitePlace(p) &&
       distance(f,p) < (key(f.name) === key(p.name) ? 100 : 15))) found.push(p);
   }
-  return found.sort((a,b) => relevance(a,q) - relevance(b,q) ||
-    (nearby ? distance(a,anchor)-distance(b,anchor) : 0) || a.name.localeCompare(b.name))
-    .slice(0,6);
+  return found.slice(0,6);
 }
 
-export function automaticMatches(items, q, anchor, nationwide = false) {
-  const candidates = items.filter(p=>!finitePlace(anchor) || distance(p,anchor)>=25);
-  const selected = candidates.filter(p=>nationwide || within(p,anchor,NEARBY_RADIUS));
-  const result = rankPlaces(selected,q,anchor);
-  return {items:result, expanded:result.some(p=>!within(p,anchor,NEARBY_RADIUS))};
+export function automaticMatches(items, q, anchor) {
+  return {items:rankPlaces(items,q,anchor)};
 }
 
 export function describeMatches(items, anchor) {
@@ -56,13 +43,13 @@ export function describeMatches(items, anchor) {
     `${(distance(p,anchor)/1000).toFixed(1)} km from search area (straight line)` : ''].filter(Boolean).join(' · ')}));
 }
 
-export function immediateMatches(q, anchor, radius = NEARBY_RADIUS) {
+export function immediateMatches(q, anchor) {
   const n = key(q);
   if (!n && !finitePlace(anchor)) return [];
-  return rankPlaces(places.filter(p => within(p,anchor,radius) && (!n || key(p.name+' '+p.area).includes(n))), q, anchor);
+  return rankPlaces(places.filter(p => !n || key(p.name+' '+p.area).includes(n)), q, anchor);
 }
 
-async function stations(q, signal, anchor, radius) {
+async function stations(q, signal, anchor) {
   const letter = key(q)[0];
   if (!/^[a-z0-9]$/.test(letter)) return [];
   let rows = shards.get(letter);
@@ -72,11 +59,10 @@ async function stations(q, signal, anchor, radius) {
   }
   const needle = key(q);
   return rankPlaces(rows.filter(([name,code]) => rank(name,code,needle)<9)
-    .map(([name,code,lat,lon]) => ({name,code,lat,lon,area:'Railway station area · '+code}))
-    .filter(p=>within(p,anchor,radius)),q,anchor);
+    .map(([name,code,lat,lon]) => ({name,code,lat,lon,area:'Railway station area · '+code})),q,anchor);
 }
 
-export async function suggest(q, {signal, onLocal=()=>{}, geocoder, anchor, nationwide=false}) {
+export async function suggest(q, {signal, onLocal=()=>{}, geocoder, anchor}) {
   const coordinate = parseCoordinates(q);
   if (coordinate) {
     if (!geocoder) return {items:[],offline:true};
@@ -94,27 +80,25 @@ export async function suggest(q, {signal, onLocal=()=>{}, geocoder, anchor, nati
   }
   if (!q && finitePlace(anchor)) {
     try {
-      return {items:await nearbyPublicStops(anchor,signal,{radius:NEARBY_RADIUS,limit:6,excludeOrigin:true})};
+      return {items:await nearbyPublicStops(anchor,signal,{radius:Infinity,limit:6})};
     } catch (e) {
       if (signal?.aborted) throw e;
       return {items:immediateMatches('',anchor),offline:true};
     }
   }
   let railway = [];
-  const radius=nationwide ? Infinity : NEARBY_RADIUS;
-  try { railway = await stations(q,signal,anchor,radius); }
+  try { railway = await stations(q,signal,anchor); }
   catch (e) { if (signal?.aborted) throw e; }
-  const local = [...immediateMatches(q,anchor,radius),...railway];
-  onLocal(automaticMatches(local,q,anchor,nationwide).items);
-  if (q.length<2 || !geocoder) return automaticMatches(local,q,anchor,nationwide);
+  const local = [...immediateMatches(q,anchor),...railway];
+  onLocal(automaticMatches(local,q,anchor).items);
+  if (q.length<2 || !geocoder) return automaticMatches(local,q,anchor);
   // Bias and provider are in the cache key; swapping stops cannot reuse stale ordering.
-  const bias = finitePlace(anchor) ? {lat:anchor.lat.toFixed(4),lon:anchor.lon.toFixed(4),zoom:'10',location_bias_scale:'0.1',
-    ...(nationwide ? {} : bounds(anchor,NEARBY_RADIUS))} : {};
+  const bias = finitePlace(anchor) ? {lat:anchor.lat.toFixed(4),lon:anchor.lon.toFixed(4),zoom:'10',location_bias_scale:'0.1'} : {};
   const lookup = async params => {
     const cacheKey = geocoder+'|'+key(q)+'|'+JSON.stringify(params);
     if (remoteCache.has(cacheKey)) return remoteCache.get(cacheKey);
     const url = new URL(geocoder);
-    url.search = new URLSearchParams({q,limit:'10',lang:'en',countrycode:'IN',...params});
+    url.search = new URLSearchParams({q,limit:'20',lang:'en',countrycode:'IN',...params});
     const found = (await requestPlaces(url,signal)).filter(p=>p.countryCode==='IN');
     remember(remoteCache,cacheKey,found);
     return found;
@@ -122,11 +106,11 @@ export async function suggest(q, {signal, onLocal=()=>{}, geocoder, anchor, nati
   let nearby = [];
   try {
     nearby = await lookup(bias);
-    const first = automaticMatches([...local,...nearby],q,anchor,nationwide);
+    const first = automaticMatches([...local,...nearby],q,anchor);
     onLocal(first.items);
     return first;
   } catch (e) {
     if (signal?.aborted) throw e;
-    return {...automaticMatches([...local,...nearby],q,anchor,nationwide),offline:true};
+    return {...automaticMatches([...local,...nearby],q,anchor),offline:true};
   }
 }
