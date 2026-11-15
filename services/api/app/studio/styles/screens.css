@@ -454,7 +454,7 @@ summary::-webkit-details-marker {
 .tabs a[aria-current=page] {
   background: var(--paper);
   color: var(--brand);
-  box-shadow: 0 1px 4px #30213e1a
+  box-shadow: 0 1px 4px #14213d1a
 }
 
 .trip-list {
@@ -609,11 +609,11 @@ summary::-webkit-details-marker {
   padding: 24px;
   border-radius: 16px;
   background: var(--paper);
-  box-shadow: 0 15px 65px #30213e44
+  box-shadow: 0 15px 65px #14213d44
 }
 
 .dialog::backdrop {
-  background: #30213e66
+  background: #14213d66
 }
 
 .dialog p {

@@ -115,7 +115,7 @@
   display: grid;
   place-items: center;
   color: var(--brand);
-  box-shadow: 0 1px 3px #30213e13
+  box-shadow: 0 1px 3px #14213d13
 }
 
 .date-row {
@@ -175,7 +175,7 @@
   background: var(--paper);
   border: 1px solid var(--edge);
   border-radius: 12px;
-  box-shadow: 0 12px 36px #30213e29;
+  box-shadow: 0 12px 36px #14213d29;
   left: -1px;
   right: -1px;
   top: calc(100% + 3px);
@@ -279,7 +279,7 @@
   min-height: 305px;
   width: 100%;
   background-color: var(--map-ground);
-  background-image: linear-gradient(32deg, #fffdf999 1px, transparent 1px), linear-gradient(118deg, #c8b9ca77 1px, transparent 1px);
+  background-image: linear-gradient(32deg, #ffffff99 1px, transparent 1px), linear-gradient(118deg, #b8c8df77 1px, transparent 1px);
   background-size: 34px 64px
 }
 
@@ -299,8 +299,8 @@
   top: 15px;
   left: 15px;
   border: 1px solid var(--edge);
-  background: #fffdf9f5;
-  box-shadow: 0 2px 9px #30213e20;
+  background: #fffffff5;
+  box-shadow: 0 2px 9px #14213d20;
   color: var(--brand);
   border-radius: 9px;
   display: flex;
@@ -319,7 +319,7 @@
   background: var(--paper);
   border: 1px solid var(--edge);
   border-radius: 10px;
-  box-shadow: 0 2px 9px #30213e22;
+  box-shadow: 0 2px 9px #14213d22;
   overflow: hidden
 }
 
@@ -343,7 +343,7 @@
   bottom: 58px;
   right: 0;
   border-radius: 4px 0 0 0;
-  background: #fffdf9f5;
+  background: #fffffff5;
   font: 10px/1.5 Arial, sans-serif;
   padding: 1px 5px;
   color: var(--muted)
@@ -398,7 +398,7 @@
   bottom: 79px;
   left: 9px;
   max-width: calc(100% - 18px);
-  background: #fffdf9f5;
+  background: #fffffff5;
   border: 1px solid var(--edge);
   color: var(--muted);
   border-radius: 7px;
@@ -424,7 +424,7 @@
   border-radius: 50% 50% 50% 6px;
   transform: rotate(-45deg);
   background: var(--brand);
-  box-shadow: 0 2px 7px #30213e55
+  box-shadow: 0 2px 7px #14213d55
 }
 
 .map-marker-body>span {
@@ -440,7 +440,7 @@
   width: 12px;
   height: 5px;
   border-radius: 50%;
-  background: #30213e4f
+  background: #14213d4f
 }
 
 .finish .map-marker-body {
@@ -448,11 +448,11 @@
 }
 
 .atlas .leaflet-tooltip.stop-label {
-  background: #fffdf9f5;
+  background: #fffffff5;
   border: 1px solid var(--edge);
   color: var(--ink);
   border-radius: 6px;
-  box-shadow: 0 2px 6px #30213e1e;
+  box-shadow: 0 2px 6px #14213d1e;
   padding: 4px 7px;
   font: 650 11px/1.25 inherit;
   max-width: 150px;

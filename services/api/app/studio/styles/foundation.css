@@ -1,25 +1,25 @@
 /* Shared visual foundation. Screen-specific layout lives below the primitives. */
 :root {
   color-scheme: light;
-  --ink: #2d2231;
-  --muted: #635867;
-  --bg: #fbf5ee;
-  --paper: #fffdf9;
-  --soft: #f3edf8;
-  --edge: #dfd4dd;
-  --control-edge: #948499;
-  --brand: #654185;
-  --brand-hover: #50316f;
-  --brand-tint: #eaddf4;
-  --night: #30213e;
-  --night-raised: #493453;
-  --on-night: #fff8f2;
-  --night-muted: #ecdeee;
-  --night-edge: #927f9a;
-  --accent: #ffb58e;
-  --accent-soft: #ffeadc;
-  --focus: #77439f;
-  --dropoff: #9c4e25;
+  --ink: #14213d;
+  --muted: #56647c;
+  --bg: #f5f7fc;
+  --paper: #ffffff;
+  --soft: #edf3fc;
+  --edge: #dce2ec;
+  --control-edge: #8090ab;
+  --brand: #2457d6;
+  --brand-hover: #1b43ad;
+  --brand-tint: #cbeaf5;
+  --night: #14213d;
+  --night-raised: #223b63;
+  --on-night: #f5f7fc;
+  --night-muted: #d6e3f5;
+  --night-edge: #7187aa;
+  --accent: #cbeaf5;
+  --accent-soft: #edf6fb;
+  --focus: #2457d6;
+  --dropoff: #265b78;
   --danger: #a12c43;
   --danger-hover: #812137;
   --danger-soft: #fce9ed;
@@ -27,8 +27,8 @@
   --live-soft: #e1f2ea;
   --warning: #82501f;
   --warning-soft: #fff0d6;
-  --map-ground: #f4eee8;
-  --shadow: 0 4px 18px #30213e0b;
+  --map-ground: #edf2f8;
+  --shadow: 0 4px 18px #14213d0b;
   font-family: Inter, "Aptos", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--ink);
   background: var(--bg);
@@ -43,7 +43,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(ellipse at 88% 15%, #ffe3ce8c, transparent 40%), var(--bg)
+  background: radial-gradient(ellipse at 88% 15%, #cbeaf559, transparent 40%), var(--bg)
 }
 
 button,

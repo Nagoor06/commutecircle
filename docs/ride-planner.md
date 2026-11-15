@@ -9,7 +9,7 @@ mounts one screen and cancels work belonging to the previous screen.
   by 360 ms. On-device matching uses public station areas and station codes.
   A configurable Photon endpoint adds Indian place and street matches, requesting
   country code IN and rejecting foreign or missing-country results. With a location
-  reference, suggestions stay within 25 km until the user selects **Search across India**.
+  reference, matching suggestions appear from nearest to farthest with no radius cutoff.
   A fresh approximate device area takes precedence over another selected stop;
   without location access, users can include their city in the query.
   The offline catalogue excludes station codes without explicit Indian state metadata.
