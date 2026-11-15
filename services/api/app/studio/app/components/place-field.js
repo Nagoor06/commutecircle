@@ -14,6 +14,7 @@ import {
   suggest
 } from '../data/geocoder.js';
 import {nearbyPublicStops} from '../data/public-stops.js';
+import {searchArea, rememberSearchArea} from '../data/search-area.js';
 
 export function fieldMarkup(i, p, options = {}) {
   const label = options.label || (i ? 'Drop-off' : 'Pickup'),
@@ -22,7 +23,7 @@ export function fieldMarkup(i, p, options = {}) {
   return `<div class="place-field" data-field="${i}"><label for="${id}"><span class="point-key ${badge==='B'?'dropoff':''}">${esc(badge)}</span>${esc(label)}</label>
     <div class="place-entry"><input id="${id}" aria-label="${esc(label)}" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-list" placeholder="Search for a place" value="${esc(p.name)}"><button type="button" class="icon-only" aria-label="Edit ${esc(label)}">${icon('pin',17)}</button></div>
     <small class="place-sub">${esc(p.area||(p.name?'Public meeting place':''))}</small>
-    <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>
+    <div class="suggestions" hidden><div id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions"></div><div class="lookup-actions"><small data-hint role="status"></small><button data-scope type="button" hidden>Search across India</button><button data-gps type="button">${icon('target',14)} Find public stops near me</button></div></div>
   </div>`;
 }
 export function attachField(node, {
@@ -39,12 +40,13 @@ export function attachField(node, {
     sub = node.querySelector('.place-sub'),
     popup = node.querySelector('.suggestions'),
     list = node.querySelector('[role=listbox]'),
-    hint = node.querySelector('[data-hint]');
+    hint = node.querySelector('[data-hint]'),
+    scope = node.querySelector('[data-scope]');
   let selected = initial,
     results = [],
     active = -1,
     request, generation = 0,
-    timer;
+    timer, nationwide = false;
 
   function invalidate() {
     generation++;
@@ -106,22 +108,21 @@ export function attachField(node, {
     input.setAttribute('aria-expanded', 'true');
   }
 
-  function search(edited) {
+  function search(edited, wide = false) {
     invalidate();
+    nationwide = wide;
     let q = input.value.trim();
-    const focusPoint = anchor();
+    const focusPoint = searchArea(anchor(), selected);
+    scope.textContent = wide ? 'Search nearby' : 'Search across India';
     if (edited) {
       sub.textContent = 'Choose a matching place to update the pin';
       onDraft()
     }
     if (!edited && normal(q) === normal(selected.name)) q = '';
-    if (!q && !finitePlace(focusPoint)) { show([], 'Type a place name or coordinates'); return; }
+    scope.hidden = !finitePlace(focusPoint) || q.length < 2;
+    if (!q && !finitePlace(focusPoint)) { show([], 'India only · type a city or public place'); return; }
     try {
-      const pair = parseCoordinates(q);
-      if (pair) {
-        show([pair], 'Choose this pin');
-        return
-      }
+      parseCoordinates(q);
     } catch (e) {
       show([], e.message);
       return
@@ -131,7 +132,7 @@ export function attachField(node, {
       return
     }
     const id = generation;
-    show(describeMatches(immediateMatches(q,focusPoint),focusPoint), q ? 'Looking for places…' : 'Finding public stops near your other stop…');
+    show(describeMatches(immediateMatches(q,focusPoint),focusPoint), q ? 'Looking for Indian places…' : 'Finding nearby public stops…');
     timer = setTimeout(async () => {
       const req = new AbortController();
       request = req;
@@ -144,13 +145,14 @@ export function attachField(node, {
           signal: req.signal,
           onLocal: local,
           geocoder,
-          anchor: focusPoint
+          anchor: focusPoint,
+          nationwide: wide
         });
         if (id !== generation || signal.aborted) return;
         show(q ? describeMatches(result.items,focusPoint) : result.items, result.offline ?
-          'Online lookup unavailable. Use a station, coordinates or a pin.' : result.items.length ?
-          (result.expanded ? 'Also showing matches farther away.' : finitePlace(focusPoint) ? 'Nearby matches · within 50 km of your other stop' : 'Matching places') :
-          'No matching place. Try a city, landmark or map pin.');
+          'Online lookup unavailable. Showing available Indian station matches.' : result.items.length ?
+          (wide ? 'Matches across India' : finitePlace(focusPoint) ? 'India only · within 25 km of your search area' : 'India only · include your city for closer matches') :
+          (finitePlace(focusPoint) && !wide ? 'No nearby match. Try a local landmark or choose Search across India.' : 'No Indian place matched. Include the city or try another landmark.'));
       } catch (e) {
         if (id === generation && !signal.aborted) show([], e.message)
       }
@@ -160,6 +162,8 @@ export function attachField(node, {
     input.select();
     search(false)
   };
+  scope.onmousedown = e => e.preventDefault();
+  scope.onclick = () => search(false, !nationwide);
   input.oninput = () => search(true);
   node.querySelector('.icon-only').onclick = () => {
     input.focus();
@@ -217,6 +221,7 @@ export function attachField(node, {
         info('This point is outside map coverage.');
         return
       }
+      rememberSearchArea(p);
       try {
         const candidates = await nearbyPublicStops(p, signal);
         if (signal.aborted || id !== generation) return;

@@ -32,14 +32,22 @@ function projection(point,geometry) {
   return best;
 }
 
-export async function calculateRoute(stops, includePublic, signal) {
+export async function calculateRoute(stops, includePublic, signal, onWarning=()=>{}) {
   if(!stops.every(finitePlace))throw Error('Choose mapped suggestions or pins for every stop before calculating the road route.');
   let points=stops.map(s=>({...s})),result=await route(points,signal);
   if(includePublic&&points.length===2){
     const geometry=result.geometry.coordinates;
-    const lats=geometry.map(c=>c[1]),lons=geometry.map(c=>c[0]);
-    const bounds=[Math.min(...lats)-.02,Math.max(...lats)+.02,Math.min(...lons)-.02,Math.max(...lons)+.02];
-    const candidates=(await publicStops(signal)).filter(p=>p.lat>=bounds[0]&&p.lat<=bounds[1]&&p.lon>=bounds[2]&&p.lon<=bounds[3])
+    const bounds=geometry.reduce(([south,north,west,east],[lon,lat])=>
+      [Math.min(south,lat),Math.max(north,lat),Math.min(west,lon),Math.max(east,lon)],
+      [Infinity,-Infinity,Infinity,-Infinity]);
+    bounds[0]-=.02;bounds[1]+=.02;bounds[2]-=.02;bounds[3]+=.02;
+    let catalogue=[];
+    try { catalogue=await publicStops(signal); }
+    catch(error) {
+      if(signal.aborted)throw error;
+      onWarning('Public stop suggestions are unavailable. Timings use only your selected stops.');
+    }
+    const candidates=catalogue.filter(p=>p.lat>=bounds[0]&&p.lat<=bounds[1]&&p.lon>=bounds[2]&&p.lon<=bounds[3])
       .filter(p=>points.every(s=>normal(s.name)!==normal(p.name)&&distance(s,p)>1500))
       .map(p=>({p,...projection(p,geometry)})).filter(x=>x.gap<=1500).sort((a,b)=>a.along-b.along);
     const chosen=[];

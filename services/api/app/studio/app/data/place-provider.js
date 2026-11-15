@@ -6,7 +6,8 @@ export function providerPlace(feature) {
   const name = String(p.name || street || p.locality || p.district || p.city || '').slice(0, 80);
   const area = [...new Set([street, p.locality, p.district, p.city, p.state, p.country]
     .filter(v => v && v !== name))].join(' · ');
-  const place = {name, area, lon:c[0], lat:c[1], locality:
+  const countryCode = String(p.countrycode || (String(p.country).trim().toLowerCase()==='india' ? 'IN' : '')).trim().toUpperCase();
+  const place = {name, area, countryCode, city:p.city || '', state:p.state || '', lon:c[0], lat:c[1], locality:
     p.osm_key === 'place' && ['city','town','village','municipality'].includes(p.osm_value)};
   return name && finitePlace(place) ? place : null;
 }

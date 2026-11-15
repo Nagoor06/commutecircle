@@ -23,6 +23,7 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
   background: linear-gradient(105deg,var(--night),var(--night-raised));
 }
 .trip-board .eyebrow { display: flex; align-items: center; gap: 7px; color: var(--accent); margin: 0 0 8px; }
+.trip-board > div { min-width: 0; overflow-wrap: anywhere; }
 .trip-board h1 { color: inherit; font-size: clamp(38px,5.5vw,72px); line-height: 1; letter-spacing: -.055em; margin: 0; }
 .board-stat { display: grid; gap: 3px; border-left: 1px solid var(--night-edge); padding-left: clamp(12px,2vw,26px); }
 .board-stat[hidden] { display: none; }

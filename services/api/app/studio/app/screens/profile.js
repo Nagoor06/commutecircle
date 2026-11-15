@@ -30,24 +30,37 @@ export async function mount(ctx) {
     geocoder, signal, info:m=>notice(root,m),
     anchor:()=>{try{return fields[1-i]?.value()}catch{return null}}
   }));
-  root.querySelector('form').onsubmit = e => {e.preventDefault(); pending(e.submitter, async()=>{
+  const commuteForm=root.querySelector('[data-profile]');
+  let writing=false;
+  function writeCommute(button, operation) {
+    if(writing || button.disabled)return;
+    writing=true;
+    const controls=[...commuteForm.elements].filter(el=>el!==button && !el.disabled);
+    controls.forEach(el=>{el.disabled=true;});
+    return pending(button,operation,m=>notice(commuteForm,m,'error')).finally(()=>{
+      writing=false;controls.forEach(el=>{el.disabled=false;});
+    });
+  }
+  commuteForm.onsubmit = e => {e.preventDefault(); writeCommute(e.submitter || commuteForm.querySelector('[type=submit]'), async()=>{
     const [pickup, workplace] = fields.map(f=>stopFromPlace(f.value()));
     if (isSame(pickup,workplace)) throw Error('Choose different pickup and workplace points.');
     const data = {pickup,workplace,employer:root.querySelector('[name=employer]').value.trim(),public_points_confirmed:true};
     await api.saveCommute(data);
+    if(signal.aborted){state.commute=undefined;return;}
     state.commute = data; state.route = [pickup,workplace];
     state.query = {origin:pickup,destination:workplace,prefer_commute:true};
     if (!signal.aborted) go('book');
-  },m=>notice(root,m,'error')); };
-  root.querySelector('[data-forget]').onclick = e => pending(e.currentTarget,async()=>{
+  }); };
+  root.querySelector('[data-forget]').onclick = e => writeCommute(e.currentTarget,async()=>{
     await api.forgetCommute();
+    if(signal.aborted){state.commute=undefined;return;}
     if (saved && isSame(state.route[0],saved.pickup) && isSame(state.route[1],saved.workplace)) {
       state.route = emptyRoute(); state.query = null;
     }
     state.commute = null;
     fields.forEach(f=>f.set({name:''})); root.querySelector('[name=employer]').value='';
     notice(root,'Saved commute deleted.','info');
-  },m=>notice(root,m,'error'));
+  });
   await Promise.all([bindAlerts(root.querySelector('.booking-alerts'),api,signal),
     bindContacts(root.querySelector('.trusted-contacts'),api,signal)]);
 }

@@ -145,7 +145,7 @@
   .offer-layout,
   .checkout-layout,
   .help-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px
   }
 

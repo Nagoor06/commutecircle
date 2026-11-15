@@ -1,10 +1,9 @@
 import {places, distance} from './places.js';
+import {readJson} from './read-json.js';
 let catalogue;
 export async function publicStops(signal) {
   if (!catalogue) {
-    const response = await fetch(new URL('../../assets/stations/nearby.json', import.meta.url), {signal});
-    if (!response.ok) throw Error('Public stop suggestions are unavailable. Search by station name.');
-    const rows = await response.json();
+    const rows = await readJson(new URL('../../assets/stations/nearby.json', import.meta.url), {signal});
     catalogue = [...places, ...rows.map(([name,lat,lon])=>({name,lat,lon,area:'Public station area'}))];
   }
   return catalogue;

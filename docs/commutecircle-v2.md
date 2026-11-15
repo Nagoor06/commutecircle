@@ -25,7 +25,7 @@ The web app and API on `main` implement the pilot workflow below.
 ## Manual operation and limitations (must be fixed before a public launch)
 
 - Driver/vehicle reviews are **manual**. `v2:staff` is a privileged identity-provider scope and must never be assigned to ordinary users. Integrate an actual evidence review process, secure document retention, reviewer audit and anti-fraud controls before enabling real verification badges at scale.
-- `V2_REQUIRE_DRIVER_VERIFICATION=true` can require verification for new instant-mode public offers as well. Default is false to preserve legacy development behavior. Do not turn on the flag before staff onboarding is ready.
+- `V2_REQUIRE_DRIVER_VERIFICATION=true` requires verification for new instant-mode public offers as well. With this policy enabled, deprecated `/v1/rides` creation is closed because it cannot link an approved vehicle. Create new offers through `/v1/journeys`; existing history and cancellation remain available. Default is false to preserve legacy development behavior. Do not turn on the flag before staff onboarding is ready.
 - Legacy instant booking remains on existing journeys and does not retroactively receive consent/boarding fields. Old trip history is preserved.
 - Signed-in drivers review pending requests in My trips. The outbox queues new requests for opted-in drivers and approval or decline decisions for opted-in passengers. Expired and superseded requests are suppressed before delivery.
 - Automatic recurring expansion **beyond the first 14 days** requires a reliable scheduled worker. The initial V2 endpoint materializes at most 14 days per call; it is idempotent and serialized per template. Do not advertise unlimited unattended recurrence yet.
@@ -48,7 +48,7 @@ Open `#/staff` before signing in to request the reviewer scope. Only accounts in
 
 ## Local setup, version and compatibility
 
-The API metadata version is `0.2.5`; URL paths remain `/v1` for backward
+The API metadata version is `0.2.6`; URL paths remain `/v1` for backward
 compatibility. Old Ride/Booking endpoints are marked deprecated in Swagger
 only, not removed. Run `./scripts/configure-local-auth.ps1` (PowerShell) to
 fill missing **public** Auth0 settings in a local `.env`, then

@@ -163,10 +163,12 @@ export async function mount(ctx){
   root.querySelector('[data-calculate]').onclick=e=>pending(e.currentTarget,async()=>{
     const snapshot=JSON.stringify(d.stops);
     const resolved=d.stops.map(p=>finitePlace(p)?p:{...p,...knownPlace(p.name)});
-    const result=await calculateRoute(resolved,d.addPublic,signal);
+    let warning='';
+    const result=await calculateRoute(resolved,d.addPublic,signal,text=>{warning=text;});
     if(signal.aborted)return;
     if(snapshot!==JSON.stringify(d.stops))throw Error('The stops changed during calculation. Calculate again.');
-    d.stops=result;d.ready=null;drawStops();summary();notice(root,'Road distances and estimated times updated. Review the stops before publishing.');
+    d.stops=result;d.ready=null;drawStops();summary();notice(root,
+      [warning,'Road distances and estimated times updated. Review the stops before publishing.'].filter(Boolean).join(' '));
   },m=>notice(root,m,'error'));
   form.onsubmit=e=>{
     e.preventDefault();

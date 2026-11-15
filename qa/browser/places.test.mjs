@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {setTimeout as pause} from 'node:timers/promises';
 import {rankPlaces,suggest,immediateMatches,automaticMatches} from '../../services/api/app/studio/app/data/geocoder.js';
 import {reversePlace,pinResolver} from '../../services/api/app/studio/app/data/reverse-geocoder.js';
+import {rememberSearchArea,searchArea} from '../../services/api/app/studio/app/data/search-area.js';
 
 const anchor={name:'Source',lat:16.25,lon:80.64};
-const feature=(name,lat,lon,extra={})=>({properties:{name,...extra},geometry:{type:'Point',coordinates:[lon,lat]}});
+const feature=(name,lat,lon,extra={})=>({properties:{name,countrycode:'IN',...extra},geometry:{type:'Point',coordinates:[lon,lat]}});
 
 test('ambiguous names rank near the other stop without hiding same-named distant cities',()=>{
   const near={name:'Central Station',area:'Near city',lat:16.3,lon:80.65};
@@ -73,7 +74,7 @@ test('rapid pin moves, independent pins and manual replacements reject stale rep
   assert.notEqual(points[0].name,'After leaving');
 });
 
-test('nearby ambiguous suggestions stay local; a typed distant stop expands automatically',async t=>{
+test('nearby suggestions do not widen until an India-wide search is requested',async t=>{
   const near={lat:16.3,lon:80.65}, far={lat:17.4,lon:78.47},urls=[];
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);urls.push(u);
@@ -84,36 +85,37 @@ test('nearby ambiguous suggestions stay local; a typed distant stop expands auto
   const nearby=(await suggest('Bus Station',settings)).items.map(p=>p.name);
   assert.ok(nearby.includes('Bus Station Local'));assert.ok(!nearby.includes('Bus Station Far'));
   const reverse=(await suggest('Bus Station',{...settings,anchor:far}));
-  assert.equal(reverse.expanded,true);assert.ok(reverse.items.some(p=>p.name==='Bus Station Local'));
+  assert.equal(reverse.expanded,false);assert.equal(reverse.items.length,0);
   assert.ok(!reverse.items.some(p=>p.name==='Bus Station Far'),'the anchor itself is excluded');
-  assert.ok((await suggest('Bus Station Far',settings)).items.some(p=>p.name==='Bus Station Far'));
+  assert.ok(!(await suggest('Bus Station Far',settings)).items.some(p=>p.name==='Bus Station Far'));
+  assert.ok((await suggest('Bus Station Far',{...settings,nationwide:true})).items.some(p=>p.name==='Bus Station Far'));
   assert.equal(urls.filter(u=>u.protocol==='https:').at(-1).searchParams.has('bbox'),false);
-  assert.ok(!(await suggest('Bus Station',{...settings,geocoder:null})).items.some(p=>p.name==='Bus Station Far'),'offline catalogue also honours 50 km');
-  assert.equal((await suggest('17.4,78.47',settings)).items[0].lat,17.4,'an intentionally entered distant pin is allowed');
+  assert.ok(!(await suggest('Bus Station',{...settings,geocoder:null})).items.some(p=>p.name==='Bus Station Far'),'offline catalogue also honours the nearby radius');
 });
 
-test('50 km filtering works across the international date line without an invalid box',async t=>{
+test('a foreign device location cannot cause foreign search suggestions',async t=>{
   let request;
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};request=u;
-    return {ok:true,json:async()=>({features:[feature('Island Landing',0,-179.9),feature('Island Far',0,178)]})};
+    return {ok:true,json:async()=>({features:[feature('Island Landing',0,-179.9,{countrycode:'FJ'}),feature('Island Far',0,178,{countrycode:'FJ'})]})};
   });
   const result=await suggest('Island',{signal:new AbortController().signal,geocoder:'https://date.test/api/',anchor:{lat:0,lon:179.9}});
-  assert.equal(result.items.length,1);assert.equal(result.items[0].name,'Island Landing');
+  assert.equal(result.items.length,0);
+  assert.equal(request.searchParams.get('countrycode'),'IN');
   assert.equal(request.searchParams.has('bbox'),false);
 });
 
 
-test('a distant named city outranks local businesses containing the city name',()=>{
+test('distant named cities are shown only in the explicit nationwide scope',()=>{
   const business={name:'Hyderabad Biryani',lat:16.3,lon:80.65};
   const city={name:'Hyderabad',locality:true,lat:17.4,lon:78.47};
   const result=automaticMatches([business,city],'Hyderabad',anchor);
-  assert.equal(result.items[0],city);assert.equal(result.expanded,true);
-  assert.equal(automaticMatches([business,city],'Hyd',anchor).items[0],city);
+  assert.deepEqual(result.items,[business]);assert.equal(result.expanded,false);
+  assert.equal(automaticMatches([business,city],'Hyd',anchor,true).items[0],city);
   assert.equal(automaticMatches([business,city],'',anchor).expanded,false);
 });
 
-test('search automatically widens the provider query and retains nearby results on failure',async t=>{
+test('local searches issue one bounded lookup and a provider outage retains nearby stations',async t=>{
   const urls=[];
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};urls.push(u);
@@ -122,13 +124,52 @@ test('search automatically widens the provider query and retains nearby results 
   });
   const settings={signal:new AbortController().signal,geocoder:'https://automatic.test/api/',anchor};
   const result=await suggest('Hyderabad',settings);
-  assert.equal(urls.length,2);assert.equal(urls[1].searchParams.has('bbox'),false);
-  assert.equal(result.items[0].name,'Hyderabad');assert.equal(result.expanded,true);
+  assert.equal(urls.length,1);assert.equal(urls[0].searchParams.has('bbox'),true);
+  assert.equal(result.items[0].name,'Hyderabad Kitchen');assert.equal(result.expanded,false);
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};
-    if(!u.searchParams.has('bbox'))throw Error('offline');
-    return {ok:true,json:async()=>({features:[feature('Airport Road',16.3,80.65)]})};
+    throw Error('offline');
   });
-  const failed=await suggest('Airport',{...settings,geocoder:'https://partial.test/api/'});
-  assert.equal(failed.items[0].name,'Airport Road');assert.equal(failed.offline,true);
+  const failed=await suggest('Tenali',{...settings,geocoder:'https://partial.test/api/'});
+  assert.ok(failed.items.some(p=>p.name==='Tenali Junction'));assert.equal(failed.offline,true);
+});
+
+test('country restrictions apply without GPS and discard foreign or unverified provider results',async t=>{
+  const urls=[];
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};urls.push(u);
+    return {ok:true,json:async()=>({features:[
+      feature('Central India',12.97,77.59),
+      feature('Central Foreign',12.98,77.60,{countrycode:'US'}),
+      feature('Central Unknown',12.99,77.61,{countrycode:''}),
+      feature('Central Country Name',13,77.62,{countrycode:'',country:'India'})
+    ]})};
+  });
+  const settings={signal:new AbortController().signal,geocoder:'https://india.test/api/'};
+  const result=await suggest('Central',settings);
+  assert.deepEqual(result.items.map(p=>p.name).sort(),['Central Country Name','Central India']);
+  const wide=await suggest('Central',{...settings,anchor,nationwide:true});
+  assert.deepEqual(wide.items.map(p=>p.name).sort(),['Central Country Name','Central India']);
+  assert.ok(urls.every(u=>u.searchParams.get('countrycode')==='IN'));
+});
+
+test('coordinate suggestions require a nearby Indian reverse result',async t=>{
+  t.mock.method(globalThis,'fetch',async url=>{
+    const u=new URL(url),lat=Number(u.searchParams.get('lat')),lon=Number(u.searchParams.get('lon'));
+    return {ok:true,json:async()=>({features:[feature('Pin',lat,lon,{countrycode:lon>0?'IN':'GB'})]})};
+  });
+  const options={signal:new AbortController().signal,geocoder:'https://pin.test/api/'};
+  assert.equal((await suggest('17.4,78.47',options)).items[0].lat,17.4);
+  assert.deepEqual((await suggest('51.5,-0.12',options)).items,[]);
+  assert.deepEqual((await suggest('17.4,78.47',{...options,geocoder:null})).items,[]);
+});
+
+test('search uses a fresh approximate device area before a distant stop and expires it',async t=>{
+  let now=1000;t.mock.method(Date,'now',()=>now);
+  const other={lat:28.6,lon:77.2};
+  rememberSearchArea({lat:12.9715987,lon:77.5945627});
+  assert.deepEqual(searchArea(other),{lat:12.97,lon:77.59});
+  now+=300001;
+  assert.equal(searchArea(other),other);
+  assert.equal(searchArea(null),null);
 });
