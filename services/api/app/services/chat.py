@@ -136,6 +136,9 @@ def send(session, jid, tid, principal, data):
         )
         session.add(message)
         session.flush()
+        from app.services.message_push import enqueue
+
+        enqueue(session, j, t, message)
         return view(message)
 
 

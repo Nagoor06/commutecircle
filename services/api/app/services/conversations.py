@@ -10,6 +10,52 @@ from app.models.journey import Journey, Ticket
 from app.services import chat, journeys
 
 
+def summary(session, principal):
+    """Count all unread incoming messages; bounded metadata is enough for toast alerts."""
+    driver = and_(Journey.issuer == principal.issuer, Journey.driver == principal.subject)
+    rider = and_(Ticket.issuer == principal.issuer, Ticket.rider == principal.subject)
+    role = case((driver, "driver"), else_="passenger")
+    blocked = select(ChatBlock.ticket_id).where(ChatBlock.ticket_id == Ticket.id).exists()
+    query = (
+        select(
+            Message.id,
+            Message.created_at,
+            Ticket.id.label("ticket_id"),
+            Journey.id.label("journey_id"),
+            role.label("role"),
+        )
+        .join(Ticket, Message.ticket_id == Ticket.id)
+        .join(Journey, Ticket.journey_id == Journey.id)
+        .outerjoin(ChatRead, and_(ChatRead.ticket_id == Ticket.id, ChatRead.role == role))
+        .where(
+            or_(Ticket.confirmed_at.is_not(None), Ticket.charged > 0),
+            or_(driver, rider),
+            Message.sender != role,
+            ~blocked,
+            or_(
+                ChatRead.seen_at.is_(None),
+                Message.created_at > ChatRead.seen_at,
+                and_(Message.created_at == ChatRead.seen_at, Message.id > ChatRead.message_id),
+            ),
+        )
+    )
+    total = session.scalar(select(func.count()).select_from(query.subquery()))
+    rows = session.execute(query.order_by(Message.created_at.desc(), Message.id.desc()).limit(20))
+    return {
+        "unread": total,
+        "items": [
+            {
+                "message_id": row.id,
+                "created_at": journeys.utc(row.created_at),
+                "ticket_id": row.ticket_id,
+                "journey_id": row.journey_id,
+                "role": row.role,
+            }
+            for row in rows
+        ],
+    }
+
+
 def inbox(session, principal, limit=20, offset=0, unread_only=False):
     driver = and_(Journey.issuer == principal.issuer, Journey.driver == principal.subject)
     rider = and_(Ticket.issuer == principal.issuer, Ticket.rider == principal.subject)

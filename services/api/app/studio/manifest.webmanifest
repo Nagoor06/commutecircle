@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "CommuteCircle",
+  "short_name": "CommuteCircle",
+  "description": "Share your commute. Private circles, confirmed bookings and journey chat.",
+  "start_url": "./#/book",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f7fc",
+  "theme_color": "#14213d",
+  "icons": [
+    {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Book a ride","url":"./#/book"},
+    {"name":"My trips","url":"./#/trips"},
+    {"name":"Messages","url":"./#/messages"}
+  ]
+}

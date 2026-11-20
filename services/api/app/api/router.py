@@ -11,6 +11,7 @@ from app.api.routes import (
     meeting_notes,
     notifications,
     pickup_points,
+    push,
     ride_details,
     ride_help,
     rides,
@@ -41,6 +42,7 @@ api_router.include_router(earlier_trips.router)
 api_router.include_router(commute.router)
 api_router.include_router(chat.router)
 api_router.include_router(conversations.router)
+api_router.include_router(push.router)
 api_router.include_router(trip_sharing.router)
 
 api_router.include_router(notifications.router)

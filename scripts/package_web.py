@@ -8,6 +8,7 @@ from shutil import copyfile
 from urllib.parse import urlsplit
 
 SOURCE = Path(__file__).resolve().parents[1] / "services/api/app/studio"
+ROOT_FILES = {"sw.js", "manifest.webmanifest"}
 
 
 def build(out: Path, origin: str | None = None):
@@ -39,7 +40,8 @@ def build(out: Path, origin: str | None = None):
         )
     suffix = Path("releases") / digest.hexdigest()[:16]
     for f in files:
-        dest = out / suffix / f.relative_to(SOURCE)
+        relative = f.relative_to(SOURCE)
+        dest = out / relative if relative.parts[0] == "icons" or str(relative) in ROOT_FILES else out / suffix / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
         copyfile(f, dest)
     html = (
