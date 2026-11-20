@@ -12,5 +12,10 @@ coverage.xml
 node_modules/
 .expo/
 dist/
+**/.gradle/
+apps/mobile/**/build/
+apps/mobile/local.properties
+*.jks
+*.keystore
 
 qa/browser/evidence/

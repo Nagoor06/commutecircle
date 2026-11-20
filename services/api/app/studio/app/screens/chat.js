@@ -44,6 +44,7 @@ export async function mount(ctx) {
       const log=root.querySelector('[data-messages]');
       if(newest && newest!==acknowledged && !document.hidden && log.scrollHeight-log.scrollTop-log.clientHeight<80){
         await api.readMessages(jid,tid,newest,signal);acknowledged=newest;
+        if(!signal.aborted)window.dispatchEvent(new Event('cc:messages-read'));
       }
     } catch(e){if(!signal.aborted)notice(root,e.message+' Use Refresh messages to retry.','error');}
     finally{
@@ -57,7 +58,7 @@ export async function mount(ctx) {
     await api.sendMessage(jid,tid,{message_id:key,text});
     if(signal.aborted)return;
     if(draftKey===key){field.value='';draftKey=null;}
-    notice(root,'');await refresh(true);
+    notice(root,'Message sent.');await refresh(true);
   },m=>notice(root,m,'error'));};
   field.oninput=()=>{draftKey=null;};
   root.querySelectorAll('.quick-replies button').forEach(b=>b.onclick=()=>{field.value=b.textContent;draftKey=null;field.focus();});
@@ -65,6 +66,7 @@ export async function mount(ctx) {
   root.querySelector('[data-block]').onclick=e=>pending(e.currentTarget,async()=>{
     if(await confirmation('Block this conversation?','Neither person can send further messages for this booking. This does not cancel the ride.','Block chat',{danger:true,signal})){
       await api.blockChat(jid,tid);await refresh(true);
+      window.dispatchEvent(new Event('cc:messages-read'));
     }
   },m=>notice(root,m,'error'));
   await refresh();

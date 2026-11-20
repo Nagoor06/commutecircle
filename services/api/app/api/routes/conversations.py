@@ -5,8 +5,15 @@ from fastapi import APIRouter, Query, Response
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader
 from app.services.conversations import inbox
+from app.services.conversations import summary as unread_summary
 
 router = APIRouter(prefix="/v1/me/conversations", tags=["private booking chat"])
+
+
+@router.get("/summary")
+def summary(principal: RideReader, session: DatabaseSession, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return unread_summary(session, principal)
 
 
 @router.get("")

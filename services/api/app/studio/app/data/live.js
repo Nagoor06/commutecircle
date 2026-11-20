@@ -60,6 +60,10 @@ export function liveClient(token, origin, onSessionExpired) {
   const ticket = (id, tid) => path(id) + '/tickets/' + encodeURIComponent(tid);
   return {
     mode: 'live',
+    messageSummary: signal => call('/v1/me/conversations/summary','GET',null,{signal}),
+    pushConfig: signal => call('/v1/me/push','GET',null,{signal}),
+    enablePush: (data,signal) => call('/v1/me/push','PUT',data,{signal}),
+    disablePush: endpoint => call('/v1/me/push','DELETE',{endpoint},{keepalive:true}),
     staffDrivers: signal => call('/v1/staff/driver-verifications','GET',null,{signal}),
     staffVehicles: signal => call('/v1/staff/vehicles','GET',null,{signal}),
     staffReports: signal => call('/v1/staff/safety-reports','GET',null,{signal}),
