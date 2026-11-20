@@ -59,6 +59,9 @@ def test_push_configuration_permission_validation_and_revocation(
     response = client.get(PUSH, headers=authenticated())
     assert response.headers["cache-control"] == "no-store"
     assert response.json()["available"]
+    public = client.get("/v1/studio-config").json()
+    assert public["message_push_available"] is True
+    assert "configured-test-value" not in str(public)
     monkeypatch.delenv("VAPID_PRIVATE_KEY")
     assert not client.get(PUSH, headers=authenticated()).json()["available"]
     assert client.put(PUSH, headers=authenticated(), json=subscription).status_code == 503
@@ -111,6 +114,8 @@ def test_push_rejects_invalid_keys_and_limits_devices(client, authenticated, sub
     for index in range(10):
         data = subscription | {"endpoint": subscription["endpoint"] + str(index)}
         client.put(PUSH, headers=authenticated(), json=data).raise_for_status()
+    assert client.put(PUSH, headers=authenticated(), json=subscription).status_code == 409
+    client.put(PUSH, headers=authenticated(subject="other"), json=subscription).raise_for_status()
     assert client.put(PUSH, headers=authenticated(), json=subscription).status_code == 409
 
 

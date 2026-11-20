@@ -51,8 +51,10 @@ test('global message badges, mobile toast actions, read clearing and reload dedu
 });
 
 test('install manifest and worker assets stay inside the application scope',async t=>{
-  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});t.after(()=>browser.close());
-  const page=await browser.newPage();await page.goto(base+'/studio/');
+  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});
+  const page=await browser.newPage();
+  t.after(async()=>{await mkdir(new URL('./evidence/',import.meta.url),{recursive:true});await page.screenshot({path:new URL('./evidence/mobile-offline.png',import.meta.url).pathname}).catch(()=>{});await browser.close();});
+  await page.goto(base+'/studio/');
   const manifest=await (await page.request.get(base+'/studio/manifest.webmanifest')).json();
   assert.equal(manifest.start_url,'./#/book');assert.equal(manifest.scope,'./');
   for(const icon of manifest.icons)assert.equal((await page.request.get(base+'/studio/'+icon.src)).status(),200);
@@ -60,6 +62,7 @@ test('install manifest and worker assets stay inside the application scope',asyn
     const reg=await navigator.serviceWorker.ready;return reg.scope;
   });
   assert.equal(scope,base+'/studio/');
+  await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
   await page.context().setOffline(true);
   await page.reload();
   await page.getByRole('heading',{name:'You’re offline'}).waitFor();

@@ -79,6 +79,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "versioned_reviews": True,
             "studio_session_cache": True,
             "ride_help_enabled": bool(os.getenv("RIDE_HELP_URL")),
+            "message_push_available": message_push.configured(),
         }
 
     configure_login_docs(app, settings)

@@ -82,7 +82,7 @@ def subscribe(session, principal, data):
         row = session.scalar(
             select(PushSubscription).where(PushSubscription.id == key).with_for_update()
         )
-        if row is None:
+        if row is None or row.owner != owner:
             if (
                 session.scalar(
                     select(func.count())
@@ -92,6 +92,7 @@ def subscribe(session, principal, data):
                 >= 10
             ):
                 raise HTTPException(409, "Notifications are already enabled on ten devices.")
+        if row is None:
             try:
                 with session.begin_nested():
                     session.add(

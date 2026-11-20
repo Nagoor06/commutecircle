@@ -64,7 +64,7 @@ self.addEventListener('notificationclick',event=>{
 });
 self.addEventListener('fetch',event=>{
   if(event.request.mode!=='navigate' || !event.request.url.startsWith(scope.href))return;
-  event.respondWith(fetch(event.request).catch(()=>new Response(
+  event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>new Response(
     '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>CommuteCircle · Offline</title><style>body{font:18px system-ui;background:#f5f7fc;color:#14213d;max-width:32rem;margin:15vh auto;padding:24px}a{color:#2457d6}</style><h1>You’re offline</h1><p>Reconnect to see current rides and messages. Your booking has not been changed.</p><a href="./">Try again</a>',
     {headers:{'Content-Type':'text/html; charset=utf-8'}})));
 });
