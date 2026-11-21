@@ -1,0 +1,39 @@
+plugins { id 'com.android.application' }
+
+def signingReady = ['CC_ANDROID_KEYSTORE', 'CC_ANDROID_STORE_PASSWORD', 'CC_ANDROID_KEY_ALIAS', 'CC_ANDROID_KEY_PASSWORD'].every { System.getenv(it) }
+
+android {
+    namespace 'io.github.nagoor06.commutecircle'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'io.github.nagoor06.commutecircle'
+        minSdk 24
+        targetSdk 36
+        versionCode 300
+        versionName '0.3.0'
+    }
+    signingConfigs {
+        if (signingReady) {
+            upload {
+                storeFile file(System.getenv('CC_ANDROID_KEYSTORE'))
+                storePassword System.getenv('CC_ANDROID_STORE_PASSWORD')
+                keyAlias System.getenv('CC_ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('CC_ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        debug { applicationIdSuffix '.debug'; versionNameSuffix '-debug' }
+        release {
+            if (signingReady) signingConfig signingConfigs.upload
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { abortOnError true }
+}
+
+dependencies { implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4' }

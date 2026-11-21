@@ -13,6 +13,8 @@ import {
 import {restorePlan, rememberPlan, forgetPlan} from './data/plan.js';
 import {createTripSharing} from './data/trip-sharing.js';
 import {readJson} from './data/read-json.js';
+import {createMessageAlerts} from './data/message-alerts.js';
+import {createPushSettings} from './data/push.js';
 import {
   startRouter
 } from './router.js';
@@ -54,6 +56,8 @@ function openStudio(auth) {
       return;
     }
     signingOut = true;
+    state.messages?.stop();
+    void state.push?.disable().catch(()=>{});
     expiredSession(auth);
   }
   const api = auth.apiOrigin ? liveClient(auth.token, auth.apiOrigin, sessionExpired) : null;
@@ -83,8 +87,11 @@ function openStudio(auth) {
     location.hash = '/signin?return=' + encodeURIComponent(target);
   }
   let signingOut = false;
-  if (gate) gate.onclick = () => {
+  if (gate) gate.onclick = async () => {
     if (auth.token) {
+      gate.disabled=true;
+      state.messages?.stop();
+      await state.push?.disable().catch(()=>{});
       endSession(auth);
       signingOut = true;
       location.replace(new URL('./', location.href));
@@ -99,6 +106,9 @@ function openStudio(auth) {
     landmark: '',
     checkoutKeys: new Map()
   };
+  state.push=createPushSettings(api,auth);
+  void state.push.restore().catch(()=>{});
+  if(auth.token && api)state.messages=createMessageAlerts(api);
   const sharingBar = document.querySelector('#sharing-status');
   state.sharing = createTripSharing(api, (current, problem) => {
     if (problem) { accountStatus.hidden=false; accountStatus.textContent=problem; }
@@ -148,6 +158,7 @@ function openStudio(auth) {
   function accountChanged() {
     if (!auth.store || auth.store.read().id === auth.record.id) return;
     signingOut = true;
+    state.messages?.stop();
     forgetPlan();
     location.reload();
   }

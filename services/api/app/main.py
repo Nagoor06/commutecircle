@@ -13,7 +13,7 @@ from app.auth.tokens import TokenVerifier
 from app.core.config import Settings
 from app.db.session import build_engine
 from app.middleware.request_logging import request_context
-from app.services import location_retention, notification_outbox
+from app.services import location_retention, message_push, notification_outbox
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
@@ -28,6 +28,11 @@ def create_app(database_url: str | None = None) -> FastAPI:
             if os.getenv("NOTIFICATION_WORKER_ENABLED", "true") == "true"
             else None
         )
+        messages = (
+            asyncio.create_task(message_push.run(engine))
+            if os.getenv("NOTIFICATION_WORKER_ENABLED", "true") == "true"
+            else None
+        )
         try:
             yield
         finally:
@@ -38,9 +43,13 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 alerts.cancel()
                 with suppress(asyncio.CancelledError):
                     await alerts
+            if messages:
+                messages.cancel()
+                with suppress(asyncio.CancelledError):
+                    await messages
             engine.dispose()
 
-    app = FastAPI(title="CommuteCircle API", version="0.2.7", lifespan=lifespan)
+    app = FastAPI(title="CommuteCircle API", version="0.3.0", lifespan=lifespan)
     if settings.web_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -70,6 +79,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "versioned_reviews": True,
             "studio_session_cache": True,
             "ride_help_enabled": bool(os.getenv("RIDE_HELP_URL")),
+            "message_push_available": message_push.configured(),
         }
 
     configure_login_docs(app, settings)

@@ -6,6 +6,7 @@ from app.models.commute import Commute
 from app.models.journey import Journey, PaymentEntry, Ticket
 from app.models.notification import Notification, NotificationPreference, VerificationLimit
 from app.models.pickup_point import PickupPoint
+from app.models.push import PushDelivery, PushSubscription
 from app.models.ride import Ride
 from app.models.trip_share import TripShare, TrustedContact
 from app.models.v2 import (
@@ -40,6 +41,8 @@ __all__ = [
     "NotificationPreference",
     "PaymentEntry",
     "PickupPoint",
+    "PushDelivery",
+    "PushSubscription",
     "RecurringException",
     "RecurringRide",
     "Ride",

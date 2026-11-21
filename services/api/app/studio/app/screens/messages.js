@@ -1,5 +1,5 @@
 import {access} from '../components/access.js';
-import {head, icon, esc, day, clock, empty, notice} from '../ui.js';
+import {head, icon, esc, day, clock, empty, notice, pending} from '../ui.js';
 
 function conversation(row) {
   const other = row.role==='driver' ? 'Passenger' : 'Driver';
@@ -14,16 +14,28 @@ function conversation(row) {
 }
 
 export async function mount(ctx) {
-  const {root,api,auth,signal,query} = ctx;
+  const {root,api,auth,signal,query,state} = ctx;
   if (!api || !auth.signed) return access(ctx,'Messages','Sign in to see your private conversations with drivers and passengers.');
   const unread = query.get('view')==='unread';
   root.innerHTML = head('Your circle / Conversations','Messages','All your booking conversations, in one place.') +
-    `<section class="panel inbox"><div class="inbox-toolbar"><nav class="tabs" aria-label="Message filters"><a href="#/messages" ${!unread?'aria-current="page"':''}>All conversations</a><a href="#/messages?view=unread" ${unread?'aria-current="page"':''}>Unread</a></nav>
+    `<section class="panel notification-settings"><div><span class="panel-cap">${icon('message',18)} Stay in the loop</span><h2>Never miss your pickup message</h2><p>Unread badges and alerts work while you use CommuteCircle. Enable phone notifications to hear from your driver or passenger when you’re away.</p><p class="fine">Notification previews keep message text private. Delivery depends on your connection and device settings.</p></div><button class="btn primary" data-push>Enable notifications</button><p data-push-status class="fine" role="status"></p></section>
+    <section class="panel inbox"><div class="inbox-toolbar"><nav class="tabs" aria-label="Message filters"><a href="#/messages" ${!unread?'aria-current="page"':''}>All conversations</a><a href="#/messages?view=unread" ${unread?'aria-current="page"':''}>Unread</a></nav>
     <button type="button" class="btn secondary compact" data-refresh>${icon('refresh',16)} Refresh</button></div>
     <p class="inbox-note">${icon('shield',16)} Private to each confirmed booking. Your phone number stays private.</p>
     <div data-notice role="status" hidden></div><div data-threads aria-live="polite"><p class="loading">Opening your conversations…</p></div>
     <button data-more class="btn secondary wide" hidden>Load more conversations</button></section>`;
   const list=root.querySelector('[data-threads]'), more=root.querySelector('[data-more]'), refresh=root.querySelector('[data-refresh]');
+  const pushButton=root.querySelector('[data-push]'), pushStatus=root.querySelector('[data-push-status]');
+  function pushState(){
+    pushButton.textContent=state.push?.enabled()?'Turn off notifications on this device':'Enable notifications';
+    if(!state.push?.supported()){pushButton.disabled=true;pushStatus.textContent='Phone notifications are unavailable in this browser. In-app alerts are on.';}
+  }
+  pushState();
+  pushButton.onclick=event=>pending(event.currentTarget,async()=>{
+    if(state.push.enabled())await state.push.disable();else await state.push.enable();
+    if(signal.aborted)return;
+    pushState();pushStatus.textContent=state.push.enabled()?'Notifications are on for this device.':'Phone notifications are off. In-app alerts remain on.';
+  },message=>{if(!signal.aborted)pushStatus.textContent=message;});
   let offset=0, busy=false, generation=0;
   const known=new Set();
   async function load(reset=false) {

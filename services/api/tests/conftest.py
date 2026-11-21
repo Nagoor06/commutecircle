@@ -25,6 +25,8 @@ from app.models import (
     NotificationPreference,
     PaymentEntry,
     PickupPoint,
+    PushDelivery,
+    PushSubscription,
     RecurringException,
     RecurringRide,
     Ride,
@@ -60,6 +62,8 @@ def client(tmp_path, monkeypatch):
         session.execute(delete(VerificationLimit))
         session.execute(delete(TripShare))
         session.execute(delete(TrustedContact))
+        session.execute(delete(PushDelivery))
+        session.execute(delete(PushSubscription))
         session.execute(delete(Message))
         session.execute(delete(ChatRead))
         session.execute(delete(ChatBlock))
