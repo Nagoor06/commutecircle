@@ -51,6 +51,11 @@ test('global message badges, mobile toast actions, read clearing and reload dedu
 });
 
 test('install manifest and worker assets stay inside the application scope',async t=>{
+  // In Playwright 1.56, offline emulation reaches service-worker fetches only
+  // with its worker network manager enabled (crServiceWorker.ts).
+  const previous=process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS;
+  process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS='1';
+  t.after(()=>{if(previous===undefined)delete process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS;else process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=previous;});
   const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});
   const page=await browser.newPage();
   t.after(async()=>{await mkdir(new URL('./evidence/',import.meta.url),{recursive:true});await page.screenshot({path:new URL('./evidence/mobile-offline.png',import.meta.url).pathname}).catch(()=>{});await browser.close();});
