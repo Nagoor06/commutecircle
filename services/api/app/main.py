@@ -49,7 +49,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
                     await messages
             engine.dispose()
 
-    app = FastAPI(title="CommuteCircle API", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="CommuteCircle API", version="0.4.0", lifespan=lifespan)
     if settings.web_origins:
         app.add_middleware(
             CORSMiddleware,

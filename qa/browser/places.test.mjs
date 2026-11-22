@@ -95,15 +95,15 @@ test('near and far matches appear together in distance order, including offline'
   assert.deepEqual((await suggest('Bus Station',{...settings,geocoder:null})).items.map(p=>p.name),nearby);
 });
 
-test('a foreign device location cannot cause foreign search suggestions',async t=>{
+test('international results sort across the date line',async t=>{
   let request;
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};request=u;
     return {ok:true,json:async()=>({features:[feature('Island Landing',0,-179.9,{countrycode:'FJ'}),feature('Island Far',0,178,{countrycode:'FJ'})]})};
   });
   const result=await suggest('Island',{signal:new AbortController().signal,geocoder:'https://date.test/api/',anchor:{lat:0,lon:179.9}});
-  assert.equal(result.items.length,0);
-  assert.equal(request.searchParams.get('countrycode'),'IN');
+  assert.deepEqual(result.items.map(p=>p.name),['Island Landing','Island Far']);
+  assert.equal(request.searchParams.has('countrycode'),false);
   assert.equal(request.searchParams.has('bbox'),false);
 });
 
@@ -137,7 +137,7 @@ test('search issues one location-biased lookup without a radius and outages reta
   assert.ok(failed.items.some(p=>p.name==='Tenali Junction'));assert.equal(failed.offline,true);
 });
 
-test('country restrictions apply without GPS and discard foreign or unverified provider results',async t=>{
+test('mapped international places work with or without GPS and a country label',async t=>{
   const urls=[];
   t.mock.method(globalThis,'fetch',async url=>{
     const u=new URL(url);if(u.protocol==='file:')return {ok:true,json:async()=>[]};urls.push(u);
@@ -150,21 +150,18 @@ test('country restrictions apply without GPS and discard foreign or unverified p
   });
   const settings={signal:new AbortController().signal,geocoder:'https://india.test/api/'};
   const result=await suggest('Central',settings);
-  assert.deepEqual(result.items.map(p=>p.name).sort(),['Central Country Name','Central India']);
+  assert.deepEqual(result.items.map(p=>p.name).sort(),['Central Country Name','Central Foreign','Central India','Central Unknown']);
   const wide=await suggest('Central',{...settings,anchor});
-  assert.deepEqual(wide.items.map(p=>p.name).sort(),['Central Country Name','Central India']);
-  assert.ok(urls.every(u=>u.searchParams.get('countrycode')==='IN'));
+  assert.deepEqual(wide.items.map(p=>p.name).sort(),['Central Country Name','Central Foreign','Central India','Central Unknown']);
+  assert.ok(urls.every(u=>!u.searchParams.has('countrycode')));
 });
 
-test('coordinate suggestions require a nearby Indian reverse result',async t=>{
-  t.mock.method(globalThis,'fetch',async url=>{
-    const u=new URL(url),lat=Number(u.searchParams.get('lat')),lon=Number(u.searchParams.get('lon'));
-    return {ok:true,json:async()=>({features:[feature('Pin',lat,lon,{countrycode:lon>0?'IN':'GB'})]})};
-  });
-  const options={signal:new AbortController().signal,geocoder:'https://pin.test/api/'};
-  assert.equal((await suggest('17.4,78.47',options)).items[0].lat,17.4);
-  assert.deepEqual((await suggest('51.5,-0.12',options)).items,[]);
-  assert.deepEqual((await suggest('17.4,78.47',{...options,geocoder:null})).items,[]);
+test('valid coordinates work worldwide even offline without sending a lookup',async t=>{
+  const fetch=t.mock.method(globalThis,'fetch',async()=>{throw Error('unexpected lookup');});
+  const opts={signal:new AbortController().signal,geocoder:null};
+  assert.equal((await suggest('17.4,78.47',opts)).items[0].lat,17.4);
+  assert.equal((await suggest('51.5,-0.12',opts)).items[0].lon,-.12);
+  assert.equal(fetch.mock.callCount(),0);
 });
 
 test('search uses a fresh approximate device area before a distant stop and expires it',async t=>{

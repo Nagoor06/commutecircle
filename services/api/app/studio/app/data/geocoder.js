@@ -64,20 +64,7 @@ async function stations(q, signal, anchor) {
 
 export async function suggest(q, {signal, onLocal=()=>{}, geocoder, anchor}) {
   const coordinate = parseCoordinates(q);
-  if (coordinate) {
-    if (!geocoder) return {items:[],offline:true};
-    const url=new URL(geocoder);
-    if (!/\/api\/?$/.test(url.pathname)) return {items:[]};
-    url.pathname=url.pathname.replace(/\/api\/?$/,'/reverse');
-    url.search=new URLSearchParams({lat:coordinate.lat,lon:coordinate.lon,radius:'1',limit:'1',lang:'en'});
-    try {
-      const [place]=await requestPlaces(url,signal);
-      return {items:place?.countryCode==='IN' && distance(coordinate,place)<=1000 ? [coordinate] : []};
-    } catch(error) {
-      if(signal?.aborted)throw error;
-      return {items:[],offline:true};
-    }
-  }
+  if (coordinate) return {items:[coordinate]};
   if (!q && finitePlace(anchor)) {
     try {
       return {items:await nearbyPublicStops(anchor,signal,{radius:Infinity,limit:6})};
@@ -98,8 +85,8 @@ export async function suggest(q, {signal, onLocal=()=>{}, geocoder, anchor}) {
     const cacheKey = geocoder+'|'+key(q)+'|'+JSON.stringify(params);
     if (remoteCache.has(cacheKey)) return remoteCache.get(cacheKey);
     const url = new URL(geocoder);
-    url.search = new URLSearchParams({q,limit:'20',lang:'en',countrycode:'IN',...params});
-    const found = (await requestPlaces(url,signal)).filter(p=>p.countryCode==='IN');
+    url.search = new URLSearchParams({q,limit:'20',lang:'en',...params});
+    const found = await requestPlaces(url,signal);
     remember(remoteCache,cacheKey,found);
     return found;
   };
