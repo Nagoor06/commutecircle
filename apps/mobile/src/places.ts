@@ -6,6 +6,14 @@ type GeoFeature = {
 };
 export type Suggestion = Place & Point & { area: string };
 
+function coordinates(name: string): Point | undefined {
+  const pair = /^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/.exec(name.trim());
+  if (!pair) return;
+  const lat = Number(pair[1]),
+    lon = Number(pair[2]);
+  if (Math.abs(lat) <= 85 && Math.abs(lon) <= 180) return { lat, lon };
+}
+
 export function km(a: Point, b: Point) {
   const rad = Math.PI / 180;
   const h =
@@ -14,6 +22,8 @@ export function km(a: Point, b: Point) {
   return 12742.018 * Math.asin(Math.sqrt(Math.min(1, h)));
 }
 export async function suggestions(text: string, near: Point | undefined, signal: AbortSignal) {
+  const entered = coordinates(text);
+  if (entered) return [{ name: text.trim(), ...entered, area: 'Coordinates' }];
   const params = new URLSearchParams({ q: text.trim(), limit: '20', lang: 'en' });
   if (near) {
     params.set('lat', near.lat.toFixed(2));
@@ -48,6 +58,8 @@ export async function suggestions(text: string, near: Point | undefined, signal:
 export function wirePlace(place: Place) {
   return {
     name: place.name.trim(),
-    ...(place.lat == null || place.lon == null ? {} : { lat: place.lat, lon: place.lon }),
+    ...(place.lat == null || place.lon == null
+      ? coordinates(place.name)
+      : { lat: place.lat, lon: place.lon }),
   };
 }

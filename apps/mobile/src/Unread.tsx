@@ -27,13 +27,17 @@ export function Unread({ chat, onCount }: { chat?: string; onCount: (n: number) 
     );
     if (!data.unread) setLatest(undefined);
     else if (next) setLatest(next);
-    else if (chat && latest?.ticket_id === chat) setLatest(undefined);
+    else if (
+      latest &&
+      (latest.ticket_id === chat || !data.items.some((row) => row.message_id === latest.message_id))
+    )
+      setLatest(undefined);
     watermark.current = Math.max(
       watermark.current,
       ...data.items.map((row) => Date.parse(row.created_at)),
     );
     seen.current = new Set(data.items.map((row) => row.message_id));
-  }, [data, chat, onCount, latest?.ticket_id]);
+  }, [data, chat, onCount, latest]);
   return latest && latest.ticket_id !== chat ? (
     <View style={[s.card, { marginHorizontal: 12 }]}>
       <Text style={s.heading}>New booking message</Text>

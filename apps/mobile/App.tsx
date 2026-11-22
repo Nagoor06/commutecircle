@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   BackHandler,
+  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -14,7 +15,7 @@ import { createClient } from './src/api';
 import { Mobile } from './src/context';
 import { session } from './src/session';
 import { Route, Tab } from './src/types';
-import { color, Feedback, s } from './src/ui';
+import { Button, color, Feedback, s } from './src/ui';
 import { Unread } from './src/Unread';
 import { Book } from './src/screens/Book';
 import { Ride, Trips } from './src/screens/Ride';
@@ -25,6 +26,14 @@ import { Offer } from './src/screens/Offer';
 import { Safety } from './src/screens/Safety';
 
 const tabs: Tab[] = ['Book', 'Offer', 'Trips', 'Circles', 'Inbox', 'Profile'];
+const tabIcons = {
+  Book: require('./assets/tabs/compass.png'),
+  Offer: require('./assets/tabs/car.png'),
+  Trips: require('./assets/tabs/ticket.png'),
+  Circles: require('./assets/tabs/users.png'),
+  Inbox: require('./assets/tabs/message.png'),
+  Profile: require('./assets/tabs/user.png'),
+};
 const reasons = {
   Offer: 'Sign in to offer a ride with your approved vehicle.',
   Trips: 'Sign in to see your rides and reservations.',
@@ -64,12 +73,16 @@ function Shell() {
     [error, setError] = useState('');
   const previous = useRef(state.signed),
     scroll = useRef<ScrollView>(null);
+  const route = stack[stack.length - 1];
   const open = useCallback(
-    (route: Route) => {
+    (next: Route) => {
       if (session.snapshot().accountGeneration !== state.accountGeneration) return;
-      setStack((previous) => ('tab' in route ? [route] : [...previous, route]));
+      setStack((current) => {
+        if (current[current.length - 1] !== route) return current;
+        return 'tab' in next ? [next] : [...current, next];
+      });
     },
-    [state.accountGeneration],
+    [state.accountGeneration, route],
   );
   const back = useCallback(() => {
     if (stack.length > 1) {
@@ -105,8 +118,13 @@ function Shell() {
     }
     previous.current = state.signed;
   }, [state.signed]);
-  const route = stack[stack.length - 1],
-    tab = 'tab' in stack[0] ? stack[0].tab : 'Book';
+  const logout = () => {
+    void session.signOut().then(
+      () => setError(''),
+      () => setError('Could not clear the saved sign-in on this device.'),
+    );
+  };
+  const tab = 'tab' in stack[0] ? stack[0].tab : 'Book';
   const pageKey = JSON.stringify(route) + state.accountGeneration;
   useEffect(() => scroll.current?.scrollTo({ y: 0, animated: false }), [pageKey]);
   return (
@@ -117,10 +135,7 @@ function Shell() {
         ready: state.ready,
         signingIn: state.busy,
         login: () => void session.signIn(),
-        logout: () =>
-          void session
-            .signOut()
-            .catch(() => setError('Could not clear saved credentials. Try signing out again.')),
+        logout,
         open,
       }}
     >
@@ -141,7 +156,8 @@ function Shell() {
         </View>
         {!!(state.message || error) && (
           <View style={s.card}>
-            <Feedback message={state.message || error} />
+            <Feedback message={error || state.message} />
+            {error && <Button secondary title="Retry clearing sign-in" onPress={logout} />}
           </View>
         )}
         {state.signed && (
@@ -174,6 +190,11 @@ function Shell() {
                 pressed && { opacity: 0.65 },
               ]}
             >
+              <Image
+                accessible={false}
+                source={tabIcons[name]}
+                style={{ width: 22, height: 22, tintColor: name === tab ? color.blue : color.muted }}
+              />
               <Text style={[styles.tabText, name === tab && { color: color.blue }]}>
                 {name}
                 {name === 'Inbox' && count ? ' ' + (count > 99 ? '99+' : count) : ''}

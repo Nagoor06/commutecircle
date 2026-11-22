@@ -27,3 +27,15 @@ test('nearest international stops come first, duplicates are removed, and only a
   expect(params.has('countrycode')).toBe(false);
   expect(wirePlace({ name: '  Civic Station  ' })).toEqual({ name: 'Civic Station' });
 });
+
+test('typed coordinates work offline for suggestions and ride search', async () => {
+  const fetch = jest.fn();
+  globalThis.fetch = fetch;
+  const name = '51.50, -0.12';
+  expect((await suggestions(name, undefined, new AbortController().signal))[0]).toMatchObject({
+    lat: 51.5,
+    lon: -0.12,
+  });
+  expect(wirePlace({ name })).toEqual({ name, lat: 51.5, lon: -0.12 });
+  expect(fetch).not.toHaveBeenCalled();
+});

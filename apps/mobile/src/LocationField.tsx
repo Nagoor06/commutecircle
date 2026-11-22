@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { PermissionsAndroid, Pressable, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Field, Button, s } from './ui';
 import { km, suggestions, Suggestion } from './places';
@@ -95,12 +95,13 @@ export function usePickup(auto: boolean) {
     const current = () => version === generation.current;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      let perm = await Location.getForegroundPermissionsAsync();
+      const permission = PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION;
+      let granted = await PermissionsAndroid.check(permission);
+      if (!current() || (!granted && !ask)) return;
+      if (!granted)
+        granted = (await PermissionsAndroid.request(permission)) === PermissionsAndroid.RESULTS.GRANTED;
       if (!current()) return;
-      if (!perm.granted && !ask) return;
-      if (!perm.granted && perm.canAskAgain) perm = await Location.requestForegroundPermissionsAsync();
-      if (!current()) return;
-      if (!perm.granted) {
+      if (!granted) {
         setHint('Location is off. Enter a pickup, or allow location in Android settings.');
         return;
       }
