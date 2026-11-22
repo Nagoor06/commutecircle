@@ -2,7 +2,7 @@
 
 A carpool app for planning a route, publishing offers, reserving a ride segment and managing a trip. The responsive web app has separate booking, driver, checkout, trips and help screens.
 
-[Web app guide and staging setup](docs/ride-planner.md) · [Architecture](docs/architecture.md) · [Authentication](docs/authentication.md)
+[React Native Android app and build instructions](apps/mobile/README.md) · [Web app guide and staging setup](docs/ride-planner.md) · [Architecture](docs/architecture.md) · [Authentication](docs/authentication.md)
 
 Shared rides and reservations use FastAPI, PostgreSQL and Auth0. Payment accounting remains in sandbox mode. A static deployment without a configured API still provides location planning and explicitly disables shared bookings.
 

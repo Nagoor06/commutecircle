@@ -105,7 +105,7 @@ test('main workspaces fit phone, tablet and desktop breakpoint boundaries', {tim
   assert.deepEqual(overflows,[]);
 });
 
-test('location search shows near and far Indian matches in distance order without scope controls',async t=>{
+test('location search shows local and international matches in distance order without scope controls',async t=>{
   const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']});
   t.after(()=>browser.close());
   const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
@@ -129,12 +129,11 @@ test('location search shows near and far Indian matches in distance order withou
   await page.getByRole('combobox',{name:'Pickup',exact:true}).fill('Central');
   await page.getByRole('option',{name:/Central Bengaluru/}).waitFor();
   await page.getByRole('option',{name:/Central Delhi/}).waitFor();
-  assert.deepEqual(await page.getByRole('option').locator('b').allTextContents(),['Central Bengaluru','Central Mysuru','Central Delhi']);
-  assert.equal(await page.getByRole('option',{name:/Central London|Central Unknown/}).count(),0);
+  assert.deepEqual(await page.getByRole('option').locator('b').allTextContents(),['Central Bengaluru','Central Unknown','Central Mysuru','Central Delhi','Central London']);
   assert.equal(queries.at(-1).searchParams.get('lat'),'12.9700');
   assert.equal(queries.at(-1).searchParams.get('lon'),'77.5900');
   assert.equal(queries.at(-1).searchParams.has('bbox'),false);
-  assert.ok(queries.every(u=>u.searchParams.get('countrycode')==='IN'));
+  assert.ok(queries.every(u=>!u.searchParams.has('countrycode')));
   assert.equal(await page.locator('[data-scope]').count(),0);
   await page.getByText('Nearest matches first',{exact:true}).waitFor();
   assert.doesNotMatch(await page.locator('.suggestions:not([hidden])').textContent(),/India only|25 km|Search across India/);

@@ -1,0 +1,41 @@
+{
+  "name": "commutecircle-mobile",
+  "version": "0.4.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "prebuild:android": "node scripts/prebuild.cjs"
+  },
+  "dependencies": {
+    "@react-native-community/datetimepicker": "9.1.0",
+    "expo": "56.0.24",
+    "expo-clipboard": "~56.0.4",
+    "expo-constants": "~56.0.27",
+    "expo-crypto": "~56.0.5",
+    "expo-location": "~56.0.26",
+    "expo-secure-store": "~56.0.4",
+    "expo-web-browser": "~56.0.6",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "testMatch": [
+      "**/tests/**/*.test.ts?(x)"
+    ]
+  },
+  "devDependencies": {
+    "@types/react-test-renderer": "^19.3.1",
+    "@types/jest": "29.5.14",
+    "@types/react": "~19.2.14",
+    "jest": "~29.7.0",
+    "jest-expo": "~56.0.6",
+    "react-test-renderer": "19.2.3",
+    "typescript": "~6.0.3"
+  }
+}

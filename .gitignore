@@ -19,3 +19,7 @@ apps/mobile/local.properties
 *.keystore
 
 qa/browser/evidence/
+
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/artifacts/

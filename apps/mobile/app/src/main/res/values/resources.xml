@@ -1,5 +1,0 @@
-<resources>
-    <color name="navy">#14213d</color>
-    <color name="cobalt">#2457d6</color>
-    <string name="asset_statements" translatable="false">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://nagoor06.github.io\"}}]</string>
-</resources>

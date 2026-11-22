@@ -1,78 +1,39 @@
 # CommuteCircle for Android
 
-This Android Trusted Web Activity uses Android Browser Helper 2.7.4. It opens the
-canonical web app with the same booking, circles, chat, authentication and push
-notifications. It replaces the earlier unimplemented Expo proposal; it is not a
-separate React Native client. Android 7+ is supported. Compile/target SDK: 36;
-Java 17, AGP 8.13.2, Gradle 8.13.
+The Android client uses React Native 0.85.3, Expo SDK 56, React 19 and TypeScript. Its signed preview APK includes the Hermes bundle and opens the booking screen offline. Browsing live rides, sign-in, bookings, messages and verification need a network connection. Website accounts and rides carry over through the shared API. Sign in once in the Android app, which keeps its own credentials in Android secure storage.
 
-CI builds an installable **debug APK** and an **unsigned release App Bundle**.
-These are test artifacts, not Google Play publication or production approval.
-Package: `io.github.nagoor06.commutecircle` (debug adds `.debug`). Do not change the
-production package after the first Play upload.
+## Run or build
 
-## Build and try
+Use Node 24 and Java 17. Android builds also need the SDK and NDK versions requested by Gradle. Run from `apps/mobile` on macOS or Linux.
 
-Install Java 17 and Android SDK platform 36, set `ANDROID_HOME`, then:
-
-```bash
-cd apps/mobile
-./gradlew lint assembleDebug bundleRelease
-adb install app/build/outputs/apk/debug/app-debug.apk
+```sh
+npm ci
+npm run typecheck
+npm test
+export CC_MOBILE_VARIANT=preview
+npm run prebuild:android
+NODE_ENV=production ./android/gradlew -p android :app:assembleRelease
+adb install -r android/app/build/outputs/apk/release/app-release.apk
 ```
 
-Windows: use `gradlew.bat`. Android Studio can also open this directory. The
-Gradle distribution is pinned with its official SHA-256 checksum. The Android
-workflow publishes `commutecircle-android` artifacts. Use a current TWA browser,
-such as Chrome. CI debug signing is for testing only.
+The npm prebuild script pins and verifies Expo's Android template. Android Studio can open the generated `android/` project. For development, run `npm run android` with the same variant after prebuild. On Windows, set the environment variable in PowerShell and use `android\gradlew.bat -p android`.
 
-## Signing and website verification
+The preview package is `io.github.nagoor06.commutecircle.preview`. The **Android preview** workflow installs the standalone APK on an Android 16 emulator and checks a cold start in airplane mode, native input fields, signed-out Inbox, Android Back, reopening and a second cold start. Its artifacts include the APK and startup screenshots.
 
-For a signed release, provide all four environment variables to the build:
-`CC_ANDROID_KEYSTORE`, `CC_ANDROID_STORE_PASSWORD`, `CC_ANDROID_KEY_ALIAS`,
-`CC_ANDROID_KEY_PASSWORD`. Keep the keystore outside Git and back it up securely.
-The release is intentionally unsigned until the owner provides the upload key.
-Google Play App Signing may use a different certificate from the upload key.
+## App flows
 
-Obtain the **app-signing SHA-256 fingerprint** from Play Console, then run from the
-repository root:
+- Browse public rides, use approximate current pickup with permission, or enter public stops manually. Worldwide suggestions use a location bias and sort by distance when an anchor is available.
+- Request approval after accepting the pickup and fare. Review held or paid tickets, sandbox checkout and cancellation fees. Drivers can approve requests and verify boarding PINs.
+- Submit driver and vehicle details for staff review. Approved drivers can publish public or circle-only rides.
+- Create and join circles, copy a token or share a private invitation. Confirmed participants can chat. Unread badges and foreground alerts link to the relevant conversation.
+- Submit private safety reports. Recurring templates, trip sharing and tracking, staff tools and browser push settings are available on the website. Website notification subscriptions belong to the browser. Android remote push requires separate device registration and delivery.
 
-```bash
-python scripts/android_assetlinks.py --fingerprint 'YOUR:SHA256:FINGERPRINT' --out /tmp/assetlinks.json
-```
+## Authentication
 
-Publish the result at `https://nagoor06.github.io/.well-known/assetlinks.json`
-in the portfolio repository, preserving any existing associations. Do not put it
-inside `/commutecircle/`. The app declares the matching web origin. Without this
-association, Android safely falls back to a browser Custom Tab, as expected for
-CI debug APKs. Never publish a placeholder/debug certificate as the production
-fingerprint. Auth0 uses the existing HTTPS callback. No secret belongs in the APK.
-Notification delegation is included with explicit permission.
+The app obtains its public Auth0 client configuration from the API. It opens the system browser for Authorization Code with PKCE. The registered HTTPS callback shows **Open CommuteCircle** and returns the single-use code to the matching app variant. The verifier and rotating credentials stay in secure storage. The preview and production packages keep separate sessions. A temporary refresh outage preserves the saved session. Account changes clear private screens.
 
-## Before Google Play production
+## Play bundle
 
-The code is prepared for Android testing. Store release still requires the owner’s
-Play Console account, signing, website association, store assets and declarations.
-Also complete these product and operations gates before submitting the pilot:
+Generate the production Android project with `CC_MOBILE_VARIANT=production npm run prebuild:android`, then build with `NODE_ENV=production ./android/gradlew -p android :app:bundleRelease` with the same variant. The Play application ID is `io.github.nagoor06.commutecircle`. CI produces an unsigned App Bundle. For owner-signed releases, supply `CC_ANDROID_KEYSTORE` (absolute path), `CC_ANDROID_STORE_PASSWORD`, `CC_ANDROID_KEY_ALIAS` and `CC_ANDROID_KEY_PASSWORD` to Gradle through protected build secrets.
 
-- Implement account-deletion requests and fulfilment inside the app and on a public
-  web page, covering Auth0 and associated data. This is not yet implemented.
-- Approve/publish the privacy policy, retention/deletion rules and real support
-  contact. Complete Data safety from actual features/providers; do not declare that
-  no data is collected. Chat is stored and is not end-to-end encrypted.
-- Complete driver/safety operations. Keep sandbox fares clearly labelled: current
-  checkout does not collect real money.
-- Test on a real phone: sign-in/refresh, permission denial/re-enable, background
-  messages, notification taps, account switching/sign-out, GPS denial, keyboard,
-  back navigation, offline behavior and Android 16 edge-to-edge insets. GPS still
-  requires the app to remain open; no background trip tracking was added.
-- Complete any required closed testing and Play review. Personal developer
-  accounts created after 13 November 2023 currently need at least 12 testers
-  continuously opted in for 14 days before applying for production access.
-
-Official references checked for this implementation:
-
-- https://developer.android.com/develop/ui/views/layout/webapps/guide-trusted-web-activities-version2
-- https://support.google.com/googleplay/android-developer/answer/11926878
-- https://support.google.com/googleplay/android-developer/answer/13327111
-- https://support.google.com/googleplay/android-developer/answer/14151465
+Before Play submission, complete account-deletion handling, the public privacy policy and support details, Play Console disclosures and testing, and real-device sign-in and notification checks. Fares remain sandbox transactions.
