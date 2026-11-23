@@ -42,9 +42,9 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
 }
 .booking-hero::before {
   content: ''; position: absolute; inset: 0; z-index: -1;
-  --hero-scrim: linear-gradient(90deg, var(--night) 0%, #14213df7 28%, #14213d99 55%, #223b6324 88%);
+  --hero-scrim: linear-gradient(90deg, var(--night) 0%, #14213df7 24%, #14213d60 46%, transparent 68%);
   background: var(--hero-scrim),
-    url('../assets/night-commute.webp') 76% 58% / cover;
+    url('../assets/city-commute.webp') right bottom / auto 100% no-repeat;
 }
 .hero-copy { max-width: 440px; }
 .hero-copy h1 { color: inherit; font-size: clamp(48px, 6.7vw, 92px); letter-spacing: -.07em; line-height: .97; margin: 0; }
@@ -93,9 +93,6 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
 .circle-subpanel { border-left: 3px solid var(--brand); padding: 6px 0 6px 14px; margin: 15px 0 0; }
 .invitation-row { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding-block: 10px; border-top: 1px solid var(--edge); }
 .invitation-row small { font-size: 12px; }
-.photo-credit { margin-block: 22px; font-size: 13px; color: var(--muted); }
-.photo-credit summary { cursor: pointer; }
-.photo-credit a { text-decoration: underline; }
 @media (min-width:721px) {
   .find-layout .atlas { top: 12px; height: clamp(493px,65vh,582px); }
   .primary-nav { margin-inline: auto; }
@@ -107,8 +104,7 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
   .page-head { padding-bottom: 12px; }
   .booking-hero { min-height: 134px; padding: 19px; gap: 7px; border-radius: 12px; align-items: start; margin-bottom: 12px; }
   .booking-hero::before {
-    --hero-scrim: linear-gradient(90deg, var(--night), #14213df0 36%, #14213dc9 60%, #223b6344);
-    background-position: center, 66% 55%;
+    --hero-scrim: linear-gradient(90deg, var(--night), #14213df2 32%, #14213d9e 55%, transparent 84%);
   }
   .hero-copy { align-self: center; }
   .hero-copy h1 { font-size: clamp(39px,8.8vw,58px); }
