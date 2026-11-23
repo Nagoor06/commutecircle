@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { useMobile } from '../context';
 import { useResource } from '../hooks';

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PermissionsAndroid, Pressable, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Field, Button, s } from './ui';

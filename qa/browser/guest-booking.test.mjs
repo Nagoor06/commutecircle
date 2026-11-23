@@ -44,6 +44,12 @@ test('a mobile guest booking reaches the correct receipt, survives reload, and l
     await page.getByText('Booked for లక్ష్మి దేవి',{exact:true}).waitFor();
     await page.getByRole('button',{name:/Pay .* in sandbox/}).click();
     await page.getByRole('link',{name:'Message driver'}).waitFor();
+    await page.getByText('Share pickup details',{exact:true}).click();
+    const itinerary = await page.getByLabel('Message for your traveller').inputValue();
+    assert.match(itinerary,/CommuteCircle ride for లక్ష్మి దేవి/);
+    assert.match(itinerary,/Pickup: River gate/);
+    assert.match(itinerary,/Drop-off: Union stop/);
+    assert.ok(!itinerary.includes(jid) && !itinerary.includes('http') && !itinerary.includes('PIN'));
     await page.reload();
     await page.getByText('Booked for లక్ష్మి దేవి',{exact:true}).waitFor();
     await page.goto(ride);

@@ -1,8 +1,7 @@
 import {
   head,
   icon,
-  esc,
-  confirmation
+  esc
 } from '../ui.js';
 const guide = 'https://github.com/Nagoor06/commutecircle/blob/main/services/ride-help/guide.md';
 const items = [
@@ -42,8 +41,7 @@ export function mount({
   root,
   api,
   auth,
-  signal,
-  go
+  signal
 }) {
   root.innerHTML = head('Support / Rider guide', 'Help centre',
       'Answers about reservations, fares and meeting your driver.') +

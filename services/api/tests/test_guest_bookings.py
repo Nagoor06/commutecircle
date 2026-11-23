@@ -66,6 +66,14 @@ def test_guest_seats_follow_the_same_booking_lifecycle(client, authenticated, mo
     inbox = client.get("/v1/me/conversations", headers=booker).json()["items"]
     assert any(r["ticket_id"] == ticket["id"] and r["guest_name"] == "José Luna" for r in inbox)
     assert client.get(receipt + "/driver-location", headers=booker).status_code == 403
+    assert (
+        client.post(
+            "/v1/trip-shares",
+            headers=booker,
+            json={"journey_id": created.json()["id"], "ticket_id": ticket["id"]},
+        ).status_code
+        == 403
+    )
     assert client.put(receipt + "/rating", headers=booker, json={"stars": 5}).status_code == 403
     if mode == "approval":
         assert client.post(receipt + "/boarding-challenge", headers=booker).is_success

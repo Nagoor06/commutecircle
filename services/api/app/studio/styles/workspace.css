@@ -64,6 +64,10 @@ main { padding-top: clamp(18px, 2.3vw, 36px); }
 .traveller-options label { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; }
 .traveller-picker input[type=radio] { accent-color: var(--brand); }
 [data-guest-fields] .field { margin-top: 6px; }
+.ticket-sheet, .passenger-row, .trip-card, .conversation-copy { min-width: 0; overflow-wrap: anywhere; }
+.guest-itinerary { padding-block: 8px; }
+.guest-itinerary summary { cursor: pointer; font-weight: 650; }
+.guest-itinerary .field { margin-block: 10px; }
 .form-title h2 { letter-spacing: -.044em; font-size: clamp(22px,2.3vw,32px); }
 .stop-stack { gap: 0; border: 1px solid var(--control-edge); border-radius: 12px; background: var(--soft); }
 .stop-stack .place-field { border: 0; border-radius: 12px 12px 0 0; background: transparent; padding: 12px 15px; }

@@ -6,7 +6,6 @@ import {
   head,
   back,
   icon,
-  esc,
   empty,
   notice,
   pending

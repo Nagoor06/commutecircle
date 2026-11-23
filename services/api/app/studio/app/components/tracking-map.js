@@ -28,7 +28,7 @@ export async function trackingMap(host, signal) {
       const key=JSON.stringify(data.stops);
       if(key!==stopsKey){
         stopMarkers.forEach(m=>m.remove());stopMarkers=[];stopsKey=key;
-        for(const [i,s] of (data.stops||[]).entries())if(finitePlace(s)){
+        for(const s of data.stops || [])if(finitePlace(s)){
           const label=document.createElement('span');label.textContent=s.name;
           stopMarkers.push(L.circleMarker([s.lat,s.lon],{radius:5,color:'var(--brand)',fillColor:'white',fillOpacity:1,weight:2})
             .bindTooltip(label).addTo(map));

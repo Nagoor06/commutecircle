@@ -1,4 +1,5 @@
 import {requestId} from '../data/id.js';
+import {activeReservation, travellerName} from '../shared/booking.js';
 import {
   access
 } from '../components/access.js';
@@ -74,21 +75,16 @@ export async function mount(ctx) {
   const permission = root.querySelector('[data-guest-permission]');
   const consent = root.querySelector('[data-consent]');
 
-  function active(t) {
-    return t.state === 'paid' || (['held', 'requested'].includes(t.state) && Date.parse(t.expires) > Date.now());
-  }
-
   function render() {
     from.value = a;
     [...to.options].forEach(o => o.disabled = +o.value <= a);
     to.value = b;
     root.querySelector('[data-timeline]').innerHTML = stopList(j, a, b);
     const guest = picker?.querySelector(':checked')?.value === 'guest';
-    const name = guest ? guestInput.value.normalize('NFC').trim().replace(/\s+/g, ' ') : null;
+    const name = guest ? travellerName(guestInput.value) : null;
     if (guestFields) guestFields.hidden = !guest;
     const n = free(j, a, b);
-    const prior = j.tickets.find(t => t.board === a && t.alight === b && active(t)
-      && (t.guest_name?.toLowerCase() ?? null) === (name?.toLowerCase() ?? null));
+    const prior = j.tickets.find(t => activeReservation(t, a, b, name));
     const departed = +pickupAt(j, a) <= Date.now();
     const closed = j.cancelled || departed || j.booking_eligible === false;
     root.querySelector('[data-fare]').innerHTML =

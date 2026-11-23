@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { Field, s } from './ui';
 

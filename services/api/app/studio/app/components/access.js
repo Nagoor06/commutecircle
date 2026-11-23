@@ -1,6 +1,5 @@
 import {
   head,
-  empty,
   icon,
   esc
 } from '../ui.js';

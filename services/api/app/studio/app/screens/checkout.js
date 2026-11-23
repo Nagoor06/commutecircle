@@ -1,4 +1,5 @@
 import {refreshAlerts} from '../components/booking-alerts.js';
+import {guestItinerary} from '../shared/booking.js';
 import {stopFromPlace} from '../data/places.js';
 import {travelDayRange, rememberPlan} from '../data/plan.js';
 import {
@@ -73,6 +74,10 @@ export async function mount(ctx) {
       `<div class="checkout-layout"><section class="ticket-sheet"><div class="ticket-head"><span class="eyebrow"><i></i> CommuteCircle ticket</span><b class="pill">${esc(progress.label||state)}</b></div>
       <div class="ticket-route"><span class="point-key">A</span><h2>${esc(j.stops[t.board].name)}</h2><span class="point-key dropoff">B</span><h2>${esc(j.stops[t.alight].name)}</h2></div>
       ${t.guest_name ? `<p><strong>Booked for ${esc(t.guest_name)}</strong></p><p class="fine">You receive booking updates. Send the pickup details to your traveller.</p>` : ''}
+      ${t.guest_name && state === 'paid' && +pickupAt(j,t.board) > Date.now() ? `<details class="guest-itinerary"><summary>Share pickup details</summary>
+        <label class="field">Message for your traveller<textarea data-itinerary rows="4" readonly></textarea></label>
+        <div class="button-row"><button type="button" class="btn secondary compact" data-copy-itinerary>Copy pickup details</button>
+        ${typeof navigator.share === 'function' ? '<button type="button" class="btn secondary compact" data-share-itinerary>Share message</button>' : ''}</div></details>` : ''}
       <dl class="specs"><div><dt>Pickup</dt><dd>${esc(day(pickupAt(j,t.board)))} · ${esc(clock(pickupAt(j,t.board)))}</dd></div><div><dt>Distance</dt><dd>${(j.stops[t.alight].metres-j.stops[t.board].metres)/1000} km</dd></div><div><dt>Reservation</dt><dd>${esc(t.id.slice(0,8).toUpperCase())}</dd></div></dl></section>
       <section class="panel checkout-pay"><div class="panel-cap">${icon('wallet')} Sandbox payment</div><div class="fare-line"><span>Segment fare</span><b>${money(t.fare_paise)}</b></div>
       <div class="ledger"><span>Charged</span><b>${money(t.charged_paise)}</b><span>Refunded</span><b>${money(t.refund_paise)}</b></div>
@@ -89,6 +94,23 @@ export async function mount(ctx) {
       ${!held?'<a class="text-btn" href="#/trips">View my trips →</a>':''}
       ${held?'<p class="fine">Choose email or phone confirmations in <a href="#/profile">My profile</a> before booking.</p>':''}${!held||j.booking_mode==='approval'?'<section class="receipt-alerts" data-booking-alerts aria-live="polite"></section>':''}${policy()}<div data-notice role="status" hidden></div></section></div>${['paid','exited'].includes(state)?meetingMarkup(true,ctx.state.landmark):''}`;
     refreshAlerts(root.querySelector('[data-booking-alerts]'),api,jid,tid,signal);
+    const itinerary = root.querySelector('[data-itinerary]');
+    if (itinerary) {
+      itinerary.value = guestItinerary(t.guest_name, j.stops[t.board].name, j.stops[t.alight].name, pickupAt(j,t.board));
+      root.querySelector('[data-copy-itinerary]').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(itinerary.value);
+          notice(root,'Pickup details copied.');
+        } catch {
+          itinerary.focus(); itinerary.select();
+          notice(root,'Select and copy the pickup details above.');
+        }
+      };
+      const share = root.querySelector('[data-share-itinerary]');
+      if (share) share.onclick = () => navigator.share({text:itinerary.value}).catch(error => {
+        if (error.name !== 'AbortError') notice(root,'Use Copy pickup details to share the message.');
+      });
+    }
     const pinButton=root.querySelector('[data-pin]');
     if(pinButton)pinButton.onclick=()=>pending(pinButton,async()=>{
       const result=await api.boardingPin(jid,tid);

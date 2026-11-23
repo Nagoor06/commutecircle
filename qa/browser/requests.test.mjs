@@ -1,8 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {liveClient} from '../../services/api/app/studio/app/data/live.js';
+import {activeReservation, travellerName} from '../../services/api/app/studio/app/shared/booking.js';
 
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('guest selection matches the right ticket and releases expired approval requests', () => {
+  const now = Date.parse('2026-11-23T10:00:00Z');
+  const t = {board:0, alight:2, guest_name:'José Luna', state:'requested', expires:new Date(now+1000).toISOString()};
+  assert.ok(activeReservation(t,0,2,travellerName('  JOSE\u0301   LUNA '),now));
+  assert.equal(activeReservation(t,0,2,null,now),false);
+  assert.equal(activeReservation(t,0,2,'José Luna',now+1000),false);
+  assert.ok(activeReservation({...t,state:'paid'},0,2,'José Luna',now+1000));
+  assert.equal(activeReservation({...t,state:'paid'},0,1,'José Luna',now),false);
+});
 
 test('trip history stops on a repeated full page and deduplicates overlapping pages', async t => {
   const first = Array.from({length:50}, (_, id) => ({id}));

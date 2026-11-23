@@ -1,6 +1,7 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Share, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
+import { activeReservation, guestItinerary, travellerName } from '../../../../services/api/app/studio/app/shared/booking';
 import { WebLink } from './Account';
 import { useMobile } from '../context';
 import { useAction, useResource } from '../hooks';
@@ -22,6 +23,7 @@ function Reservation({
   const [pin, setPin] = useState('');
   const [challenge, setChallenge] = useState<{ pin: string; expires_at: string }>();
   const path = ticketPath(journey.id, ticket.id);
+  const guestName = ticket.guest_name;
   const owner = journey.owner,
     now = Date.now();
   const pickup = Date.parse(journey.departure) + journey.stops[ticket.board].minutes * 60000;
@@ -63,6 +65,19 @@ function Reservation({
       </Text>
       {ticket.guest_name && (
         <Text style={s.body}>{owner ? 'Travelling guest' : 'Booked for'} · {ticket.guest_name}</Text>
+      )}
+      {!owner && guestName && state === 'paid' && now < pickup && (
+        <Button
+          secondary
+          title="Share pickup details"
+          disabled={action.busy}
+          onPress={() => void action.run(async () => {
+            const message = guestItinerary(
+              guestName, journey.stops[ticket.board].name, journey.stops[ticket.alight].name, new Date(pickup),
+            );
+            await Share.share({ message });
+          })}
+        />
       )}
       <Text style={s.muted}>
         Fare {money(ticket.fare_paise)} · Paid {money(ticket.charged_paise)} · Refunded{' '}
@@ -184,12 +199,10 @@ export function Ride({ id, board, alight }: { id: string; board: number; alight:
   const j = result.data?.journey,
     q = result.data?.quote;
   const forGuest = traveller.kind === 'guest';
-  const name = forGuest ? traveller.name.normalize('NFC').trim().replace(/\s+/g, ' ') : null;
+  const name = forGuest ? travellerName(traveller.name) : null;
   const permission = forGuest && traveller.permission;
   const hasReservation = j?.tickets.some(
-    (t) => t.board === board && t.alight === alight
-      && (t.guest_name?.toLowerCase() ?? null) === (name?.toLowerCase() ?? null)
-      && (t.state === 'paid' || (['requested', 'held'].includes(t.state) && Date.parse(t.expires) > Date.now())),
+    (t) => activeReservation(t, board, alight, name),
   );
   const book = () =>
     void action.run(async () => {
