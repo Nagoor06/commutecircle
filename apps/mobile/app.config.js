@@ -5,13 +5,13 @@ module.exports = {
   expo: {
     name: preview ? 'CommuteCircle Preview' : 'CommuteCircle',
     slug: 'commutecircle',
-    version: '0.4.0',
+    version: require('./package.json').version,
     platforms: ['android'],
     scheme: applicationId,
     icon: './assets/icon.png',
     android: {
       package: applicationId,
-      versionCode: 400,
+      versionCode: 401,
       allowBackup: false,
       permissions: ['ACCESS_COARSE_LOCATION'],
       blockedPermissions: [
@@ -25,6 +25,7 @@ module.exports = {
     },
     extra: { preview },
     plugins: [
+      '@maplibre/maplibre-react-native',
       'expo-secure-store',
       'expo-web-browser',
       '@react-native-community/datetimepicker',

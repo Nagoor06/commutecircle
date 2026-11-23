@@ -18,16 +18,19 @@ adb install -r android/app/build/outputs/apk/release/app-release.apk
 
 The npm prebuild script pins and verifies Expo's Android template. Android Studio can open the generated `android/` project. For development, run `npm run android` with the same variant after prebuild. On Windows, set the environment variable in PowerShell and use `android\gradlew.bat -p android`.
 
-The preview package is `io.github.nagoor06.commutecircle.preview`. The **Android preview** workflow installs the standalone APK on an Android 16 emulator and checks a cold start in airplane mode, native input fields, signed-out Inbox, Android Back, reopening and a second cold start. Its artifacts include the APK and startup screenshots.
+The preview package is `io.github.nagoor06.commutecircle.preview`. The **Android preview** workflow installs the standalone APK on an Android 16 emulator and checks a cold start in airplane mode, map pin selection, the menu and Android Back on a 360 dp screen, signed-out Inbox, reopening and online cartography. It reports whether real street features rendered. Its artifacts include the APK and startup screenshots.
 
 ## App flows
 
 - Browse public rides, use approximate current pickup with permission, or enter public stops manually. Worldwide suggestions use a location bias and sort by distance when an anchor is available.
+- Book, Trips and Inbox are the three primary tabs. The header menu opens offers, private circles, weekly rides and profile verification.
+- The native MapLibre map shows routes on Book, Offer and Ride details. Expand it to pan, zoom and pick either endpoint on Book or Offer. A bundled [Natural Earth land outline](https://www.naturalearthdata.com/downloads/110m-physical-vectors/110m-land/) works offline. [OpenFreeMap](https://openfreemap.org/) supplies street detail, and OSRM supplies the driving geometry when available. The dashed line represents a direct connection. A name without coordinates can still be searched.
+- Open an upcoming offer under My trips and choose **Repeat this route**. Weekly schedules preserve the route’s visibility, use an approved vehicle and the pilot’s India time zone. In **Menu → Recurring rides**, generate the next 14 days or skip a date.
 - Request approval after accepting the pickup and fare. Review held or paid tickets, sandbox checkout and cancellation fees. Drivers can approve requests and verify boarding PINs.
 - Choose **Someone else** on a public ride to book for a guest with their permission. The booking account manages the receipt and passes pickup details and any boarding PIN to the traveller. The option appears when the connected API supports guest bookings.
 - Submit driver and vehicle details for staff review. Approved drivers can publish public or circle-only rides.
 - Create and join circles, copy a token or share a private invitation. Confirmed participants can chat. Unread badges and foreground alerts link to the relevant conversation.
-- Submit private safety reports. Recurring templates, trip sharing and tracking, staff tools and browser push settings are available on the website. Website notification subscriptions belong to the browser. Android remote push requires separate device registration and delivery.
+- Submit private safety reports. Trip sharing and tracking, staff tools and browser push settings are available on the website. Website notification subscriptions belong to the browser. Android remote push requires separate device registration and delivery.
 
 ## Authentication
 

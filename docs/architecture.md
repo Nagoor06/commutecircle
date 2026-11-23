@@ -44,7 +44,7 @@ event listeners, timers and map resources.
 | Website | Static HTML, CSS and JavaScript ES modules. A service worker handles offline shell assets and Web Push. Pages hosts the client, and FastAPI also serves it under /studio. |
 | API and identity | Python 3.12, FastAPI, Uvicorn, Pydantic and Auth0. Both clients use the same OAuth audience and ride permissions. |
 | Database | PostgreSQL, SQLAlchemy 2, psycopg and Alembic. Seat decisions, payments, chat and notification outbox records are stored on the server. |
-| Places and maps | Photon supplies world place suggestions. The website also has an offline Indian station catalogue, Leaflet and OpenFreeMap tiles. OSRM provides optional road estimates. |
+| Places and maps | Photon supplies world place suggestions. The website uses Leaflet and an offline Indian station catalogue. Android uses native MapLibre with a bundled Natural Earth world overview. Both use OpenFreeMap for streets and OSRM for road routes. |
 | Delivery | GitHub Actions builds Docker images, checks PostgreSQL migrations, runs API, browser and Android tests, and packages the APK and AAB. Render serves the API. |
 
 ### Why these choices matter
@@ -55,7 +55,7 @@ The current site uses the browser DOM. This lets HTML forms, links, Leaflet maps
 
 Both clients import the same traveller-name normalization, active-ticket lookup and pickup-message formatter from `services/api/app/studio/app/shared/booking.js`. The browser loads the ES module directly and Metro includes it in the standalone APK. The server validates every reservation independently.
 
-Expo with React Native Web can share TypeScript screens and components across Android and the browser. On Android a component renders native controls. On the web it renders accessible DOM elements. A gradual migration can start with ride details and checkout. Browser URLs and Back navigation, keyboard focus, browser push, map controls and the OAuth return path need web implementations and acceptance tests. Android keeps secure token storage and runtime location permissions. Existing browser-only flows include staff review, recurring rides and trip tracking. [Expo web support](https://docs.expo.dev/workflow/web/) · [Platform-specific implementations](https://reactnative.dev/docs/platform-specific-code)
+Expo with React Native Web can share TypeScript screens and components across Android and the browser. On Android a component renders native controls. On the web it renders accessible DOM elements. A gradual migration can start with ride details and checkout. Browser URLs and Back navigation, keyboard focus, browser push, map controls and the OAuth return path need web implementations and acceptance tests. Android keeps secure token storage and runtime location permissions. Existing browser-only flows include staff review and live trip tracking. [Expo web support](https://docs.expo.dev/workflow/web/) · [Platform-specific implementations](https://reactnative.dev/docs/platform-specific-code)
 
 FastAPI and Pydantic validate the same HTTP contract for both clients. A Node API could share TypeScript types with a client, but it would also require porting the tested booking state transitions and migrations. PostgreSQL transactions update seat inventory, charges and refunds together. Document storage could support transactions too, at the cost of redesigning the existing joins and constraints.
 

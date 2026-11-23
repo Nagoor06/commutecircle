@@ -11,6 +11,7 @@ import { Ride } from '../src/screens/Ride';
 import { Conversation } from '../src/screens/Inbox';
 import { Verification } from '../src/screens/Verification';
 
+jest.mock('../src/RouteMap', () => ({ RouteMap: () => null }));
 jest.mock('expo-location', () => ({
   Accuracy: { Balanced: 3 },
   getLastKnownPositionAsync: jest.fn(),
@@ -258,4 +259,41 @@ test('a late location fix cannot replace the pickup a rider typed', async () => 
     resolve({ coords: { latitude: 12.9716, longitude: 77.5946 } } as Location.LocationObject),
   );
   expect(pickup().props.value).toBe('My bus station');
+});
+
+test('repeat a private route with a fitting vehicle and retry a lost template save with the same ID', async () => {
+  const { Repeat } = require('../src/screens/Recurring');
+  const writes: Record<string, unknown>[] = [];
+  const journey = { id: 'own', owner: true, departure: future(3), capacity: 3, vehicle_id: 'small',
+    circle_id: 'circle', price_paise: 4500, stops: [{ name: 'East', minutes: 0, metres: 0 }, { name: 'West', minutes: 12, metres: 3500 }] };
+  await mount(<Repeat id="own" />, async (path, options) => {
+    if (path === '/v1/journeys/own') return journey;
+    if (path === '/v1/me/driver-eligibility') return { driver_status: 'approved', vehicles: [
+      { id: 'small', status: 'approved', seat_capacity: 2 }, { id: 'fit', status: 'approved', seat_capacity: 3 },
+    ] };
+    expect(path).toBe('/v1/recurring-rides');
+    writes.push(options?.body as Record<string, unknown>);
+    if (writes.length === 1) throw Error('Connection interrupted');
+    return { id: 'saved' };
+  });
+  await act(async () => button('Save weekly schedule').props.onPress());
+  await act(async () => button('Save weekly schedule').props.onPress());
+  expect(writes[0]).toEqual(writes[1]);
+  expect(writes[0]).toMatchObject({ circle_id: 'circle', vehicle_id: 'fit', timezone: 'Asia/Kolkata', weekdays: [0, 1, 2, 3, 4] });
+  expect(ctx.open).toHaveBeenCalledWith({ tab: 'Recurring' });
+});
+
+test('weekly planning uses the materialize endpoint and shows when all upcoming rides already exist', async () => {
+  const { Recurring } = require('../src/screens/Recurring');
+  const visited: string[] = [];
+  await mount(<Recurring />, async (path, options) => {
+    if (path === '/v1/recurring-rides') return [{ id: 't', active: true, stops: [{ name: 'A' }, { name: 'B' }],
+      weekdays: [0, 2], starts_on: future(1).slice(0, 10), ends_on: future(30).slice(0, 10), local_time: '09:30' }];
+    visited.push(path);
+    expect(options?.method).toBe('POST');
+    return { count: 0 };
+  });
+  await act(async () => button('Create next 14 days').props.onPress());
+  expect(visited).toEqual(['/v1/recurring-rides/t/materialize']);
+  expect(JSON.stringify(tree.toJSON())).toContain('No new departures');
 });

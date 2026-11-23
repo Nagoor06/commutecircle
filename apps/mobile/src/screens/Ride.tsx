@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Alert, Share, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { activeReservation, guestItinerary, travellerName } from '../../../../services/api/app/studio/app/shared/booking';
+import { RouteMap } from '../RouteMap';
 import { WebLink } from './Account';
 import { useMobile } from '../context';
 import { useAction, useResource } from '../hooks';
@@ -178,7 +179,7 @@ function Reservation({
   );
 }
 export function Ride({ id, board, alight }: { id: string; board: number; alight: number }) {
-  const { api, signed, login, signingIn } = useMobile();
+  const { api, signed, login, signingIn, open } = useMobile();
   const path = '/v1/journeys/' + encodeURIComponent(id);
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -268,6 +269,10 @@ export function Ride({ id, board, alight }: { id: string; board: number; alight:
               {j.cancelled ? 'Ride cancelled' : q.seats_available + ' seats available'} · Sandbox fares
             </Text>
           </Card>
+          <RouteMap stops={j.stops.slice(board, alight + 1)} />
+          {j.owner && !j.cancelled && Date.parse(j.departure) > Date.now() && (
+            <Button secondary title="Repeat this route" onPress={() => open({ screen: 'repeat', id: j.id })} />
+          )}
           {!j.owner &&
             (!hasReservation || j.guest_booking_available) &&
             j.booking_eligible &&
@@ -356,7 +361,7 @@ export function Trips() {
   return (
     <View style={s.screen}>
       <Heading>My trips</Heading>
-      <WebLink route="recurring" title="Manage recurring rides on the website" />
+      <Button secondary title="Recurring rides" onPress={() => open({ tab: 'Recurring' })} />
       <LoadState {...result} />
       {!result.loading && !result.error && !result.data?.length && (
         <Text style={s.body}>Your offers and reservations will appear here.</Text>

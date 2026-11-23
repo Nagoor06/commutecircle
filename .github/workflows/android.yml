@@ -47,7 +47,8 @@ jobs:
         run: |
           ./android/gradlew -p android --max-workers=2 :app:assembleRelease
           mkdir -p artifacts
-          cp android/app/build/outputs/apk/release/app-release.apk artifacts/CommuteCircle-0.4.0-preview.apk
+          version=$(node -p "require('./package.json').version")
+          cp android/app/build/outputs/apk/release/app-release.apk "artifacts/CommuteCircle-${version}-preview.apk"
       - name: Build unsigned Google Play bundle
         if: matrix.variant == 'production'
         env:
@@ -55,7 +56,8 @@ jobs:
         run: |
           ./android/gradlew -p android --max-workers=2 :app:bundleRelease
           mkdir -p artifacts
-          cp android/app/build/outputs/bundle/release/app-release.aab artifacts/CommuteCircle-0.4.0-unsigned.aab
+          version=$(node -p "require('./package.json').version")
+          cp android/app/build/outputs/bundle/release/app-release.aab "artifacts/CommuteCircle-${version}-unsigned.aab"
           if unzip -Z1 artifacts/*.aab | grep -E '^META-INF/[^/]+\.(RSA|DSA|EC)$'; then exit 1; fi
       - name: Enable emulator acceleration
         if: matrix.variant == 'preview'

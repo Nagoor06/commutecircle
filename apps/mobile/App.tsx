@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import {
   BackHandler,
   Image,
+  Keyboard,
   Linking,
   Pressable,
   ScrollView,
@@ -14,6 +15,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { createClient } from './src/api';
 import { Mobile } from './src/context';
 import { session } from './src/session';
+import { Menu } from './src/Menu';
+import { Recurring, Repeat } from './src/screens/Recurring';
 import { Route, Tab } from './src/types';
 import { Button, color, Feedback, s } from './src/ui';
 import { Unread } from './src/Unread';
@@ -25,16 +28,14 @@ import { Conversation, Inbox } from './src/screens/Inbox';
 import { Offer } from './src/screens/Offer';
 import { Safety } from './src/screens/Safety';
 
-const tabs: Tab[] = ['Book', 'Offer', 'Trips', 'Circles', 'Inbox', 'Profile'];
+const tabs = ['Book', 'Trips', 'Inbox'] as const;
 const tabIcons = {
   Book: require('./assets/tabs/compass.png'),
-  Offer: require('./assets/tabs/car.png'),
   Trips: require('./assets/tabs/ticket.png'),
-  Circles: require('./assets/tabs/users.png'),
   Inbox: require('./assets/tabs/message.png'),
-  Profile: require('./assets/tabs/user.png'),
 };
 const reasons = {
+  Recurring: 'Sign in to manage weekly ride schedules.',
   Offer: 'Sign in to offer a ride with your approved vehicle.',
   Trips: 'Sign in to see your rides and reservations.',
   Circles: 'Sign in to create a circle or join with an invitation.',
@@ -46,14 +47,17 @@ function Screen({ route, signed }: { route: Route; signed: boolean }) {
   if ('screen' in route) {
     if (route.screen === 'ride') return <Ride {...route} />;
     if (!signed) return <SignIn title="Sign in" reason="Sign in to return to this booking." />;
+    if (route.screen === 'repeat') return <Repeat id={route.id} />;
     if (route.screen === 'chat') return <Conversation {...route} />;
     if (route.screen === 'circle') return <CircleDetail {...route} />;
     return <Safety {...route} />;
   }
   if (route.tab === 'Book') return <Book />;
   if (!signed)
-    return <SignIn title={route.tab === 'Trips' ? 'My trips' : route.tab} reason={reasons[route.tab]} />;
+    return <SignIn title={route.tab === 'Trips' ? 'My trips' : route.tab === 'Recurring' ? 'Recurring rides' : route.tab} reason={reasons[route.tab]} />;
   switch (route.tab) {
+    case 'Recurring':
+      return <Recurring />;
     case 'Offer':
       return <Offer />;
     case 'Trips':
@@ -70,6 +74,7 @@ function Shell() {
   const state = useSyncExternalStore(session.subscribe, session.snapshot);
   const [stack, setStack] = useState<Route[]>([{ tab: 'Book' }]),
     [count, setCount] = useState(0),
+    [menu, setMenu] = useState(false),
     [error, setError] = useState('');
   const previous = useRef(state.signed),
     scroll = useRef<ScrollView>(null);
@@ -77,6 +82,7 @@ function Shell() {
   const open = useCallback(
     (next: Route) => {
       if (session.snapshot().accountGeneration !== state.accountGeneration) return;
+      setMenu(false);
       setStack((current) => {
         if (current[current.length - 1] !== route) return current;
         return 'tab' in next ? [next] : [...current, next];
@@ -115,6 +121,7 @@ function Shell() {
     if (previous.current && !state.signed) {
       setStack([{ tab: 'Book' }]);
       setCount(0);
+      setMenu(false);
     }
     previous.current = state.signed;
   }, [state.signed]);
@@ -152,7 +159,14 @@ function Shell() {
               <Text style={styles.brand}>‹</Text>
             </Pressable>
           )}
-          <Text style={styles.brand}>CommuteCircle</Text>
+          <Text style={[styles.brand, { flex: 1 }]} numberOfLines={1} adjustsFontSizeToFit>CommuteCircle</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open menu" accessibilityState={{ expanded: menu }}
+            onPress={() => { Keyboard.dismiss(); setMenu(true); }} style={styles.menuButton}>
+            <View accessible={false} style={{ gap: 4 }}>
+              <View style={styles.menuLine} /><View style={styles.menuLine} /><View style={styles.menuLine} />
+            </View>
+            <Text style={styles.menuLabel}>Menu</Text>
+          </Pressable>
         </View>
         {!!(state.message || error) && (
           <View style={s.card}>
@@ -176,6 +190,7 @@ function Shell() {
         >
           <Screen key={pageKey} route={route} signed={state.signed} />
         </ScrollView>
+        {menu && <Menu active={tab} close={() => setMenu(false)} navigate={(next: Tab) => open({ tab: next })} />}
         <View accessibilityRole="tablist" style={styles.tabs}>
           {tabs.map((name) => (
             <Pressable
@@ -224,7 +239,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   brand: { color: '#FFF', fontWeight: '800', fontSize: 23, letterSpacing: -0.7 },
-  back: { minWidth: 40, minHeight: 44, justifyContent: 'center' },
+  menuButton: { minHeight: 44, minWidth: 66, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 },
+  menuLabel: { color: color.white, fontWeight: '700', fontSize: 15 },
+  menuLine: { height: 2, width: 16, backgroundColor: '#fff', borderRadius: 1 },
+  back: { minWidth: 44, minHeight: 44, justifyContent: 'center' },
   scroll: { backgroundColor: color.cloud, flex: 1 },
   page: {
     paddingHorizontal: 18,
@@ -235,7 +253,7 @@ const styles = StyleSheet.create({
   },
   tabs: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+
     backgroundColor: '#FFF',
     borderTopWidth: 1,
     borderColor: color.line,
@@ -243,7 +261,7 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   tab: {
-    flexGrow: 1,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,

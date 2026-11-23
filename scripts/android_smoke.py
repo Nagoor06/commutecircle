@@ -7,7 +7,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 PACKAGE = "io.github.nagoor06.commutecircle.preview"
-ARTIFACT = Path("apps/mobile/artifacts/CommuteCircle-0.4.0-preview.apk")
+VERSION = json.loads(Path("apps/mobile/package.json").read_text())["version"]
+ARTIFACT = Path(f"apps/mobile/artifacts/CommuteCircle-{VERSION}-preview.apk")
 EVIDENCE = Path("apps/mobile/artifacts/startup")
 
 
@@ -50,6 +51,17 @@ def label(node):
     return (node.get("content-desc") or node.get("text") or "").strip()
 
 
+def named(nodes, name):
+    return next((n for n in nodes if label(n) == name), None)
+
+
+def tap(node):
+    if node is None:
+        raise AssertionError("Expected a visible tap target")
+    x1, y1, x2, y2 = map(int, re.findall(r"\d+", node.get("bounds")))
+    adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+
+
 def booking(nodes):
     return any("Book a ride" in label(n) for n in nodes) and any(
         n.get("class") == "android.widget.EditText" for n in nodes)
@@ -69,15 +81,35 @@ def main():
     adb("install", "-r", str(ARTIFACT))
     adb("logcat", "-c")
     try:
+        adb("shell", "wm", "size", "720x1520")
+        adb("shell", "wm", "density", "320")
         adb("shell", "cmd", "connectivity", "airplane-mode", "enable")
         adb("shell", "svc", "wifi", "disable")
         assert adb("shell", "settings", "get", "global", "airplane_mode_on") == "1"
         adb("shell", "am", "force-stop", PACKAGE)
         launch()
         nodes = wait_until("offline-cold-launch", booking)
-        inbox = next(n for n in nodes if label(n) == "Inbox")
-        x1, y1, x2, y2 = map(int, re.findall(r"\d+", inbox.get("bounds")))
-        adb("shell", "input", "tap", str((x1+x2)//2), str((y1+y2)//2))
+        assert all(named(nodes, tab) is not None for tab in ("Book", "Trips", "Inbox"))
+        assert named(nodes, "Offer") is None
+        tap(named(nodes, "Expand route map"))
+        nodes = wait_until("offline-world-map", lambda ns: any("offline overview" in label(n) for n in ns))
+        adb("shell", "input", "tap", "320", "580")
+        nodes = wait_until("offline-pin", lambda ns: any("Selected pin" in label(n) for n in ns))
+        tap(named(nodes, "Set pickup"))
+        nodes = wait_until("pickup-from-map", lambda ns: any(n.get("class") == "android.widget.EditText"
+                           and re.match(r"-?\d+\.\d+, -?\d+\.\d+", n.get("text") or "") for n in ns))
+        tap(named(nodes, "Open menu"))
+        nodes = wait_until("compact-menu", lambda ns: all(named(ns, title) is not None for title in
+                           ("Offer a ride", "Recurring rides", "Private circles", "Profile & verification")))
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        nodes = wait_until("dismissed-menu", booking)
+        tap(named(nodes, "Open menu"))
+        nodes = wait_until("menu-reopen", lambda ns: named(ns, "Recurring rides") is not None)
+        tap(named(nodes, "Recurring rides"))
+        wait_until("recurring-sign-in", lambda ns: any("weekly ride schedules" in label(n) for n in ns))
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        nodes = wait_until("primary-navigation", booking)
+        tap(named(nodes, "Inbox"))
         wait_until("offline-inbox", lambda ns: any("private booking conversations" in label(n) for n in ns))
         adb("shell", "input", "keyevent", "KEYCODE_BACK")
         wait_until("back-to-booking", booking)
@@ -89,10 +121,21 @@ def main():
         adb("shell", "am", "force-stop", PACKAGE)
         launch()
         wait_until("online-cold-launch", booking)
-        print(json.dumps({"offline_launch":"passed", "native_inbox":"passed", "back":"passed",
-                          "reopen":"passed", "online_launch":"passed"}))
+        def map_settled(ns):
+            return any(label(n) == "Street map" or "offline overview" in label(n) for n in ns)
+        nodes = wait_until("online-map", map_settled)
+        if named(nodes, "Street map") is None:
+            tap(named(nodes, "Retry map"))
+            time.sleep(2)
+            nodes = wait_until("online-map-retry", map_settled)
+        streets = "rendered" if named(nodes, "Street map") is not None else "offline overview"
+        print(json.dumps({"offline_launch": "passed", "map_pin": "passed", "drawer": "passed",
+                          "native_inbox": "passed", "back": "passed", "reopen": "passed",
+                          "online_launch": "passed", "online_street_tiles": streets}))
     finally:
         capture("final")
+        adb("shell", "wm", "size", "reset", check=False)
+        adb("shell", "wm", "density", "reset", check=False)
         adb("shell", "cmd", "connectivity", "airplane-mode", "disable", check=False)
         adb("shell", "svc", "wifi", "enable", check=False)
 

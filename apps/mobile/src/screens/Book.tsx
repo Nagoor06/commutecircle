@@ -3,6 +3,7 @@ import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { useMobile } from '../context';
 import { useResource } from '../hooks';
 import { LocationField, usePickup } from '../LocationField';
+import { RouteMap } from '../RouteMap';
 import { wirePlace } from '../places';
 import { Button, Card, color, Feedback, LoadState, s } from '../ui';
 import { Match, Place, Point, Search, money, when } from '../types';
@@ -99,6 +100,12 @@ export function Book() {
         accessible={false} imageStyle={hero.image} style={hero.frame}>
         <Text accessibilityRole="header" style={[s.title, hero.title]}>Book a ride</Text>
       </ImageBackground>
+      <RouteMap stops={[pickup.point, destination]} onSetStop={(end, p) => {
+        if (end === 'pickup') pickup.manual(p);
+        else setDestination(p);
+        setQuery(null);
+        setError('');
+      }} />
       <Card>
         <LocationField
           label="Pickup"

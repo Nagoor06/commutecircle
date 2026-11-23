@@ -20,6 +20,9 @@ export type Journey = {
   stops: Stop[];
   departure: string;
   owner: boolean;
+  capacity: number;
+  circle_id: string | null;
+  vehicle_id: string | null;
   cancelled: boolean;
   booking_eligible: boolean;
   guest_booking_available?: boolean;
@@ -62,10 +65,11 @@ export type Vehicle = {
   seat_capacity: number;
 };
 export type Eligibility = { driver_status: string; can_offer: boolean; vehicles: Vehicle[] };
-export type Tab = 'Book' | 'Offer' | 'Trips' | 'Circles' | 'Inbox' | 'Profile';
+export type Tab = 'Book' | 'Offer' | 'Trips' | 'Circles' | 'Inbox' | 'Profile' | 'Recurring';
 export type Route =
   | { tab: Tab }
   | { screen: 'ride'; id: string; board: number; alight: number }
+  | { screen: 'repeat'; id: string }
   | { screen: 'chat'; journey: string; ticket: string }
   | { screen: 'safety'; journey: string; ticket?: string }
   | { screen: 'circle'; circle: Circle };

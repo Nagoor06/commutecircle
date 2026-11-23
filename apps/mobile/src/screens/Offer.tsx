@@ -6,7 +6,7 @@ import { useMobile } from '../context';
 import { useAction, useResource } from '../hooks';
 import { LocationField } from '../LocationField';
 import { wirePlace } from '../places';
-import { jsonRequest } from '../api';
+import { RouteMap } from '../RouteMap';
 import { Button, Card, Field, Feedback, Heading, LoadState, s } from '../ui';
 import { Circle, Eligibility, Journey, Place, Point, when } from '../types';
 
@@ -33,13 +33,11 @@ export function Offer() {
   const [date, setDate] = useState(() => new Date(Math.ceil((Date.now() + 3600000) / 60000) * 60000));
   const [selected, setSelected] = useState(''),
     [circle, setCircle] = useState('');
-  const pending = useRef({ payload: '', id: '' }),
-    routeRevision = useRef(0);
+  const pending = useRef({ payload: '', id: '' });
   const verified = result.data?.eligibility.vehicles.filter((v) => v.status === 'approved') ?? [];
   const vehicle = verified.find((v) => v.id === selected) ?? verified[0];
   const ready = result.data?.eligibility.can_offer && vehicle;
   function changeStop(p: Place, origin: boolean) {
-    routeRevision.current++;
     (origin ? setFrom : setTo)(p);
     setKm('');
     setMinutes('');
@@ -56,22 +54,6 @@ export function Offer() {
         setDate(next);
       },
     });
-  }
-  async function route() {
-    if (from.lat == null || to.lat == null)
-      throw Error('Select mapped suggestions for both stops, or enter distance and time below.');
-    const version = routeRevision.current;
-    const line = [from, to].map((p) => p.lon!.toFixed(5) + ',' + p.lat!.toFixed(5)).join(';');
-    const data = await jsonRequest<{ code: string; routes: { distance: number; duration: number }[] }>(
-      'https://router.project-osrm.org/route/v1/driving/' + line + '?overview=false',
-      { timeout: 12000 },
-    );
-    if (version !== routeRevision.current) return;
-    const r = data.routes?.[0];
-    if (data.code !== 'Ok' || !r || !(r.distance > 0) || !(r.duration > 0))
-      throw Error('Road estimate unavailable. You can enter the measured distance and time.');
-    setKm((r.distance / 1000).toFixed(2));
-    setMinutes(String(Math.max(1, Math.round(r.duration / 60))));
   }
   async function publish() {
     if (!ready) throw Error('An approved driver and vehicle are required.');
@@ -142,12 +124,11 @@ export function Offer() {
                 onChange={(p) => changeStop(p, false)}
                 bias={from.lat != null ? (from as Point) : undefined}
               />
-              <Button
-                secondary
-                title="Calculate road estimate"
-                disabled={action.busy}
-                onPress={() => void action.run(route)}
-              />
+              <RouteMap stops={[from, to]} onSetStop={(end, p) => changeStop(p, end === 'pickup')}
+                onEstimate={(road) => {
+                  setKm((road.distance / 1000).toFixed(2));
+                  setMinutes(String(Math.max(1, Math.round(road.duration / 60))));
+                }} />
               <Field
                 label="Road distance (km)"
                 value={km}
