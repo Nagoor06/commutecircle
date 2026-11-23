@@ -54,15 +54,28 @@ export async function mount(ctx) {
     <aside class="panel booking-summary"><div class="section-index"><span class="index-dot"></span> Your segment</div><h2>Reserve a seat</h2>
     <label class="field">Board at<select data-from>${options(j.stops.slice(0,-1))}</select></label>
     <label class="field">Leave at<select data-to>${options(j.stops)}</select></label>
+    ${auth.signed && !j.owner && j.guest_booking_available ? `<fieldset class="traveller-picker" data-traveller>
+      <legend>Who’s travelling?</legend>
+      <div class="traveller-options"><label><input type="radio" name="traveller" value="self" checked> Me</label>
+      <label><input type="radio" name="traveller" value="guest"> Someone else</label></div>
+      <div data-guest-fields hidden><label class="field">Traveller’s name<input data-guest-name maxlength="60" autocomplete="off"></label>
+      <p class="fine">You manage payment, messages and cancellation. The driver sees this name.</p>
+      <label class="checkline"><input type="checkbox" data-guest-permission> They asked me to book and share their name.</label></div>
+      </fieldset>` : ''}
     <div data-fare></div>${policy()}${j.booking_mode==='approval'?'<label class="checkline"><input type="checkbox" data-consent> I agree to the shown fare, pickup details and driver approval process.</label>':''}<button data-book class="btn primary wide"></button>
     <small class="fine">Sandbox checkout · No real money is collected.</small>
     <div data-notice role="status" hidden></div></aside></div>`;
   const from = root.querySelector('[data-from]'),
     to = root.querySelector('[data-to]'),
     book = root.querySelector('[data-book]');
+  const picker = root.querySelector('[data-traveller]');
+  const guestFields = root.querySelector('[data-guest-fields]');
+  const guestInput = root.querySelector('[data-guest-name]');
+  const permission = root.querySelector('[data-guest-permission]');
+  const consent = root.querySelector('[data-consent]');
 
   function active(t) {
-    return ['paid', 'held', 'requested'].includes(t.state) && (t.state !== 'held' || Date.parse(t.expires) > Date.now())
+    return t.state === 'paid' || (['held', 'requested'].includes(t.state) && Date.parse(t.expires) > Date.now());
   }
 
   function render() {
@@ -70,8 +83,12 @@ export async function mount(ctx) {
     [...to.options].forEach(o => o.disabled = +o.value <= a);
     to.value = b;
     root.querySelector('[data-timeline]').innerHTML = stopList(j, a, b);
-    const n = free(j, a, b),
-      prior = j.tickets.find(t => t.board === a && t.alight === b && active(t));
+    const guest = picker?.querySelector(':checked')?.value === 'guest';
+    const name = guest ? guestInput.value.normalize('NFC').trim().replace(/\s+/g, ' ') : null;
+    if (guestFields) guestFields.hidden = !guest;
+    const n = free(j, a, b);
+    const prior = j.tickets.find(t => t.board === a && t.alight === b && active(t)
+      && (t.guest_name?.toLowerCase() ?? null) === (name?.toLowerCase() ?? null));
     const departed = +pickupAt(j, a) <= Date.now();
     const closed = j.cancelled || departed || j.booking_eligible === false;
     root.querySelector('[data-fare]').innerHTML =
@@ -79,7 +96,7 @@ export async function mount(ctx) {
     book.textContent = j.owner ? 'Manage your offer' : prior ? (prior.state === 'paid' ? 'Open receipt' :
       prior.state === 'requested' ? 'View request' : 'Continue checkout') : closed ? 'Booking closed' : n ?
       (auth.signed ? j.booking_mode==='approval'?'Request driver approval':'Hold one seat' : 'Sign in to book') : 'Segment is full';
-    book.disabled = !j.owner && !prior && (closed || n < 1);
+    book.disabled = !j.owner && !prior && (closed || n < 1 || (guest && (!name || !permission.checked)));
     book.onclick = () => pending(book, async () => {
       if (j.owner) {
         go('trips?view=driving');
@@ -93,17 +110,20 @@ export async function mount(ctx) {
       if(j.booking_mode==='approval'&&!root.querySelector('[data-consent]')?.checked){
         throw Error('Confirm the fare, pickup and approval policy before requesting.');
       }
-      const key=j.id+':'+a+':'+b;
+      const key = JSON.stringify([j.id, a, b, name?.toLowerCase() ?? null]);
+      const traveller = guest ? {name, permission: permission.checked} : undefined;
       if(!state.checkoutKeys.has(key))state.checkoutKeys.set(key,requestId());
       from.disabled=true;to.disabled=true;
+      if(picker)picker.disabled=true;
       if(consent)consent.disabled=true;
       let ticket;
       try {
         ticket=j.booking_mode==='approval'
-          ? await api.requestSeat(j.id,a,b,state.checkoutKeys.get(key))
-          : await api.hold(j.id,a,b,state.checkoutKeys.get(key));
+          ? await api.requestSeat(j.id,a,b,state.checkoutKeys.get(key),traveller)
+          : await api.hold(j.id,a,b,state.checkoutKeys.get(key),traveller);
       } finally {
         from.disabled=false;to.disabled=false;
+        if(picker)picker.disabled=false;
         if(consent)consent.disabled=false;
       }
       if (['expired', 'rider_cancelled', 'driver_cancelled'].includes(ticket.state)) {
@@ -114,7 +134,13 @@ export async function mount(ctx) {
       if (!signal.aborted) location.hash = checkoutHref(j.id, ticket.id);
     }, e => notice(root, e, 'error'));
   }
-  const consent = root.querySelector('[data-consent]');
+  if (picker) picker.oninput = event => {
+    if (event.target !== permission) {
+      permission.checked = false;
+      if (consent) consent.checked = false;
+    }
+    render();
+  };
   from.onchange = () => {
     if (consent) consent.checked = false;
     a = +from.value;

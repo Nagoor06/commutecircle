@@ -41,7 +41,7 @@ export function ticketProgress(journey, ticket, now = Date.now()) {
       ['requested', 'held', 'paid'].includes(ticket.state),
     exit: paid && (!ticket.travel_state || boarded) && now >= pickup && now < dropoff &&
       ticket.alight - ticket.board > 1,
-    share: paid && !completed && !journey.cancelled && now >= pickup - 3600000 && now < dropoff + 3600000,
+    share: paid && !ticket.guest_name && !completed && !journey.cancelled && now >= pickup - 3600000 && now < dropoff + 3600000,
     chat: ticket.confirmed ?? Boolean(ticket.charged_paise)
   };
 }

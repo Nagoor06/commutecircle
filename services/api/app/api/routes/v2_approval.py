@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.routes.bookings import DatabaseSession
 from app.auth.dependencies import RideReader, RideWriter
 from app.models.journey import Journey, Ticket
-from app.schemas.journey import Segment
+from app.schemas.journey import ReservationSegment, Segment
 from app.services import journeys
 from app.services.notification_outbox import enqueue
 from app.services.v2_common import check_booking_eligibility, verify_access
@@ -18,7 +18,7 @@ from app.services.v2_common import check_booking_eligibility, verify_access
 router = APIRouter(prefix="/v1/journeys", tags=["V2 booking approvals"])
 
 
-class SeatRequest(Segment):
+class SeatRequest(ReservationSegment):
     request_id: UUID
     consent: Literal[True]
     consent_version: Literal["cc-v2-1"]
@@ -28,6 +28,7 @@ def request_receipt(t):
     return {
         "id": t.id,
         "journey_id": t.journey_id,
+        "guest_name": t.guest_name,
         "state": journeys.status(t, datetime.now(UTC)),
         "board": t.board,
         "alight": t.alight,
@@ -41,12 +42,13 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
     with session.begin():
         j = journeys.locked(session, str(jid))
         verify_access(session, j, principal)
+        journeys.check_guest_access(j, data.guest_name)
         now = datetime.now(UTC)
         previous = session.get(Ticket, str(data.request_id))
         if previous:
             if (
                 previous.consent_at is None
-                or not journeys.is_rider(previous, principal)
+                or not journeys.same_traveller(previous, principal, data.guest_name)
                 or previous.journey_id != j.id
                 or (previous.board, previous.alight) != (data.board, data.alight)
             ):
@@ -59,7 +61,7 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
         q = journeys.quote(j, rows, data, now)
         for t in rows:
             if (
-                journeys.is_rider(t, principal)
+                journeys.same_traveller(t, principal, data.guest_name)
                 and t.board < data.alight
                 and data.board < t.alight
                 and journeys.status(t, now) in ("requested", "held", "paid")
@@ -69,11 +71,25 @@ def request_seat(jid: UUID, data: SeatRequest, principal: RideWriter, session: D
                 raise HTTPException(409, "An overlapping request already exists")
         if not q["seats_available"]:
             raise HTTPException(409, "Seat unavailable")
+        # Pending requests do not consume inventory, but one account cannot ask
+        # for more seats on a leg than the vehicle can carry.
+        own = [
+            t
+            for t in rows
+            if journeys.is_rider(t, principal)
+            and journeys.status(t, now) in ("requested", "held", "paid")
+        ]
+        if any(
+            sum(t.board <= leg < t.alight for t in own) >= j.capacity
+            for leg in range(data.board, data.alight)
+        ):
+            raise HTTPException(409, "Your account has already requested all seats on this segment")
         t = Ticket(
             id=str(data.request_id),
             journey_id=j.id,
             issuer=principal.issuer,
             rider=principal.subject,
+            guest_name=data.guest_name,
             board=data.board,
             alight=data.alight,
             state="requested",

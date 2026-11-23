@@ -62,6 +62,8 @@ tokens = {
         "approval-rider",
         "reviewer",
         "session-rider",
+        "guest-driver",
+        "guest-booker",
     )
 }
 tokens["session-renewed"] = browser_token("session-rider", minutes=60)

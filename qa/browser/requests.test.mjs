@@ -4,6 +4,24 @@ import {liveClient} from '../../services/api/app/studio/app/data/live.js';
 
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 
+test('trip history stops on a repeated full page and deduplicates overlapping pages', async t => {
+  const first = Array.from({length:50}, (_, id) => ({id}));
+  let nextPage = first;
+  const seen = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    const offset = Number(new URL(url).searchParams.get('offset'));
+    seen.push(offset);
+    assert.ok(offset <= 50, 'Repeated pages must terminate');
+    return Response.json(offset === 0 ? first : nextPage);
+  });
+  const client = liveClient('test', 'https://api.example');
+  await assert.rejects(client.allMine(), /Trip history stopped updating/);
+  nextPage = [{id:49}, {id:50}];
+  const rows = await client.allMine();
+  assert.equal(rows.length,51);
+  assert.deepEqual(seen,[0,50,0,50]);
+});
+
 test('search recovery is bounded and keeps its screen cancellation signal intact', async t => {
   t.mock.timers.enable({apis: ['setTimeout']});
   let requests=0;

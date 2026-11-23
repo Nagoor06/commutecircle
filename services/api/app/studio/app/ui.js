@@ -131,6 +131,3 @@ export function confirmation(title, message, label, {danger=false, signal, detai
 export function dateInput(date = new Date()) {
   return new Date(+date - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
-export function dateTimeInput(date) {
-  return new Date(+date - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-}

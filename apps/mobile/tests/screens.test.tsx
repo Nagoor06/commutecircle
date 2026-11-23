@@ -124,6 +124,67 @@ test('chat acknowledges only incoming messages and retains a failed draft for an
   expect(sent[1]).toEqual(sent[0]);
   expect(tree.root.findByType(Field).props.value).toBe('');
 });
+
+test('a guest reservation needs permission and keeps the retry tied to the selected traveller', async () => {
+  const writes: { checkout_id: string; guest: { name: string; permission: boolean } }[] = [];
+  const journey = {
+    id: 'j', owner: false, guest_booking_available: true, booking_eligible: true, booking_mode: 'instant',
+    stops: [{name:'Museum',minutes:0},{name:'Station',minutes:10}], departure: future(1), tickets: [],
+  };
+  await mount(<Ride id="j" board={0} alight={1} />, async (url, opts) => {
+    if (url.endsWith('/quote')) return { pickup_at: future(1), fare_paise: 1000, seats_available: 2 };
+    if (url.endsWith('/holds')) {
+      writes.push(opts!.body as typeof writes[number]);
+      throw Error('Connection lost');
+    }
+    return journey;
+  });
+  const radio = (name: string) => tree.root.findAllByProps({accessibilityRole:'radio', accessibilityLabel:name})
+    .find((control) => typeof control.props.onPress === 'function')!;
+  const permission = () => tree.root.findAllByProps({accessibilityLabel:'Traveller gave permission'})
+    .find((control) => typeof control.props.onValueChange === 'function')!;
+  await act(async () => radio('Someone else').props.onPress());
+  await act(async () => tree.root.findByType(Field).props.onChangeText('Ava'));
+  expect(button('Hold a seat').props.disabled).toBe(true);
+  await act(async () => permission().props.onValueChange(true));
+  await act(async () => button('Hold a seat').props.onPress());
+  await act(async () => button('Hold a seat').props.onPress());
+  expect(writes[0]).toEqual(writes[1]);
+  expect(writes[0].guest).toEqual({name:'Ava',permission:true});
+  await act(async () => tree.root.findByType(Field).props.onChangeText('లక్ష్మి'));
+  expect(button('Hold a seat').props.disabled).toBe(true);
+  await act(async () => permission().props.onValueChange(true));
+  await act(async () => button('Hold a seat').props.onPress());
+  expect(writes[2].checkout_id).not.toEqual(writes[0].checkout_id);
+  expect(writes[2].guest.name).toBe('లక్ష్మి');
+});
+
+test('polling chat lets a slow read receipt finish and retries after a failed receipt', async () => {
+  let foreground: ((state: 'active') => void) | undefined;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation(((
+    _event: string, handler: typeof foreground,
+  ) => {
+    foreground = handler;
+    return { remove: jest.fn() };
+  }) as typeof AppState.addEventListener);
+  const signals: AbortSignal[] = [];
+  let finish: ((result: unknown) => void) | undefined;
+  await mount(<Conversation journey="j" ticket="t" />, async (url, opts) => {
+    if (url.endsWith('/read')) {
+      signals.push(opts!.signal!);
+      if (signals.length === 1) throw Error('Temporarily unavailable');
+      return new Promise((resolve) => { finish = resolve; });
+    }
+    return {role:'passenger',closed:false,messages:[{id:'m',sender:'driver',text:'Hello',created_at:future(-1)}]};
+  });
+  await act(async () => foreground!('active'));
+  await act(async () => foreground!('active'));
+  expect(signals).toHaveLength(2);
+  expect(signals[1].aborted).toBe(false);
+  await act(async () => finish!({read:true}));
+  await act(async () => foreground!('active'));
+  expect(signals).toHaveLength(2);
+});
 test('a new incoming message outside chat opens its own conversation from the alert', async () => {
   let foreground: ((state: 'active') => void) | undefined;
   jest.spyOn(AppState, 'addEventListener').mockImplementation(((

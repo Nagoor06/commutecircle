@@ -162,6 +162,8 @@ def rate(jid: UUID, tid: UUID, data: Review, principal: RideWriter, session: Dat
         ticket = session.get(Ticket, str(tid))
         if not ticket or ticket.journey_id != trip.id or not service.is_rider(ticket, principal):
             raise HTTPException(404, "Reservation not found")
+        if ticket.guest_name:
+            raise HTTPException(403, "Only the traveller can rate their ride")
         if ticket.travel_state is not None and ticket.travel_state != "completed":
             raise HTTPException(409, "Rider must confirm completion before reviewing")
         if ticket.state != "exited" and (

@@ -6,7 +6,7 @@ export async function mount(ctx) {
   const {root, api, auth, parts, signal} = ctx;
   if (!api || !auth.signed) return access(ctx,'Booking chat','Sign in to open your private booking conversation.');
   const [jid,tid] = parts;
-  root.innerHTML = back('#/messages','All messages') + head('Your booking / Private chat','Meet without sharing numbers','Only this passenger and driver can open this conversation.') +
+  root.innerHTML = back('#/messages','All messages') + head('Your booking / Private chat','Meet without sharing numbers','Only the booking account and driver can open this conversation.') +
     `<section class="panel chat-panel"><div class="chat-context"><span class="panel-cap">${icon('message')} Booking conversation</span><a class="text-btn" href="#/trips">My trips ${icon('arrow',15)}</a></div><p class="fine chat-privacy">Keep it about the journey. Phone numbers, emails, contact links and attachments are blocked. Filtering cannot detect every disguised contact detail. Messages are stored by CommuteCircle; this is not end-to-end encrypted.</p>
     <div data-messages class="messages" role="log" aria-label="Booking messages" aria-live="polite"></div>
     <div class="quick-replies"><button type="button">I’m at the pickup point.</button><button type="button">I’ll arrive in 5 minutes.</button><button type="button">Which side of the public entrance?</button></div>
@@ -35,7 +35,7 @@ export async function mount(ctx) {
         if(!data.messages.length) list.textContent='No messages yet. Use a quick reply to introduce yourself.';
         for(const m of data.messages){
           const bubble=document.createElement('article');bubble.className='message '+(m.sender===data.role?'mine':'');
-          const label=document.createElement('small');label.textContent=(m.sender===data.role?'You':m.sender==='driver'?'Driver':'Passenger')+' · '+day(m.created_at)+' · '+clock(m.created_at);
+          const label=document.createElement('small');label.textContent=(m.sender===data.role?'You':m.sender==='driver'?'Driver':data.guest_name?'Booker':'Passenger')+' · '+day(m.created_at)+' · '+clock(m.created_at);
           const body=document.createElement('p');body.textContent=m.text;bubble.append(label,body);list.append(bubble);
         }
         if(atBottom)list.scrollTop=list.scrollHeight;

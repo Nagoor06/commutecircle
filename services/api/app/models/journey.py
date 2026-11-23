@@ -49,6 +49,7 @@ class Ticket(Base):
     journey_id: Mapped[str] = mapped_column(ForeignKey("journeys.id"), index=True)
     issuer: Mapped[str] = mapped_column(String(512))
     rider: Mapped[str] = mapped_column(String(255))
+    guest_name: Mapped[str | None] = mapped_column(String(60), nullable=True)
     board: Mapped[int]
     alight: Mapped[int]
     state: Mapped[str] = mapped_column(String(24), index=True)

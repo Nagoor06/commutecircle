@@ -6,6 +6,7 @@ import {
 } from '../ui.js';
 const guide = 'https://github.com/Nagoor06/commutecircle/blob/main/services/ride-help/guide.md';
 const items = [
+  ['Can I book for someone else?', 'On a public ride, open Ride details and choose Someone else. Enter the traveller’s name with their permission. You handle messages, sandbox payment and cancellation from your account. Send them the pickup details and, for an approval ride, the boarding PIN when it opens. Each traveller books a private circle ride from their own member account.'],
   ['What is CommuteCircle for?', 'Share a seat on a journey a driver already plans to make. Meet at public points, pay for the segment you travel and leave the onward seat available to someone else. Your saved office preferences and contact details stay private.'],
   ['Will I receive a booking confirmation?', 'Your receipt is always in My trips. In Profile, enable email to your verified sign-in address and optionally choose WhatsApp or SMS after phone verification. Alerts are queued only after confirmation; a seat hold is not a booking. Delivery depends on the configured provider. The receipt shows queued, accepted, unavailable or uncertain status. Accepted does not mean delivered. Payments are currently sandbox only.'],
   ['Can I track the vehicle live?', 'Open Track vehicle from a confirmed booking. Your driver must start location sharing and separately allow confirmed passengers. Choose Show live map to follow the car marker from the driver’s GPS, with update age and accuracy. Your own Share my trip link shows your location as a passenger, using a person marker. Keep the sharing browser open; updates can pause in the background.'],
@@ -50,10 +51,7 @@ export function mount({
    <aside class="stack"><section class="panel accent-panel"><div class="panel-cap">${icon('spark')} Ride assistant</div><h2>Ask the guide</h2>
    ${api&&auth.signed&&auth.help?'<form data-ask><label class="field">Question<input required maxlength="300" placeholder="When can I cancel for free?"></label><p class="fine">Ask general questions. Leave out home addresses, phone numbers and workplace names.</p><button class="btn primary">Ask question</button></form><p data-answer role="status"></p>':'<p>AI answers with source links are available in the signed-in studio when the local ride-help service is running.</p>'}
    <a data-source href="${guide}" target="_blank" rel="noopener" class="text-btn">Open rider guide ${icon('arrow',16)}</a></section>
-</aside></div><details class="photo-credit"><summary>Photography credit</summary>
-    <p>“PJR Flyover at Night Illuminated Skyline” by Mohammad Anees Qamar. Cropped and converted to WebP.
-    <a href="https://commons.wikimedia.org/wiki/File:PJR_Flyover_at_Night_Illuminated_Skyline.jpg">Original photograph</a> ·
-    <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></p></details>`;
+</aside></div>`;
   const form = root.querySelector('[data-ask]');
   if (!form) return;
   form.onsubmit = async e => {

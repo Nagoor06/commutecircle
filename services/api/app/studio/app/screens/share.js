@@ -9,6 +9,7 @@ export async function mount(ctx){
   const journey=await api.detail(jid,signal);if(signal.aborted)return;
   const ticket=journey.tickets.find(t=>t.id===tid&&t.state==='paid');
   if(!journey.owner&&!ticket)throw Error('Only the traveller can share this confirmed trip.');
+  if(!journey.owner&&ticket.guest_name)throw Error('Live location is available from the traveller’s own booking.');
   const first=journey.owner?0:ticket.board,last=journey.owner?journey.stops.length-1:ticket.alight;
   root.innerHTML=back('#/trips','My trips')+head('Safety / Trusted contacts','Share my trip','Let someone you trust follow your journey, without joining CommuteCircle.')+
     `<section class="panel sharing-panel"><div class="panel-cap">${icon('shield')} Your choice, your location</div><h2>${esc(journey.stops[first].name)} → ${esc(journey.stops[last].name)}</h2>

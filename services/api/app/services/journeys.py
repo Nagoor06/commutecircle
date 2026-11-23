@@ -51,6 +51,18 @@ def is_rider(t, p):
     return p is not None and (t.issuer, t.rider) == (p.issuer, p.subject)
 
 
+def same_traveller(ticket, principal, guest_name):
+    return (
+        is_rider(ticket, principal)
+        and (ticket.guest_name or "").lower() == (guest_name or "").lower()
+    )
+
+
+def check_guest_access(journey, guest_name):
+    if guest_name and journey.circle_id:
+        raise HTTPException(403, "Each traveller must book circle rides from their member account")
+
+
 def tickets(session, j):
     return list(session.scalars(select(Ticket).where(Ticket.journey_id == j.id)))
 
@@ -73,6 +85,7 @@ def receipt(t, now):
     return dict(
         id=t.id,
         journey_id=t.journey_id,
+        guest_name=t.guest_name,
         board=t.board,
         alight=t.alight,
         state=status(t, now),
@@ -114,13 +127,18 @@ def hold(session, jid, p, data):
         j = locked(session, jid)
         now = datetime.now(UTC)
         verify_access(session, j, p)
+        check_guest_access(j, data.guest_name)
         if j.booking_mode != "instant":
             raise HTTPException(409, "Request driver approval before checkout")
         if is_driver(j, p):
             raise HTTPException(409, "You listed this ride")
         prior = session.get(Ticket, str(data.checkout_id))
         if prior:
-            if not is_rider(prior, p) or (prior.journey_id, prior.board, prior.alight) != (
+            if not same_traveller(prior, p, data.guest_name) or (
+                prior.journey_id,
+                prior.board,
+                prior.alight,
+            ) != (
                 jid,
                 data.board,
                 data.alight,
@@ -131,7 +149,7 @@ def hold(session, jid, p, data):
         # Recover the same reservation after a lost response or a browser reload.
         for existing in rows:
             if (
-                is_rider(existing, p)
+                same_traveller(existing, p, data.guest_name)
                 and (existing.board, existing.alight) == (data.board, data.alight)
                 and status(existing, now) in ("held", "paid")
             ):
@@ -141,7 +159,7 @@ def hold(session, jid, p, data):
         if not q["seats_available"]:
             raise HTTPException(409, "Seat unavailable. Nothing charged.")
         if any(
-            is_rider(t, p)
+            same_traveller(t, p, data.guest_name)
             and status(t, now) in ("held", "paid")
             and t.board < data.alight
             and t.alight > data.board
@@ -153,6 +171,7 @@ def hold(session, jid, p, data):
             journey_id=jid,
             issuer=p.issuer,
             rider=p.subject,
+            guest_name=data.guest_name,
             board=data.board,
             alight=data.alight,
             state="held",

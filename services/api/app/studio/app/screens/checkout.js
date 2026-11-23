@@ -72,6 +72,7 @@ export async function mount(ctx) {
         held ? 'Review your booking' : progress.label || 'Reservation') +
       `<div class="checkout-layout"><section class="ticket-sheet"><div class="ticket-head"><span class="eyebrow"><i></i> CommuteCircle ticket</span><b class="pill">${esc(progress.label||state)}</b></div>
       <div class="ticket-route"><span class="point-key">A</span><h2>${esc(j.stops[t.board].name)}</h2><span class="point-key dropoff">B</span><h2>${esc(j.stops[t.alight].name)}</h2></div>
+      ${t.guest_name ? `<p><strong>Booked for ${esc(t.guest_name)}</strong></p><p class="fine">You receive booking updates. Send the pickup details to your traveller.</p>` : ''}
       <dl class="specs"><div><dt>Pickup</dt><dd>${esc(day(pickupAt(j,t.board)))} · ${esc(clock(pickupAt(j,t.board)))}</dd></div><div><dt>Distance</dt><dd>${(j.stops[t.alight].metres-j.stops[t.board].metres)/1000} km</dd></div><div><dt>Reservation</dt><dd>${esc(t.id.slice(0,8).toUpperCase())}</dd></div></dl></section>
       <section class="panel checkout-pay"><div class="panel-cap">${icon('wallet')} Sandbox payment</div><div class="fare-line"><span>Segment fare</span><b>${money(t.fare_paise)}</b></div>
       <div class="ledger"><span>Charged</span><b>${money(t.charged_paise)}</b><span>Refunded</span><b>${money(t.refund_paise)}</b></div>
@@ -92,7 +93,7 @@ export async function mount(ctx) {
     if(pinButton)pinButton.onclick=()=>pending(pinButton,async()=>{
       const result=await api.boardingPin(jid,tid);
       const output=root.querySelector('[data-pin-output]');
-      if(output)output.textContent='Show this one-time PIN to the driver: '+result.pin+'. Expires '+new Date(result.expires_at).toLocaleTimeString()+'.';
+      if(output)output.textContent=(t.guest_name ? 'Send this PIN privately to '+t.guest_name+' for boarding. ' : 'Show this one-time PIN to the driver. ')+result.pin+'. Expires '+new Date(result.expires_at).toLocaleTimeString()+'.';
     },e=>notice(root,e,'error'));
     const completeButton=root.querySelector('[data-complete]');
     if(completeButton)completeButton.onclick=()=>pending(completeButton,()=>changeTicket(async()=>{

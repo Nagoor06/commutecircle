@@ -24,6 +24,7 @@ The preview package is `io.github.nagoor06.commutecircle.preview`. The **Android
 
 - Browse public rides, use approximate current pickup with permission, or enter public stops manually. Worldwide suggestions use a location bias and sort by distance when an anchor is available.
 - Request approval after accepting the pickup and fare. Review held or paid tickets, sandbox checkout and cancellation fees. Drivers can approve requests and verify boarding PINs.
+- Choose **Someone else** on a public ride to book for a guest with their permission. The booking account manages the receipt and passes pickup details and any boarding PIN to the traveller. The option appears when the connected API supports guest bookings.
 - Submit driver and vehicle details for staff review. Approved drivers can publish public or circle-only rides.
 - Create and join circles, copy a token or share a private invitation. Confirmed participants can chat. Unread badges and foreground alerts link to the relevant conversation.
 - Submit private safety reports. Recurring templates, trip sharing and tracking, staff tools and browser push settings are available on the website. Website notification subscriptions belong to the browser. Android remote push requires separate device registration and delivery.

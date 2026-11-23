@@ -100,6 +100,7 @@ export async function mount(ctx) {
         card.innerHTML =
           `<div class="trip-card-top"><p class="eyebrow">${driving?'Driver':'Passenger'} · ${esc(day(pickupAt(j,a)))}</p><span class="pill">${esc(status)}</span></div><h2>${esc(j.stops[a].name)} → ${esc(j.stops[b].name)}</h2>
           <p class="muted">${esc(clock(pickupAt(j,a)))} pickup · ${t?'Segment '+money(t.fare_paise)+' · Refund '+money(t.refund_paise):'Full-route seat '+money(j.price_paise)}</p>
+          ${t?.guest_name ? `<p>Booked for <b>${esc(t.guest_name)}</b></p>` : ''}
           <div class="button-row"><a class="btn secondary compact" href="${esc(t?checkoutHref(j.id,t.id):rideHref(j.id))}">${t?(t.state==='held'?'Continue checkout':'View receipt'):'View itinerary'}</a></div>`;
         const actions = card.querySelector('.button-row');
         if(t?.state==='requested') actions.insertAdjacentHTML('beforeend','<p>Awaiting driver approval. No payment has been taken.</p>');
@@ -110,7 +111,7 @@ export async function mount(ctx) {
           'Cancel ride', async () => {
             if (await cancelJourney(api, j, signal)) await refresh()
           }, true);
-        if (t && (
+        if (t && !t.guest_name && (
           t.travel_state === 'completed' ||
           (!t.travel_state && ['exited', 'paid'].includes(t.state) &&
            (t.state === 'exited' || pickupAt(j, t.alight) <= Date.now()))
@@ -133,7 +134,8 @@ export async function mount(ctx) {
           for(const req of j.tickets.filter(t=>t.state==='requested')){
             const row=document.createElement('div');
             row.className='passenger-row';
-            row.innerHTML='<p>'+esc(j.stops[req.board].name)+' → '+esc(j.stops[req.alight].name)+' · '+money(req.fare_paise)+'</p>';
+            row.innerHTML='<p>'+esc(j.stops[req.board].name)+' → '+esc(j.stops[req.alight].name)+' · '+money(req.fare_paise)+'</p>'
+              +(req.guest_name?'<p>Travelling guest · '+esc(req.guest_name)+'</p>':'');
             button(row,'Approve',async()=>{await api.approve(j.id,req.id);notice(root,'Passenger approved. They must complete sandbox checkout.','info');await refresh();});
             button(row,'Decline',async()=>{
               if(!await confirmation('Decline this seat request?','The passenger can look for another ride. No payment has been taken.','Decline request',
@@ -156,6 +158,7 @@ export async function mount(ctx) {
             row.className = 'passenger-row';
             row.innerHTML =
               `<b>${esc(j.stops[ticket.board].name)} → ${esc(j.stops[ticket.alight].name)}</b>
+              ${ticket.guest_name ? `<span>Travelling guest · ${esc(ticket.guest_name)}</span>` : ''}
               <small>${esc(passenger.label)} · ${money(ticket.charged_paise)} charged · ${money(ticket.refund_paise)} refunded</small>`;
             if(passenger.board){
               const form=document.createElement('form');
@@ -163,7 +166,7 @@ export async function mount(ctx) {
               form.onsubmit=e=>{e.preventDefault();pending(e.submitter,async()=>{await api.board(j.id,ticket.id,form.elements.pin.value);form.elements.pin.value='';await refresh();},m=>notice(root,m,'error'));};
               row.append(form);
             }
-            if(passenger.chat) row.insertAdjacentHTML('beforeend', `<a class="text-btn" href="#/chat/${j.id}/${ticket.id}">Passenger chat</a>`);
+            if(passenger.chat) row.insertAdjacentHTML('beforeend', `<a class="text-btn" href="#/chat/${j.id}/${ticket.id}">${ticket.guest_name?'Message the booker':'Passenger chat'}</a>`);
             if (passenger.cancel && ticket.state!=='requested') button(
               row, 'Cancel and refund', async () => {
                 if (await cancelTicket(api, j, ticket, signal)) await refresh()

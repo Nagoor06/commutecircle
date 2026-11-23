@@ -110,6 +110,7 @@ def inbox(session, principal, limit=20, offset=0, unread_only=False):
         items.append(
             {
                 "ticket_id": t.id,
+                "guest_name": t.guest_name,
                 "journey_id": j.id,
                 "role": "driver" if journeys.is_driver(j, principal) else "passenger",
                 "origin": j.stops[t.board]["name"],
