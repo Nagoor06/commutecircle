@@ -34,7 +34,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
       - run: npm ci --include=dev --no-audit --no-fund
       - name: Check native screens and session flows
         if: matrix.variant == 'preview'
