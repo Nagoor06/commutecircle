@@ -1,4 +1,5 @@
 import asyncio
+import mimetypes
 import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -64,6 +65,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.state.token_verifier = TokenVerifier(settings) if settings.oidc_issuer else None
     app.middleware("http")(request_context)
     app.include_router(api_router)
+    # The slim runtime can omit the system WebP MIME mapping.
+    mimetypes.add_type("image/webp", ".webp")
     app.mount(
         "/studio", StaticFiles(directory=Path(__file__).parent / "studio", html=True), name="studio"
     )
