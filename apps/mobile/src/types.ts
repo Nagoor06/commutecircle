@@ -4,6 +4,7 @@ export type Stop = Place & { minutes: number; metres: number };
 export type Ticket = {
   id: string;
   journey_id: string;
+  guest_name?: string | null;
   state: string;
   board: number;
   alight: number;
@@ -19,8 +20,12 @@ export type Journey = {
   stops: Stop[];
   departure: string;
   owner: boolean;
+  capacity: number;
+  circle_id: string | null;
+  vehicle_id: string | null;
   cancelled: boolean;
   booking_eligible: boolean;
+  guest_booking_available?: boolean;
   booking_mode: 'approval' | 'instant';
   price_paise: number;
   driver_name: string | null;
@@ -40,6 +45,7 @@ export type Quote = {
 };
 export type Thread = {
   ticket_id: string;
+  guest_name?: string | null;
   journey_id: string;
   origin: string;
   destination: string;
@@ -48,7 +54,7 @@ export type Thread = {
   preview: string | null;
 };
 export type Message = { id: string; text: string; sender: 'driver' | 'passenger'; created_at: string };
-export type Chat = { role: Message['sender']; closed: boolean; messages: Message[] };
+export type Chat = { role: Message['sender']; guest_name?: string | null; closed: boolean; messages: Message[] };
 export type Circle = { id: string; name: string; role: 'member' | 'owner' };
 export type Vehicle = {
   id: string;
@@ -59,10 +65,11 @@ export type Vehicle = {
   seat_capacity: number;
 };
 export type Eligibility = { driver_status: string; can_offer: boolean; vehicles: Vehicle[] };
-export type Tab = 'Book' | 'Offer' | 'Trips' | 'Circles' | 'Inbox' | 'Profile';
+export type Tab = 'Book' | 'Offer' | 'Trips' | 'Circles' | 'Inbox' | 'Profile' | 'Recurring';
 export type Route =
   | { tab: Tab }
   | { screen: 'ride'; id: string; board: number; alight: number }
+  | { screen: 'repeat'; id: string }
   | { screen: 'chat'; journey: string; ticket: string }
   | { screen: 'safety'; journey: string; ticket?: string }
   | { screen: 'circle'; circle: Circle };

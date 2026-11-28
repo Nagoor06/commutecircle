@@ -29,6 +29,8 @@ def eligible(session, journey, ticket_id, principal=None):
             raise HTTPException(404, "Reservation not found")
         if ticket.state != "paid" or ticket.travel_state == "completed" or journey.cancelled:
             raise HTTPException(410, "This trip-sharing link has ended.")
+        if ticket.guest_name:
+            raise HTTPException(403, "Live location is available from the traveller’s own booking")
         return ticket.board, ticket.alight
     if principal and not journeys.is_driver(journey, principal):
         raise HTTPException(404, "Journey not found")

@@ -1,7 +1,8 @@
+import unicodedata
 from typing import Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.ride_details import Vehicle
 
@@ -59,7 +60,46 @@ class Segment(BaseModel):
     alight: int = Field(gt=0, strict=True)
 
 
-class Hold(Segment):
+class BookingGuest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=60)
+    permission: bool = Field(strict=True)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def clean_name(cls, value):
+        if not isinstance(value, str):
+            return value
+        if any(
+            unicodedata.category(char).startswith("C") and char not in ("\u200c", "\u200d")
+            for char in value
+        ):
+            raise ValueError("Use a name without control characters")
+        name = " ".join(unicodedata.normalize("NFC", value).split())
+        if not any(char.isalpha() for char in name) or any(
+            unicodedata.category(char)[0] not in ("L", "M") and char not in " '-.’·‐‑・\u200c\u200d"
+            for char in name
+        ):
+            raise ValueError("Use a traveller name without contact details or numbers")
+        return name
+
+    @field_validator("permission")
+    @classmethod
+    def has_permission(cls, value):
+        if not value:
+            raise ValueError("Confirm the traveller’s permission")
+        return value
+
+
+class ReservationSegment(Segment):
+    guest: BookingGuest | None = None
+
+    @property
+    def guest_name(self) -> str | None:
+        return self.guest.name if self.guest else None
+
+
+class Hold(ReservationSegment):
     checkout_id: UUID
 
 

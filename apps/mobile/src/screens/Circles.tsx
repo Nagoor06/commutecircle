@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, Share, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useMobile } from '../context';

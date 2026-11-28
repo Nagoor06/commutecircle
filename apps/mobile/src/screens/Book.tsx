@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from 'react';
-import { Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { useMobile } from '../context';
 import { useResource } from '../hooks';
 import { LocationField, usePickup } from '../LocationField';
+import { RouteMap } from '../RouteMap';
 import { wirePlace } from '../places';
-import { Button, Card, Feedback, Heading, LoadState, s } from '../ui';
+import { Button, Card, color, Feedback, LoadState, s } from '../ui';
 import { Match, Place, Point, Search, money, when } from '../types';
 
 export function RideCard({ item }: { item: Match }) {
@@ -95,7 +96,16 @@ export function Book() {
   const bias = pickup.area ?? (pickup.point.lat != null ? (pickup.point as Point) : undefined);
   return (
     <View style={s.screen}>
-      <Heading>Book a ride</Heading>
+      <ImageBackground source={require('../../assets/city-commute.png')} resizeMode="cover"
+        accessible={false} imageStyle={hero.image} style={hero.frame}>
+        <Text accessibilityRole="header" style={[s.title, hero.title]}>Book a ride</Text>
+      </ImageBackground>
+      <RouteMap stops={[pickup.point, destination]} onSetStop={(end, p) => {
+        if (end === 'pickup') pickup.manual(p);
+        else setDestination(p);
+        setQuery(null);
+        setError('');
+      }} />
       <Card>
         <LocationField
           label="Pickup"
@@ -124,3 +134,9 @@ export function Book() {
     </View>
   );
 }
+
+const hero = StyleSheet.create({
+  frame: { minHeight: 112, borderRadius: 16, backgroundColor: color.navy, padding: 14, justifyContent: 'flex-end', alignItems: 'flex-start' },
+  image: { borderRadius: 16 },
+  title: { color: color.white, backgroundColor: '#14213DEB', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
+});

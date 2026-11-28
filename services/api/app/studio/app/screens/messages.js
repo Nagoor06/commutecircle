@@ -2,12 +2,13 @@ import {access} from '../components/access.js';
 import {head, icon, esc, day, clock, empty, notice, pending} from '../ui.js';
 
 function conversation(row) {
-  const other = row.role==='driver' ? 'Passenger' : 'Driver';
+  const other = row.role==='driver' ? (row.guest_name ? 'Booker' : 'Passenger') : 'Driver';
   const sender = row.sender===row.role ? 'You' : other;
   return `<a class="conversation ${row.unread?'unread':''}" href="#/chat/${encodeURIComponent(row.journey_id)}/${encodeURIComponent(row.ticket_id)}">
     <span class="conversation-avatar">${icon(row.role==='driver'?'user':'car',23)}</span>
     <div class="conversation-copy"><div class="conversation-heading"><b>${esc(row.origin)} <span aria-hidden="true">→</span> ${esc(row.destination)}</b>
       ${row.unread?`<span class="unread-count" aria-label="${row.unread} unread messages">${row.unread}</span>`:''}</div>
+    ${row.guest_name?`<div>Booked for ${esc(row.guest_name)}</div>`:''}
     <p class="conversation-preview">${row.preview?esc(sender+': '+row.preview):'Your booking is confirmed. Start a conversation.'}</p>
     <div class="conversation-meta"><span>${other} · Booking ${esc(row.ticket_id.slice(0,8))}</span><span>${icon('calendar',13)} ${esc(day(row.pickup_at))} · ${esc(clock(row.pickup_at))}</span><span class="conversation-state">${row.closed?'Read only':'Chat open'}</span></div></div>
     ${icon('chevron',18)}</a>`;

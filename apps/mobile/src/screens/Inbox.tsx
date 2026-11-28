@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { useMobile } from '../context';
@@ -30,6 +30,7 @@ export function Inbox() {
           <Text style={s.heading}>
             {row.origin} → {row.destination}
           </Text>
+          {row.guest_name && <Text style={s.body}>Booked for {row.guest_name}</Text>}
           <Text style={s.muted}>
             {row.closed ? 'Closed conversation' : row.unread ? row.unread + ' unread' : 'Booking chat'}
           </Text>
@@ -65,18 +66,24 @@ export function Conversation({ journey, ticket }: { journey: string; ticket: str
   const [draft, setDraft] = useState(''),
     [notice, setNotice] = useState('');
   const pending = useRef({ text: '', id: '' }),
-    acknowledged = useRef('');
+    acknowledged = useRef(''),
+    reading = useRef<AbortController | null>(null);
   const chat = result.data;
   const incoming = chat?.messages.filter((m) => m.sender !== chat.role).at(-1)?.id;
+  useEffect(() => () => {
+    reading.current?.abort();
+    reading.current = null;
+  }, [path]);
   useEffect(() => {
-    if (!incoming || incoming === acknowledged.current) return;
+    if (!incoming || incoming === acknowledged.current || reading.current) return;
     const abort = new AbortController();
+    reading.current = abort;
     void api(path + '/read', { method: 'POST', signal: abort.signal, body: { message_id: incoming } })
       .then(() => {
         if (!abort.signal.aborted) acknowledged.current = incoming;
       })
-      .catch(() => {});
-    return () => abort.abort();
+      .catch(() => {})
+      .finally(() => { if (reading.current === abort) reading.current = null; });
   }, [api, path, incoming, chat]);
   function send() {
     void action.run(async () => {
@@ -97,11 +104,12 @@ export function Conversation({ journey, ticket }: { journey: string; ticket: str
       {chat && (
         <>
           <Card>
+            {chat.guest_name && <Text style={s.body}>Driver and booker chat · Booked for {chat.guest_name}</Text>}
             {chat.messages.length === 0 && <Text style={s.muted}>No messages yet.</Text>}
             {chat.messages.map((m) => (
               <View key={m.id} style={{ gap: 2 }}>
                 <Text style={s.muted}>
-                  {m.sender === chat.role ? 'You' : m.sender} · {when(m.created_at)}
+                  {m.sender === chat.role ? 'You' : m.sender === 'passenger' && chat.guest_name ? 'Booker' : m.sender} · {when(m.created_at)}
                 </Text>
                 <Text style={s.body}>{m.text}</Text>
               </View>

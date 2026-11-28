@@ -88,6 +88,7 @@ def read(session, jid, tid, principal):
     )
     return {
         "role": role,
+        "guest_name": t.guest_name,
         "closed": closed(session, j, t, datetime.now(UTC)),
         "messages": [view(m) for m in reversed(rows)],
     }

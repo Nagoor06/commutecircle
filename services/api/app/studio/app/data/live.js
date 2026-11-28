@@ -49,11 +49,13 @@ export function liveClient(token, origin, onSessionExpired) {
     }
   }
   async function pages(path, signal, size = 50) {
-    const rows = [];
+    const rows = new Map();
     for (let offset = 0;; offset += size) {
       const page = await call(path + (path.includes('?') ? '&' : '?') + 'offset=' + offset, 'GET', null, {signal});
-      rows.push(...page);
-      if (page.length < size) return rows;
+      const previousSize = rows.size;
+      for (const row of page) rows.set(row.id, row);
+      if (page.length < size) return [...rows.values()];
+      if (rows.size === previousSize) throw new ApiError(0, 'Trip history stopped updating. Refresh to try again.');
     }
   }
   const path = id => '/v1/journeys/' + encodeURIComponent(id);
@@ -75,8 +77,7 @@ export function liveClient(token, origin, onSessionExpired) {
     driverEligibility: signal => call('/v1/me/driver-eligibility','GET',null,{signal}),
     submitDriverVerification: data => call('/v1/me/driver-verification','POST',data),
     submitVehicle: data => call('/v1/me/vehicles','POST',data),
-    requests: (id,signal) => call(path(id)+'/requests','GET',null,{signal}),
-    requestSeat: (id,board,alight,key) => call(path(id)+'/requests','POST',{request_id:key,board,alight,consent:true,consent_version:'cc-v2-1'}),
+    requestSeat: (id,board,alight,key,guest) => call(path(id)+'/requests','POST',{request_id:key,board,alight,consent:true,consent_version:'cc-v2-1',guest}),
     approve: (id,tid) => call(ticket(id,tid)+'/approve','POST'),
     decline: (id,tid) => call(ticket(id,tid)+'/decline','POST'),
     boardingPin: (id,tid) => call(ticket(id,tid)+'/boarding-challenge','POST'),
@@ -125,19 +126,17 @@ export function liveClient(token, origin, onSessionExpired) {
     detail: (id, signal) => call(path(id), 'GET', null, {
       signal
     }),
-    mine: (offset = 0, signal) => call('/v1/journeys/mine?offset=' + offset, 'GET', null, {
-      signal
-    }),
     allMine: signal => pages('/v1/journeys/mine', signal),
     publish: data => call('/v1/journeys', 'POST', data),
     quote: (id, board, alight, signal) => call(path(id) + '/quote', 'POST', {
       board,
       alight
     },{signal}),
-    hold: (id, board, alight, key) => call(path(id) + '/holds', 'POST', {
+    hold: (id, board, alight, key, guest) => call(path(id) + '/holds', 'POST', {
       board,
       alight,
-      checkout_id: key
+      checkout_id: key,
+      guest
     }),
     pay: (id, tid) => call(ticket(id, tid) + '/sandbox-pay', 'POST'),
     cancelTicket: (id, tid, max_fee_paise) => call(ticket(id, tid) + '/cancel', 'POST', {

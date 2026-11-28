@@ -1,11 +1,11 @@
 import {
   head,
   icon,
-  esc,
-  confirmation
+  esc
 } from '../ui.js';
 const guide = 'https://github.com/Nagoor06/commutecircle/blob/main/services/ride-help/guide.md';
 const items = [
+  ['Can I book for someone else?', 'On a public ride, open Ride details and choose Someone else. Enter the traveller’s name with their permission. You handle messages, sandbox payment and cancellation from your account. Send them the pickup details and, for an approval ride, the boarding PIN when it opens. Each traveller books a private circle ride from their own member account.'],
   ['What is CommuteCircle for?', 'Share a seat on a journey a driver already plans to make. Meet at public points, pay for the segment you travel and leave the onward seat available to someone else. Your saved office preferences and contact details stay private.'],
   ['Will I receive a booking confirmation?', 'Your receipt is always in My trips. In Profile, enable email to your verified sign-in address and optionally choose WhatsApp or SMS after phone verification. Alerts are queued only after confirmation; a seat hold is not a booking. Delivery depends on the configured provider. The receipt shows queued, accepted, unavailable or uncertain status. Accepted does not mean delivered. Payments are currently sandbox only.'],
   ['Can I track the vehicle live?', 'Open Track vehicle from a confirmed booking. Your driver must start location sharing and separately allow confirmed passengers. Choose Show live map to follow the car marker from the driver’s GPS, with update age and accuracy. Your own Share my trip link shows your location as a passenger, using a person marker. Keep the sharing browser open; updates can pause in the background.'],
@@ -41,8 +41,7 @@ export function mount({
   root,
   api,
   auth,
-  signal,
-  go
+  signal
 }) {
   root.innerHTML = head('Support / Rider guide', 'Help centre',
       'Answers about reservations, fares and meeting your driver.') +

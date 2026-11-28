@@ -1,9 +1,12 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Share, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
+import { activeReservation, guestItinerary, travellerName } from '../../../../services/api/app/studio/app/shared/booking';
+import { RouteMap } from '../RouteMap';
 import { WebLink } from './Account';
 import { useMobile } from '../context';
 import { useAction, useResource } from '../hooks';
+import { Traveller, TravellerPicker } from '../TravellerPicker';
 import { Button, Card, Feedback, Field, Heading, LoadState, s } from '../ui';
 import { Journey, Quote, Ticket, money, ticketPath, when } from '../types';
 
@@ -21,6 +24,7 @@ function Reservation({
   const [pin, setPin] = useState('');
   const [challenge, setChallenge] = useState<{ pin: string; expires_at: string }>();
   const path = ticketPath(journey.id, ticket.id);
+  const guestName = ticket.guest_name;
   const owner = journey.owner,
     now = Date.now();
   const pickup = Date.parse(journey.departure) + journey.stops[ticket.board].minutes * 60000;
@@ -60,6 +64,22 @@ function Reservation({
         Reservation · {state.replace(/_/g, ' ')}
         {ticket.travel_state === 'boarded' ? ' · boarded' : ''}
       </Text>
+      {ticket.guest_name && (
+        <Text style={s.body}>{owner ? 'Travelling guest' : 'Booked for'} · {ticket.guest_name}</Text>
+      )}
+      {!owner && guestName && state === 'paid' && now < pickup && (
+        <Button
+          secondary
+          title="Share pickup details"
+          disabled={action.busy}
+          onPress={() => void action.run(async () => {
+            const message = guestItinerary(
+              guestName, journey.stops[ticket.board].name, journey.stops[ticket.alight].name, new Date(pickup),
+            );
+            await Share.share({ message });
+          })}
+        />
+      )}
       <Text style={s.muted}>
         Fare {money(ticket.fare_paise)} · Paid {money(ticket.charged_paise)} · Refunded{' '}
         {money(ticket.refund_paise)}
@@ -92,7 +112,7 @@ function Reservation({
       {ticket.confirmed && (
         <Button
           secondary
-          title="Open booking chat"
+          title={owner && ticket.guest_name ? 'Message the booker' : 'Open booking chat'}
           onPress={() => open({ screen: 'chat', journey: journey.id, ticket: ticket.id })}
         />
       )}
@@ -131,7 +151,7 @@ function Reservation({
         ticket.travel_state === 'awaiting_boarding' &&
         Date.parse(challenge.expires_at) > now && (
           <Text style={s.body}>
-            Show your driver {challenge.pin}. Expires {when(challenge.expires_at)}.
+            {ticket.guest_name ? 'Send this PIN privately to ' + ticket.guest_name : 'Show your driver'} · {challenge.pin}. Expires {when(challenge.expires_at)}.
           </Text>
         )}
       {!owner &&
@@ -143,7 +163,7 @@ function Reservation({
             onPress={() => change('complete')}
           />
         )}
-      {state === 'paid' && (
+      {state === 'paid' && (owner || !ticket.guest_name) && (
         <WebLink
           title="Trip sharing and tracking on the website"
           route={owner ? 'trips' : 'checkout/' + journey.id + '/' + ticket.id}
@@ -159,7 +179,7 @@ function Reservation({
   );
 }
 export function Ride({ id, board, alight }: { id: string; board: number; alight: number }) {
-  const { api, signed, login, signingIn } = useMobile();
+  const { api, signed, login, signingIn, open } = useMobile();
   const path = '/v1/journeys/' + encodeURIComponent(id);
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -173,37 +193,54 @@ export function Ride({ id, board, alight }: { id: string; board: number; alight:
   );
   const result = useResource(load, 12000);
   const action = useAction();
-  const requestId = useRef('');
+  const request = useRef({ traveller: '', id: '' });
+  const [traveller, setTraveller] = useState<Traveller>({ kind: 'self' });
   const [consent, setConsent] = useState(false);
   const [receipt, setReceipt] = useState('');
   const j = result.data?.journey,
     q = result.data?.quote;
+  const forGuest = traveller.kind === 'guest';
+  const name = forGuest ? travellerName(traveller.name) : null;
+  const permission = forGuest && traveller.permission;
   const hasReservation = j?.tickets.some(
-    (t) => t.board === board && t.alight === alight && ['requested', 'held', 'paid'].includes(t.state),
+    (t) => activeReservation(t, board, alight, name),
   );
   const book = () =>
     void action.run(async () => {
       if (!j || !q) return;
       const approval = j.booking_mode === 'approval';
       if (approval && !consent) throw Error('Accept the pickup and fare to request this seat.');
-      requestId.current ||= Crypto.randomUUID();
+      if (forGuest && (!j.guest_booking_available || !name || !permission)) {
+        throw Error('Enter the traveller’s name and confirm their permission.');
+      }
+      const key = JSON.stringify([id, board, alight, name?.toLowerCase() ?? null]);
+      if (request.current.traveller !== key) {
+        request.current = { traveller: key, id: Crypto.randomUUID() };
+      }
       const booking = await api<{ id: string; state: string }>(
         path + (approval ? '/requests' : '/holds'),
         {
           method: 'POST',
-          body: approval
-            ? { board, alight, request_id: requestId.current, consent: true, consent_version: 'cc-v2-1' }
-            : { board, alight, checkout_id: requestId.current },
+          body: {
+            board, alight,
+            ...(approval
+              ? { request_id: request.current.id, consent: true, consent_version: 'cc-v2-1' }
+              : { checkout_id: request.current.id }),
+            ...(forGuest ? { guest: { name, permission } } : {}),
+          },
         },
       );
+      request.current = { traveller: '', id: '' };
+      result.refresh();
+      if (!['requested', 'held', 'paid'].includes(booking.state)) {
+        throw Error('The earlier reservation closed. Check availability and try again.');
+      }
       setReceipt(
         booking.state === 'requested'
           ? 'Request sent to the driver.'
           : 'Reservation saved. Review its status below.',
       );
-      requestId.current = '';
       setConsent(false);
-      result.refresh();
     });
   return (
     <View style={s.screen}>
@@ -232,26 +269,42 @@ export function Ride({ id, board, alight }: { id: string; board: number; alight:
               {j.cancelled ? 'Ride cancelled' : q.seats_available + ' seats available'} · Sandbox fares
             </Text>
           </Card>
+          <RouteMap stops={j.stops.slice(board, alight + 1)} />
+          {j.owner && !j.cancelled && Date.parse(j.departure) > Date.now() && (
+            <Button secondary title="Repeat this route" onPress={() => open({ screen: 'repeat', id: j.id })} />
+          )}
           {!j.owner &&
-            !hasReservation &&
+            (!hasReservation || j.guest_booking_available) &&
             j.booking_eligible &&
             !j.cancelled &&
             q.seats_available > 0 && (
               <Card>
                 {signed ? (
                   <>
-                    {j.booking_mode === 'approval' && (
+                    {j.guest_booking_available && (
+                      <TravellerPicker value={traveller} disabled={action.busy} onChange={(next) => {
+                        setTraveller(next);
+                        setConsent(false);
+                        setReceipt('');
+                      }} />
+                    )}
+                    {!hasReservation && j.booking_mode === 'approval' && (
                       <Button
                         secondary
                         title={consent ? '✓ Pickup and fare accepted' : 'Accept pickup time and fare'}
+                        disabled={action.busy}
                         onPress={() => setConsent(!consent)}
                       />
                     )}
-                    <Button
-                      title={j.booking_mode === 'approval' ? 'Request driver approval' : 'Hold a seat'}
-                      disabled={action.busy || (j.booking_mode === 'approval' && !consent)}
-                      onPress={book}
-                    />
+                    {hasReservation ? (
+                      <Text style={s.muted}>See the existing reservation below.</Text>
+                    ) : (
+                      <Button
+                        title={j.booking_mode === 'approval' ? 'Request driver approval' : 'Hold a seat'}
+                        disabled={action.busy || (forGuest && (!permission || !name)) || (j.booking_mode === 'approval' && !consent)}
+                        onPress={book}
+                      />
+                    )}
                   </>
                 ) : (
                   <Button title="Sign in to book" disabled={signingIn} onPress={login} />
@@ -308,7 +361,7 @@ export function Trips() {
   return (
     <View style={s.screen}>
       <Heading>My trips</Heading>
-      <WebLink route="recurring" title="Manage recurring rides on the website" />
+      <Button secondary title="Recurring rides" onPress={() => open({ tab: 'Recurring' })} />
       <LoadState {...result} />
       {!result.loading && !result.error && !result.data?.length && (
         <Text style={s.body}>Your offers and reservations will appear here.</Text>
@@ -319,8 +372,11 @@ export function Trips() {
             {j.stops[0].name} → {j.stops[j.stops.length - 1].name}
           </Text>
           <Text style={s.muted}>
-            {when(j.departure)} · {j.cancelled ? 'Cancelled' : j.owner ? 'Your offer' : 'Passenger'}
+            {when(j.departure)} · {j.cancelled ? 'Cancelled' : j.owner ? 'Your offer' : 'Your reservations'}
           </Text>
+          {!j.owner && j.tickets.some((t) => t.guest_name) && (
+            <Text style={s.body}>Booked for {Array.from(new Set(j.tickets.map((t) => t.guest_name).filter(Boolean))).join(', ')}</Text>
+          )}
           <Button
             secondary
             title="View trip and receipts"
