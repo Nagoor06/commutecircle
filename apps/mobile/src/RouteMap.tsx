@@ -6,6 +6,7 @@ import { jsonRequest } from './api';
 import { coordinate, frame, offlineStyle, pinData, Road, roadRoute, routeLine, streetStyleUrl } from './mapData';
 import type { Place } from './types';
 import { Button, color, s } from './ui';
+import { useMapNetwork } from './useMapNetwork';
 
 type Props = {
   stops: Place[];
@@ -16,15 +17,17 @@ type Streets = 'loading' | 'ready' | 'unavailable';
 
 // Cache the public stylesheet only. Stops and road queries belong to the current screen.
 let streetStyle: StyleSpecification | undefined;
-function useStreets(attempt: number) {
+function useStreets(attempt: number, online: boolean) {
   const [style, setStyle] = useState(streetStyle);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     const abort = new AbortController();
-    setFailed(false);
-    if (!streetStyle) {
-      void jsonRequest<StyleSpecification>(streetStyleUrl, { signal: abort.signal, timeout: 6500 })
-        .then((data) => {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    setFailed(!online);
+    async function load(retry: boolean) {
+      try {
+        if (!streetStyle) {
+          const data = await jsonRequest<StyleSpecification>(streetStyleUrl, { signal: abort.signal, timeout: 10000 });
           if (abort.signal.aborted) return;
           if (data.version !== 8 || !Array.isArray(data.layers) || !data.sources) throw Error();
           streetStyle = {
@@ -32,37 +35,51 @@ function useStreets(attempt: number) {
             sources: { ...data.sources, ...offlineStyle.sources },
             layers: [...offlineStyle.layers, ...data.layers.filter((l) => l.type !== 'background')],
           };
-          setStyle(streetStyle);
-        }).catch(() => { if (!abort.signal.aborted) setFailed(true); });
-    } else setStyle(streetStyle);
-    return () => abort.abort();
-  }, [attempt]);
+        }
+        setStyle(streetStyle);
+        setFailed(false);
+      } catch {
+        if (abort.signal.aborted) return;
+        setFailed(true);
+        // A newly connected radio can report Internet access before the first HTTPS request succeeds.
+        if (retry) retryTimer = setTimeout(() => void load(false), 1800);
+      }
+    }
+    if (online) void load(true);
+    return () => { abort.abort(); clearTimeout(retryTimer); };
+  }, [attempt, online]);
   return { style, failed };
 }
 
-function Canvas({ points, route, road, expanded, choose, pending, onExpand }:
+function Canvas({ points, route, road, expanded, choose, pending, onExpand, online, restored }:
   { points: (LngLat | null)[]; route: LngLat[]; road: boolean; expanded: boolean;
-    choose?: (p: LngLat) => void; pending: LngLat | null; onExpand?: () => void }) {
+    online: boolean; restored: number; choose?: (p: LngLat) => void; pending: LngLat | null; onExpand?: () => void }) {
   const [attempt, setAttempt] = useState(0), [recenter, setRecenter] = useState(0);
-  const { style, failed } = useStreets(attempt);
+  const { style, failed } = useStreets(attempt + restored, online);
   const [streets, setStreets] = useState<Streets>('loading');
   const map = useRef<MapRef>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const ready = useRef(false), checking = useRef(false), generation = useRef(0);
-  const base = style && !failed && streets !== 'unavailable' ? style : offlineStyle;
+  // The online style already contains the bundled land. Keep it mounted so slow tiles
+  // can appear after the fallback message without waiting for a second tap.
+  const base = style ?? offlineStyle;
+  const lastQueryAt = useRef(0);
   const camera = useMemo(() => frame(points.filter((p): p is LngLat => !!p)), [points]);
   useEffect(() => {
     const current = ++generation.current;
     ready.current = false;
     checking.current = false;
+    lastQueryAt.current = 0;
     setStreets(failed ? 'unavailable' : 'loading');
     const timer = setTimeout(() => {
       if (!ready.current && current === generation.current) setStreets('unavailable');
     }, style ? 15000 : 10000);
     return () => { generation.current++; clearTimeout(timer); };
-  }, [style, failed, attempt]);
+  }, [style, failed, attempt, restored]);
   async function rendered() {
     if (!style || failed || base === offlineStyle || !map.current || ready.current || checking.current || !size.w) return;
+    if (Date.now() - lastQueryAt.current < 250) return;
+    lastQueryAt.current = Date.now();
     const current = generation.current;
     checking.current = true;
     try {
@@ -77,15 +94,25 @@ function Canvas({ points, route, road, expanded, choose, pending, onExpand }:
     } catch { /* Another frame can finish while the native style is switching. */ }
     finally { if (current === generation.current) checking.current = false; }
   }
+  useEffect(() => {
+    if (!style || failed || !size.w || streets === 'ready') return;
+    let remaining = 24;
+    const timer = setInterval(() => {
+      void rendered();
+      if (--remaining === 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [style, failed, size.w, size.h, streets, attempt, restored]);
   const pins = useMemo(() => pinData(points), [points]);
   return (
     <View style={expanded ? css.mapBody : undefined}>
       <View style={expanded ? css.mapBody : css.preview}
         onLayout={(e) => { const { width: w, height: h } = e.nativeEvent.layout; setSize({ w, h }); }}>
-        <Map key={attempt} ref={map} androidView="texture" style={StyleSheet.absoluteFill}
+        <Map key={attempt + restored} ref={map} androidView="texture" style={StyleSheet.absoluteFill}
           mapStyle={base} dragPan={expanded} touchZoom={expanded} doubleTapZoom={expanded}
           touchPitch={false} touchRotate={false} compass={false} logo={false}
           onDidFinishRenderingMapFully={() => void rendered()}
+          onDidFinishRenderingFrameFully={() => void rendered()}
           onRegionDidChange={() => void rendered()}
           onDidFailLoadingMap={() => { if (base !== offlineStyle) setStreets('unavailable'); }}
           onPress={choose ? (e) => {
@@ -125,6 +152,7 @@ function Canvas({ points, route, road, expanded, choose, pending, onExpand }:
 }
 
 export function RouteMap({ stops, onSetStop, onEstimate }: Props) {
+  const network = useMapNetwork(), online = network.online !== false;
   const key = JSON.stringify(stops.map(coordinate));
   const points = useMemo<(LngLat | null)[]>(() => JSON.parse(key), [key]);
   const mapped = useMemo(() => points.filter((p): p is LngLat => !!p), [points]);
@@ -135,13 +163,14 @@ export function RouteMap({ stops, onSetStop, onEstimate }: Props) {
   const [pending, setPending] = useState<LngLat | null>(null);
   useEffect(() => {
     if (!complete) return;
+    if (!online) { setRoute((old) => old?.key === key && old.road ? old : { key, failed: true }); return; }
     const abort = new AbortController();
-    setRoute({ key });
-    void roadRoute(mapped, abort.signal).then((road) => {
+    setRoute((old) => old?.key === key && old.road ? old : { key });
+    const timer = setTimeout(() => void roadRoute(mapped, abort.signal).then((road) => {
       if (!abort.signal.aborted) setRoute({ key, road });
-    }).catch(() => { if (!abort.signal.aborted) setRoute({ key, failed: true }); });
-    return () => abort.abort();
-  }, [mapped, key, complete, retry]);
+    }).catch(() => { if (!abort.signal.aborted) setRoute((old) => old?.key === key && old.road ? old : { key, failed: true }); }), 350);
+    return () => { clearTimeout(timer); abort.abort(); };
+  }, [mapped, key, complete, retry, online, network.restored]);
   const road = route?.key === key ? route.road : undefined;
   const line = road?.geometry ?? (complete ? mapped : []);
   const open = () => { Keyboard.dismiss(); setPending(null); setFull(true); };
@@ -154,7 +183,7 @@ export function RouteMap({ stops, onSetStop, onEstimate }: Props) {
   };
   return (
     <View style={css.card}>
-      {!full && <Canvas points={points} route={line} road={!!road} expanded={false} pending={null} onExpand={open} />}
+      {!full && <Canvas online={online} restored={network.restored} points={points} route={line} road={!!road} expanded={false} pending={null} onExpand={open} />}
       {stops.some((p, i) => p.name.trim() && !points[i]) && <View style={css.legend}>
         <Text style={s.muted}>Named stops need a mapped suggestion or a pin to show their position.</Text>
       </View>}
@@ -172,7 +201,7 @@ export function RouteMap({ stops, onSetStop, onEstimate }: Props) {
         <SafeAreaView style={css.full}>
           <View style={css.header}><Text accessibilityRole="header" style={s.heading}>Route map</Text>
             <Button secondary title="Close map" onPress={close} /></View>
-          <Canvas points={points} route={line} road={!!road} expanded pending={pending} choose={onSetStop ? setPending : undefined} />
+          <Canvas online={online} restored={network.restored} points={points} route={line} road={!!road} expanded pending={pending} choose={onSetStop ? setPending : undefined} />
           {onSetStop && <ScrollView style={css.actions} contentContainerStyle={css.actionContent}>
             <Text style={s.body}>{pending ? 'Selected pin · ' + pending[1].toFixed(4) + ', ' + pending[0].toFixed(4) :
               'Tap a public meeting point on the map.'}</Text>

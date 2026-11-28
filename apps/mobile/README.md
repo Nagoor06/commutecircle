@@ -18,7 +18,7 @@ adb install -r android/app/build/outputs/apk/release/app-release.apk
 
 The npm prebuild script pins and verifies Expo's Android template. Android Studio can open the generated `android/` project. For development, run `npm run android` with the same variant after prebuild. On Windows, set the environment variable in PowerShell and use `android\gradlew.bat -p android`.
 
-The preview package is `io.github.nagoor06.commutecircle.preview`. The **Android preview** workflow installs the standalone APK on an Android 16 emulator and checks a cold start in airplane mode, map pin selection, the menu and Android Back on a 360 dp screen, signed-out Inbox, reopening and online cartography. It reports whether real street features rendered. Its artifacts include the APK and startup screenshots.
+The preview package is `io.github.nagoor06.commutecircle.preview`. The **Android preview** workflow installs the standalone APK on an Android 16 emulator and checks a cold start in airplane mode, map pin selection, the menu and Android Back on a 360 dp screen, signed-out Inbox, reopening and automatic map recovery after airplane mode. The emulator enters two Bengaluru stops offline, checks for real street features after reconnecting and reports whether driving directions were available. Its artifacts include the APK and startup screenshots.
 
 ## App flows
 

@@ -62,6 +62,23 @@ def tap(node):
     adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
 
 
+def enter_stop(label_text, coords):
+    for _ in range(4):
+        nodes = snapshot("locating-field")
+        field = next((n for n in nodes if n.get("class") == "android.widget.EditText"
+                      and n.get("content-desc") == label_text), None)
+        # Android may include clipped edit fields in the tree with inverted or zero-height bounds.
+        if field is not None:
+            _, y1, _, y2 = map(int, re.findall(r"\d+", field.get("bounds")))
+        if field is not None and y2 - y1 >= 30:
+            tap(field)
+            adb("shell", "input", "text", coords)
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+            return
+        adb("shell", "input", "swipe", "365", "1190", "365", "560", "350")
+    raise AssertionError(f"{label_text} field is unreachable")
+
+
 def booking(nodes):
     return any("Book a ride" in label(n) for n in nodes) and any(
         n.get("class") == "android.widget.EditText" for n in nodes)
@@ -116,22 +133,26 @@ def main():
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
         launch()
         wait_until("reopened", booking)
+        # Real public coordinates in Bengaluru, entered offline. The route service receives only these fixtures.
+        enter_stop("Pickup", "12.9756,77.6068")
+        enter_stop("Drop-off", "12.9840,77.6083")
+        for _ in range(3):
+            adb("shell", "input", "swipe", "340", "540", "340", "1260", "300")
+        wait_until("offline-city-route", lambda ns: any("Dashed line connects stops" in label(n) for n in ns))
         adb("shell", "cmd", "connectivity", "airplane-mode", "disable")
         adb("shell", "svc", "wifi", "enable")
+        nodes = wait_until("reconnected-city-map", lambda ns: named(ns, "Street map") is not None)
+        if not any("Driving route" in label(n) for n in nodes):
+            nodes = wait_until("city-road-result", lambda ns: any("Driving route" in label(n)
+                               or "Retry driving route" in label(n) for n in ns))
+        driving = any("Driving route" in label(n) for n in nodes)
         adb("shell", "am", "force-stop", PACKAGE)
         launch()
         wait_until("online-cold-launch", booking)
-        def map_settled(ns):
-            return any(label(n) == "Street map" or "offline overview" in label(n) for n in ns)
-        nodes = wait_until("online-map", map_settled)
-        if named(nodes, "Street map") is None:
-            tap(named(nodes, "Retry map"))
-            time.sleep(2)
-            nodes = wait_until("online-map-retry", map_settled)
-        streets = "rendered" if named(nodes, "Street map") is not None else "offline overview"
         print(json.dumps({"offline_launch": "passed", "map_pin": "passed", "drawer": "passed",
                           "native_inbox": "passed", "back": "passed", "reopen": "passed",
-                          "online_launch": "passed", "online_street_tiles": streets}))
+                          "online_launch": "passed", "online_street_tiles": "rendered",
+                          "map_reconnected_without_tap": True, "driving_route": driving}))
     finally:
         capture("final")
         adb("shell", "wm", "size", "reset", check=False)
